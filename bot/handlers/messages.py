@@ -16,7 +16,7 @@ from bot.handlers.download_helpers import (
 from bot.services.client_pool import client_pool
 from bot.services.instagram import instagram_downloader
 from bot.services.verification import get_connection
-from bot.states import ConnectStates
+from bot.states import ConnectStates, SearchStates
 from bot.utils import ParsedCommand, parse_command
 
 router = Router()
@@ -30,28 +30,22 @@ async def handle_text(message: Message, state: FSMContext) -> None:
         return
 
     text = (message.text or "").strip()
-
-    if text in ("📥 دانلود", "📖 راهنما"):
-        if text == "📖 راهنما":
-            await message.answer("از /help استفاده کن.")
-        else:
-            await message.answer(
-                "یوزرنیم، لینک، یا دستور مثل:\n"
-                "<code>highlights username</code>\n"
-                "<code>zip stories username</code>"
-            )
-        return
-
-    if text == "ℹ️ وضعیت":
-        await message.answer("/status")
-        return
+    in_search = current == SearchStates.waiting_query.state
 
     parsed = parse_command(text)
     if not parsed:
-        await message.answer(
-            "یوزرنیم، لینک، یا دستور معتبر بفرست.\n/help"
-        )
+        if in_search:
+            await state.clear()
+            await message.answer("❌ ورودی نامعتبر.\n/search را دوباره بزن.")
+        else:
+            await message.answer(
+                "یوزرنیم، لینک، یا دستور معتبر بفرست.\n"
+                "از دکمه Menu → /directdownload یا /search"
+            )
         return
+
+    if in_search:
+        await state.clear()
 
     if not client_pool.service_ready:
         await message.answer(

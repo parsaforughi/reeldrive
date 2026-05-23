@@ -30,15 +30,18 @@ cp .env.example .env
 python -m bot.main
 ```
 
-## دستورات
+## منوی تلگرام (مثل Regrambot)
+
+دکمه **Menu** کنار چت: `/start`, `/connect`, `/directdownload`, `/myinstagram`, `/search`, `/unfollowers`, `/feed`, `/settings`, `/help`, `/privacy`
 
 | دستور | کار |
 |--------|-----|
-| `/start` | منو |
-| `/connect` | اتصال پیج |
-| `/disconnect` | قطع |
-| `/status` | وضعیت |
-| `/help_directdownload` | راهنمای دانلود |
+| `/start` | 🏠 منوی اصلی |
+| `/connect` | 🔐 اتصال پیج |
+| `/directdownload` | ⚡ دایرکت دانلود |
+| `/myinstagram` | 📩 پیج متصل |
+| `/search` | 🔍 جستجو |
+| `/disconnect` | قطع اتصال |
 
 ## امنیت
 

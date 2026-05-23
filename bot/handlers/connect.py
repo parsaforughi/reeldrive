@@ -12,7 +12,6 @@ router = Router()
 
 
 @router.message(Command("connect"))
-@router.message(F.text == "🔗 اتصال پیج")
 async def cmd_connect(message: Message, state: FSMContext) -> None:
     await state.set_state(ConnectStates.waiting_username)
     await message.answer(
