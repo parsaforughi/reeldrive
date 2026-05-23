@@ -1,6 +1,7 @@
-"""Instagram direct download via Apify Instagram API Scraper."""
+"""Instagram direct download via Apify Instagram Scraper actor."""
 
 import logging
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -12,9 +13,9 @@ from bot.services.instagram import MediaResult
 logger = logging.getLogger(__name__)
 
 TMP = Path("/tmp/reeldrive")
-APIFY_RUN_URL = (
-    "https://api.apify.com/v2/acts/apify~instagram-api-scraper"
-    "/run-sync-get-dataset-items"
+
+PROFILE_PATH_RE = re.compile(
+    r"instagram\.com/([a-zA-Z0-9._]+)/?$", re.IGNORECASE
 )
 
 
@@ -23,12 +24,19 @@ class ApifyDownloader:
     def ready(self) -> bool:
         return bool(settings.apify_token)
 
+    @property
+    def _run_url(self) -> str:
+        actor = settings.apify_actor.strip("/")
+        return (
+            f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
+        )
+
     async def download_media_url(self, url: str) -> MediaResult:
         if not self.ready:
             raise ValueError("Apify تنظیم نشده / Apify not configured")
 
         normalized = self._normalize_url(url)
-        results_type = "reels" if "/reel" in normalized else "posts"
+        results_type = self._results_type(normalized)
         payload = {
             "directUrls": [normalized],
             "resultsType": results_type,
@@ -65,7 +73,7 @@ class ApifyDownloader:
         return MediaResult(
             paths=paths,
             caption=str(caption)[:1024],
-            media_type=item.get("type") or "post",
+            media_type=item.get("type") or results_type,
             direct_urls=media_urls[:10],
         )
 
@@ -73,7 +81,7 @@ class ApifyDownloader:
         timeout = aiohttp.ClientTimeout(total=settings.apify_timeout_seconds)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(
-                APIFY_RUN_URL,
+                self._run_url,
                 params={"token": settings.apify_token},
                 json=payload,
             ) as resp:
@@ -90,33 +98,43 @@ class ApifyDownloader:
                     raise ValueError(str(data["error"]))
                 return []
 
+    def _results_type(self, url: str) -> str:
+        lower = url.lower()
+        if "/reel/" in lower or "/reels/" in lower:
+            return "reels"
+        if "/p/" in lower or "/tv/" in lower:
+            return "posts"
+        if PROFILE_PATH_RE.search(lower):
+            return "details"
+        return "posts"
+
     def _extract_media_urls(self, item: dict) -> list[str]:
         urls: list[str] = []
 
         def add(u: str | None) -> None:
-            if u and u.startswith("http"):
+            if u and isinstance(u, str) and u.startswith("http"):
                 urls.append(u)
 
         add(item.get("videoUrl"))
         add(item.get("video_url"))
         add(item.get("displayUrl"))
         add(item.get("display_url"))
+        add(item.get("profilePicUrl"))
+        add(item.get("profilePicUrlHD"))
 
-        for key in ("images", "imageUrls", "carouselMedia"):
+        for key in ("images", "imageUrls", "carouselMedia", "latestPosts"):
             val = item.get(key)
             if isinstance(val, list):
                 for entry in val:
                     if isinstance(entry, str):
                         add(entry)
                     elif isinstance(entry, dict):
-                        add(entry.get("url"))
-                        add(entry.get("displayUrl"))
+                        urls.extend(self._extract_media_urls(entry))
 
         for child in item.get("childPosts") or item.get("sidecarChildren") or []:
             if isinstance(child, dict):
                 urls.extend(self._extract_media_urls(child))
 
-        # dedupe preserve order
         seen: set[str] = set()
         out: list[str] = []
         for u in urls:

@@ -1,7 +1,7 @@
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardRemove
 
 from bot.config import settings
 from bot.handlers.status_helpers import (
@@ -9,7 +9,6 @@ from bot.handlers.status_helpers import (
     build_myinstagram_text,
     build_status_text,
 )
-from bot.keyboards import myinstagram_kb, settings_kb
 from bot.states import SearchStates
 from bot.texts import (
     FEATURES_FA,
@@ -28,7 +27,7 @@ router = Router()
 @router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.clear()
-    await message.answer(START_FA)
+    await message.answer(START_FA, reply_markup=ReplyKeyboardRemove())
 
 
 @router.message(Command("help"))
@@ -52,8 +51,7 @@ async def cmd_myinstagram(message: Message) -> None:
 
     text = await build_myinstagram_text(message.from_user.id)
     conn = await get_connection(message.from_user.id)
-    connected = bool(conn and conn.status == "connected")
-    await message.answer(text, reply_markup=myinstagram_kb(connected))
+    await message.answer(text)
 
 
 @router.message(Command("search"))
@@ -99,7 +97,9 @@ async def cmd_help_unfollowers_legacy(message: Message) -> None:
 @router.message(Command("settings"))
 async def cmd_settings(message: Message) -> None:
     status = await build_status_text(message.from_user.id)
-    await message.answer(SETTINGS_FA + "\n\n" + status, reply_markup=settings_kb())
+    await message.answer(
+        SETTINGS_FA + "\n\n" + status + "\n\nاز دکمه <b>Menu</b> دستورها را ببین."
+    )
 
 
 @router.message(Command("privacy"))

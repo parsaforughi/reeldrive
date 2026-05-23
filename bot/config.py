@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Apify — direct download (links); no IG login needed
     apify_token: str = ""
+    apify_actor: str = "apify~instagram-scraper"
     apify_timeout_seconds: int = 120
 
     # Service account — optional: profile/stories/highlights (instagrapi)
