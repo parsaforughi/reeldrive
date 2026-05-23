@@ -11,14 +11,37 @@ class Settings(BaseSettings):
     )
 
     telegram_bot_token: str
+
+    # Service account — public downloads, stories, highlights
     instagram_username: str = ""
     instagram_password: str = ""
-    instagram_session_path: str = "sessions/instagram.json"
-    bot_name: str = "Regram Pro"
+    instagram_session_path: str = "sessions/service.json"
+
+    # Bridge account — receives verification codes & user DMs
+    instagram_bridge_username: str = ""
+    instagram_bridge_password: str = ""
+    instagram_bridge_session_path: str = "sessions/bridge.json"
+    instagram_bridge_display: str = "reeldrive_bridge"
+
+    database_url: str = "sqlite+aiosqlite:///./data/reeldrive.db"
+    bot_name: str = "Reeldrive"
+
+    verification_code_ttl_minutes: int = 15
+    bridge_poll_interval_seconds: int = 20
+    max_zip_posts: int = 100
 
     @property
-    def session_file(self) -> Path:
+    def service_session_file(self) -> Path:
         return Path(self.instagram_session_path)
+
+    @property
+    def bridge_session_file(self) -> Path:
+        return Path(self.instagram_bridge_session_path)
+
+    @property
+    def bridge_ig_handle(self) -> str:
+        name = self.instagram_bridge_display or self.instagram_bridge_username
+        return f"@{name.lstrip('@')}"
 
 
 settings = Settings()

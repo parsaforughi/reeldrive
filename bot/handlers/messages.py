@@ -1,140 +1,161 @@
-import asyncio
 import logging
-from pathlib import Path
 
 from aiogram import F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile, Message
 from instagrapi.exceptions import LoginRequired
 
-from bot.services.instagram import (
-    ProfileResult,
-    StoryItem,
-    instagram_service,
+from bot.handlers.download_helpers import (
+    cleanup,
+    run_sync,
+    send_media_result,
+    send_profile,
+    send_stories,
+    send_zip,
 )
-from bot.utils import parse_media_url, parse_username
+from bot.services.client_pool import client_pool
+from bot.services.instagram import instagram_downloader
+from bot.services.verification import get_connection
+from bot.states import ConnectStates
+from bot.utils import ParsedCommand, parse_command
 
 router = Router()
 logger = logging.getLogger(__name__)
 
 
-def format_profile(p: ProfileResult) -> str:
-    private = "🔒" if p.is_private else "🌐"
-    verified = " ✓" if p.is_verified else ""
-    bio = f"\n\n{p.biography}" if p.biography else ""
-    return (
-        f"<b>@{p.username}</b>{verified} {private}\n"
-        f"{p.full_name}\n\n"
-        f"👥 {p.follower_count:,} followers\n"
-        f"➡️ {p.following_count:,} following\n"
-        f"📸 {p.media_count:,} posts"
-        f"{bio}"
-    )
-
-
-async def _run_sync(func, *args):
-    return await asyncio.to_thread(func, *args)
-
-
 @router.message(F.text)
-async def handle_text(message: Message) -> None:
-    text = message.text or ""
-    media_url = parse_media_url(text)
-    username = parse_username(text)
+async def handle_text(message: Message, state: FSMContext) -> None:
+    current = await state.get_state()
+    if current == ConnectStates.waiting_username.state:
+        return
 
-    if not media_url and not username:
+    text = (message.text or "").strip()
+
+    if text in ("📥 دانلود", "📖 راهنما"):
+        if text == "📖 راهنما":
+            await message.answer("از /help استفاده کن.")
+        else:
+            await message.answer(
+                "یوزرنیم، لینک، یا دستور مثل:\n"
+                "<code>highlights username</code>\n"
+                "<code>zip stories username</code>"
+            )
+        return
+
+    if text == "ℹ️ وضعیت":
+        await message.answer("/status")
+        return
+
+    parsed = parse_command(text)
+    if not parsed:
         await message.answer(
-            "یوزرنیم یا لینک اینستاگرام بفرست.\n"
-            "Send an Instagram username or link.\n\n"
-            "/help"
+            "یوزرنیم، لینک، یا دستور معتبر بفرست.\n/help"
         )
         return
 
-    if not instagram_service.is_ready:
+    if not client_pool.service_ready:
         await message.answer(
-            "⚠️ ربات هنوز به اینستاگرام وصل نشده. بعداً دوباره امتحان کن.\n"
-            "⚠️ Instagram not connected yet. Try again later."
+            "⚠️ سرویس اینستاگرام آماده نیست. بعداً تلاش کن.\n"
+            "⚠️ Instagram service not ready."
         )
         return
 
-    status = await message.answer("⏳ در حال پردازش… / Processing…")
+    status = await message.answer("⏳ در حال پردازش…")
 
     try:
-        if media_url:
-            await _handle_media(message, status, media_url)
-        elif username:
-            await _handle_profile(message, status, username)
+        await _dispatch(message, status, parsed)
     except ValueError as exc:
         await status.edit_text(f"❌ {exc}")
     except LoginRequired:
-        await status.edit_text(
-            "❌ اتصال اینستاگرام قطع شده.\n❌ Instagram session expired."
-        )
+        await status.edit_text("❌ سشن اینستاگرام منقضی شد.")
     except Exception:
-        logger.exception("Handler error")
-        await status.edit_text(
-            "❌ خطا رخ داد. دوباره امتحان کن.\n❌ Something went wrong."
+        logger.exception("Download error")
+        await status.edit_text("❌ خطا. دوباره امتحان کن.")
+
+
+async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> None:
+    if cmd.kind == "media_url" and cmd.url:
+        result = await run_sync(instagram_downloader.download_media_url, cmd.url)
+        await status.delete()
+        await send_media_result(message, result)
+        return
+
+    if cmd.kind == "hashtag" and cmd.hashtag:
+        links = await run_sync(instagram_downloader.search_hashtag, cmd.hashtag, 15)
+        await status.delete()
+        if not links:
+            await message.answer("پستی پیدا نشد.")
+            return
+        text = f"#{cmd.hashtag}\n\n" + "\n".join(links[:15])
+        await message.answer(text)
+        return
+
+    if not cmd.username:
+        await status.edit_text("❌ یوزرنیم نامعتبر")
+        return
+
+    user = cmd.username
+    conn = await get_connection(message.from_user.id)
+    connected = conn and conn.status == "connected"
+
+    if cmd.kind == "profile":
+        await send_profile(message, user, status)
+        return
+
+    if cmd.kind == "stories":
+        await status.delete()
+        await send_stories(message, user)
+        return
+
+    if cmd.kind == "highlights_list":
+        highlights = await run_sync(instagram_downloader.list_highlights, user)
+        await status.delete()
+        if not highlights:
+            await message.answer("هایلایتی نیست.")
+            return
+        lines = [f"📂 هایلایت‌های @{user}:\n"]
+        for i, h in enumerate(highlights, 1):
+            lines.append(f"{i}. {h.title} ({h.item_count} آیتم)")
+        lines.append(f"\nدانلود: <code>highlight {user} 1</code>")
+        await message.answer("\n".join(lines))
+        return
+
+    if cmd.kind == "highlight_one" and cmd.index:
+        items = await run_sync(
+            instagram_downloader.download_highlight_by_index, user, cmd.index
         )
+        await status.delete()
+        if not items:
+            await message.answer("خالی بود.")
+            return
+        for item in items:
+            if item.is_video:
+                await message.answer_video(
+                    FSInputFile(item.path), caption=item.taken_at
+                )
+            else:
+                await message.answer_photo(
+                    FSInputFile(item.path), caption=item.taken_at
+                )
+            cleanup(item.path)
+        return
 
+    if cmd.kind == "zip_stories":
+        zip_path = await run_sync(instagram_downloader.zip_stories, user)
+        await status.delete()
+        await send_zip(message, zip_path, f"Stories @{user}")
+        return
 
-async def _handle_profile(message: Message, status: Message, username: str) -> None:
-    profile: ProfileResult = await _run_sync(
-        instagram_service.get_profile, username
-    )
-    await status.edit_text(format_profile(profile))
+    if cmd.kind == "zip_posts":
+        zip_path = await run_sync(instagram_downloader.zip_posts, user)
+        await status.delete()
+        await send_zip(message, zip_path, f"Posts @{user}")
+        return
 
-    if profile.profile_pic_path.exists():
-        await message.answer_photo(
-            FSInputFile(profile.profile_pic_path),
-            caption=f"@{profile.username}",
-        )
+    # default profile
+    await send_profile(message, user, status)
 
-    if profile.is_private:
+    if connected:
         await message.answer(
-            "اکانت پرایوت — استوری در دسترس نیست.\n"
-            "Private account — stories unavailable."
+            f"✅ پیج متصل: @{conn.instagram_username}"
         )
-        return
-
-    stories: list[StoryItem] = await _run_sync(
-        instagram_service.get_stories, username
-    )
-    if not stories:
-        await message.answer("استوری فعالی نیست.\nNo active stories.")
-        return
-
-    await message.answer(
-        f"📖 {len(stories)} استوری / {len(stories)} stories"
-    )
-    for item in stories:
-        caption = item.taken_at or None
-        if item.is_video:
-            await message.answer_video(FSInputFile(item.path), caption=caption)
-        else:
-            await message.answer_photo(FSInputFile(item.path), caption=caption)
-        _cleanup(item.path)
-
-    _cleanup(profile.profile_pic_path)
-
-
-async def _handle_media(message: Message, status: Message, url: str) -> None:
-    result = await _run_sync(instagram_service.download_media_url, url)
-    await status.delete()
-
-    if result.caption:
-        await message.answer(result.caption[:1024])
-
-    for path in result.paths:
-        if not path.exists():
-            continue
-        if path.suffix.lower() in {".mp4", ".mov"}:
-            await message.answer_video(FSInputFile(path))
-        else:
-            await message.answer_photo(FSInputFile(path))
-        _cleanup(path)
-
-
-def _cleanup(path: Path) -> None:
-    try:
-        path.unlink(missing_ok=True)
-    except OSError:
-        pass

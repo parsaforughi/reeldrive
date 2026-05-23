@@ -1,43 +1,45 @@
-# Regram Pro
+# Reeldrive
 
-ربات تلگرام برای دانلود پروفایل، استوری و پست/ریل اینستاگرام (شبیه Regrambot).
+ربات تلگرام شبیه [@Regrambot](https://t.me/Regrambot) — دانلود از اینستاگرام + اتصال پیج با کد تأیید.
 
-## راه‌اندازی محلی
+**همه امکانات فعلاً رایگان** — بدون Apify و بدون اشتراک پولی. فقط `instagrapi` و اکانت اینستاگرام خودت.
+
+## امکانات
+
+- **دایرکت دانلود:** لینک پست/ریل/کاروسel، استوری، هایلایت، پروفایل HD
+- **اتصال پیج:** `/connect` → کد → DM به اکانت bridge در IG → دریافت لینک‌ها در تلگرام
+- **زیپ:** `zip stories user` | `zip posts user`
+- **هشتگ:** `#tag` یا `hashtag name`
+- **لیست نظارت:** `/watch add|list|remove` (اتصال پیج لازم)
+
+## Railway
+
+1. Repo: https://github.com/parsaforughi/reeldrive
+2. Variables: `TELEGRAM_BOT_TOKEN`, `INSTAGRAM_USERNAME`, `INSTAGRAM_PASSWORD`
+3. برای پل تأیید: `INSTAGRAM_BRIDGE_USERNAME` / `PASSWORD` (یا همان سرویس)
+4. `INSTAGRAM_BRIDGE_DISPLAY` — نام نمایشی در پیام‌ها
+5. Volume روی `sessions/` و `data/`
+6. Start: `python -m bot.main`
+
+## محلی
 
 ```bash
-cd "regram pro"
-python3 -m venv .venv
-source .venv/bin/activate
+python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# توکن و اکانت اینستاگرام را در .env پر کن
 python -m bot.main
 ```
 
-## دیپلوی روی Railway
+## دستورات
 
-1. پروژه را در [Railway](https://railway.app) بساز و این ریپو را وصل کن (یا `railway up` از CLI).
-2. در **Variables** این‌ها را اضافه کن:
-
-| متغیر | توضیح |
-|--------|--------|
-| `TELEGRAM_BOT_TOKEN` | توکن از @BotFather |
-| `INSTAGRAM_USERNAME` | اکانت IG ربات |
-| `INSTAGRAM_PASSWORD` | پسورد همان اکانت |
-| `BOT_NAME` | اختیاری — نام نمایشی |
-
-3. سرویس به‌صورت **Worker** اجرا می‌شود (`python -m bot.main` با polling).
-4. Volume (اختیاری): مسیر `sessions/` را mount کن تا سشن اینستاگرام بعد از ری‌استارت بماند.
+| دستور | کار |
+|--------|-----|
+| `/start` | منو |
+| `/connect` | اتصال پیج |
+| `/disconnect` | قطع |
+| `/status` | وضعیت |
+| `/help_directdownload` | راهنمای دانلود |
 
 ## امنیت
 
-- توکن را هرگز در گیت commit نکن.
-- اگر توکن لو رفت، در BotFather با `/revoke` توکن جدید بگیر.
-
-## دستورات ربات
-
-- `/start` — خوش‌آمد
-- `/help` — راهنما
-- `/status` — وضعیت اتصال اینستاگرام
-
-ارسال یوزرنیم یا لینک پست/ریل اینستاگرام.
+توکن و پسورد را commit نکن. اگر توکن لو رفت: BotFather → `/revoke`.

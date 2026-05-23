@@ -1,55 +1,64 @@
 from bot.config import settings
 
 NAME = settings.bot_name
+BRIDGE = settings.bridge_ig_handle
+
+FEATURES_FA = f"""💬 <b>امکانات {NAME}</b>
+
+همه امکانات فعلاً <b>رایگان</b> هستند (بدون اشتراک).
+
+<b>📃 دایرکت دانلود (رایگان):</b>
+• لینک پست / ریل / اسلاید
+• پست تک‌عکس، استوری، هایلایت
+• یوزرنیم → پروفایل HD + آمار + استوری
+
+<b>🔗 اتصال پیج:</b>
+• /connect — کد تأیید → دایرکت {BRIDGE}
+• بعد از اتصال: لینک‌ها را در تلگرام یا دایرکت {BRIDGE} بفرست
+
+<b>دستورات ویژه:</b>
+<code>highlights username</code> — لیست هایلایت
+<code>highlight username 1</code> — دانلود هایلایت
+<code>zip stories username</code> — زیپ استوری‌ها
+<code>zip posts username</code> — زیپ پست‌ها (تا {settings.max_zip_posts})
+<code>#tag</code> — جستجوی هشتگ
+
+/help_directdownload — راهنمای دانلود
+/help_watchlist — لیست نظارت
+"""
+
+HELP_DIRECT_FA = f"""📃 <b>راهنمای دایرکت دانلود</b>
+
+1️⃣ <b>لینک</b> — هر لینک پست/ریل/اسلاید را بفرست
+2️⃣ <b>یوزرنیم</b> — <code>instagram</code> → پروفایل + استوری
+3️⃣ <b>هایلایت</b> — <code>highlights username</code> سپس <code>highlight username 1</code>
+4️⃣ <b>زیپ</b> — <code>zip stories user</code> | <code>zip posts user</code>
+
+⚠️ پیج‌های پرایوت فقط با /connect (و فالو متقابل) در آینده کامل‌تر می‌شود.
+"""
+
+HELP_CONNECT_FA = f"""🔗 <b>اتصال پیج</b>
+
+1. /connect
+2. یوزرنیم پیجت را بفرست
+3. کد را در <b>دایرکت اینستاگرام</b> به {BRIDGE} بفرست
+4. پس از تأیید، لینک‌ها را در تلگرام یا همان دایرکت بفرست
+
+/disconnect — قطع اتصال
+"""
+
+HELP_WATCHLIST_FA = """👁 <b>لیست نظارت</b>
+
+/watch add username — افزودن
+/watch list — نمایش لیست
+/watch remove username — حذف
+
+وقتی پست جدید بیاید (به‌زودی اعلان خودکار).
+"""
 
 START_FA = f"""سلام! 👋 من <b>{NAME}</b> هستم.
 
-یوزرنیم اینستاگرام یا لینک پست/ریل/استوری رو بفرست:
+{FEATURES_FA}
 
-• <code>@username</code> یا <code>username</code>
-• پروفایل + عکس پروفایل + آمار
-• استوری‌های فعال (اگر عمومی باشه)
-
-• لینک پست: <code>instagram.com/p/...</code>
-• لینک ریل: <code>instagram.com/reel/...</code>
-
-دستورات:
-/help — راهنما
-/status — وضعیت اتصال اینستاگرام
-"""
-
-START_EN = f"""Hi! 👋 I'm <b>{NAME}</b>.
-
-Send an Instagram username or link:
-
-• <code>@username</code> or <code>username</code>
-• Profile picture + account stats
-• Active stories (public accounts)
-
-• Post link: <code>instagram.com/p/...</code>
-• Reel link: <code>instagram.com/reel/...</code>
-
-Commands:
-/help — Help
-/status — Instagram connection status
-"""
-
-HELP_FA = """<b>راهنما</b>
-
-<b>پروفایل:</b> یوزرنیم بفرست (مثلاً <code>instagram</code>)
-<b>پست/ریل:</b> لینک کامل اینستاگرام
-<b>استوری:</b> یوزرنیم — استوری‌های ۲۴ ساعته ارسال می‌شه
-
-⚠️ اکانت‌های پرایوت قابل دسترسی نیستند.
-⚠️ برای استوری، ربات باید به اینستاگرام لاگین باشه (/status).
-"""
-
-HELP_EN = """<b>Help</b>
-
-<b>Profile:</b> Send a username (e.g. <code>instagram</code>)
-<b>Post/Reel:</b> Send full Instagram URL
-<b>Stories:</b> Send username — active stories will be sent
-
-⚠️ Private accounts are not supported.
-⚠️ Stories require Instagram login (/status).
+از منوی زیر یا /help استفاده کن.
 """
