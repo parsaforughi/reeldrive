@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from bot.config import settings
+from bot.media_variants import extract_media_variants, pick_best_download
 from bot.post_display import post_meta_from_apify
 from bot.services.instagram import MediaResult
 from bot.services.post_cache import CachedPost, cache_post
@@ -51,16 +52,30 @@ class ApifyDownloader:
             raise ValueError("پست پیدا نشد / No data from Instagram")
 
         item = items[0]
-        media_urls = self._extract_media_urls(item)
-        if not media_urls:
+        variants = extract_media_variants(item)
+        if not variants:
             raise ValueError("لینک مدیا در خروجی نبود / No media URLs in response")
+
+        best = pick_best_download(variants)
+        all_urls = [v.url for v in variants]
 
         folder = TMP
         folder.mkdir(parents=True, exist_ok=True)
         paths: list[Path] = []
         async with aiohttp.ClientSession() as session:
-            for i, media_url in enumerate(media_urls[:20]):
-                path = await self._download_file(session, media_url, folder, i)
+            # Main preview: best quality video, or all carousel images
+            if best and best.kind == "video":
+                path = await self._download_file(session, best.url, folder, 0)
+                if path:
+                    paths.append(path)
+            else:
+                for i, var in enumerate(variants[:10]):
+                    if var.kind == "image":
+                        path = await self._download_file(session, var.url, folder, i)
+                        if path:
+                            paths.append(path)
+            if not paths and best:
+                path = await self._download_file(session, best.url, folder, 0)
                 if path:
                     paths.append(path)
 
@@ -74,14 +89,15 @@ class ApifyDownloader:
                 CachedPost(
                     source_url=normalized,
                     apify_item=item,
-                    direct_urls=media_urls[:10],
+                    direct_urls=all_urls,
+                    variants=variants,
                 ),
             )
         return MediaResult(
             paths=paths,
             caption=meta.caption,
             media_type=item.get("type") or results_type,
-            direct_urls=media_urls[:10],
+            direct_urls=all_urls,
             post_meta=meta,
             source_url=normalized,
         )
@@ -146,49 +162,6 @@ class ApifyDownloader:
         if PROFILE_PATH_RE.search(lower):
             return "details"
         return "posts"
-
-    def _extract_media_urls(self, item: dict) -> list[str]:
-        urls: list[str] = []
-
-        def add(u: str | None) -> None:
-            if u and isinstance(u, str) and u.startswith("http"):
-                urls.append(u)
-
-        add(item.get("videoUrl"))
-        add(item.get("video_url"))
-        add(item.get("displayUrl"))
-        add(item.get("display_url"))
-        add(item.get("profilePicUrl"))
-        add(item.get("profilePicUrlHD"))
-
-        for res_url in item.get("displayResourceUrls") or []:
-            add(res_url)
-
-        # Single video: use videoUrl instead of thumbnail displayUrl
-        post_type = (item.get("type") or "").lower()
-        if post_type == "video" and item.get("videoUrl") and not item.get("childPosts"):
-            urls = [str(item["videoUrl"])]
-
-        for key in ("images", "imageUrls", "carouselMedia", "latestPosts"):
-            val = item.get(key)
-            if isinstance(val, list):
-                for entry in val:
-                    if isinstance(entry, str):
-                        add(entry)
-                    elif isinstance(entry, dict):
-                        urls.extend(self._extract_media_urls(entry))
-
-        for child in item.get("childPosts") or item.get("sidecarChildren") or []:
-            if isinstance(child, dict):
-                urls.extend(self._extract_media_urls(child))
-
-        seen: set[str] = set()
-        out: list[str] = []
-        for u in urls:
-            if u not in seen:
-                seen.add(u)
-                out.append(u)
-        return out
 
     async def _download_file(
         self,
