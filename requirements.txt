@@ -7,3 +7,4 @@ Pillow>=10.0.0
 SQLAlchemy[asyncio]==2.0.40
 aiosqlite==0.21.0
 greenlet>=3.0.0
+jdatetime>=5.0.0

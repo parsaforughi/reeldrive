@@ -9,7 +9,9 @@ from urllib.parse import urlparse
 import aiohttp
 
 from bot.config import settings
+from bot.post_display import post_meta_from_apify
 from bot.services.instagram import MediaResult
+from bot.services.post_cache import CachedPost, cache_post
 
 logger = logging.getLogger(__name__)
 
@@ -65,17 +67,23 @@ class ApifyDownloader:
         if not paths:
             raise ValueError("دانلود فایل ناموفق / File download failed")
 
-        caption = (
-            item.get("caption")
-            or item.get("text")
-            or item.get("alt")
-            or ""
-        )
+        meta = post_meta_from_apify(item, normalized)
+        if meta.short_code:
+            cache_post(
+                meta.short_code,
+                CachedPost(
+                    source_url=normalized,
+                    apify_item=item,
+                    direct_urls=media_urls[:10],
+                ),
+            )
         return MediaResult(
             paths=paths,
-            caption=str(caption)[:1024],
+            caption=meta.caption,
             media_type=item.get("type") or results_type,
             direct_urls=media_urls[:10],
+            post_meta=meta,
+            source_url=normalized,
         )
 
     async def _run_actor(self, payload: dict) -> list[dict]:

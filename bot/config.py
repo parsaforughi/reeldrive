@@ -30,6 +30,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite+aiosqlite:///./data/reeldrive.db"
     bot_name: str = "Reeldrive"
+    bot_mention: str = "reeldrivebot"
 
     verification_code_ttl_minutes: int = 15
     bridge_poll_interval_seconds: int = 20

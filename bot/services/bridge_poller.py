@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from aiogram import Bot
-from aiogram.types import FSInputFile
 
 from bot.config import settings
 from bot.services.client_pool import client_pool
+from bot.handlers.download_helpers import deliver_media_result
 from bot.services.direct_download import download_media_url
 from bot.services.verification import (
     confirm_connection,
@@ -134,28 +134,6 @@ class BridgePoller:
     async def _download_and_send(self, chat_id: int, url: str) -> None:
         try:
             result = await download_media_url(url)
-            for path in result.paths:
-                await self._send_file(chat_id, path)
-                self._unlink(path)
-            if result.direct_urls:
-                await self._bot.send_message(
-                    chat_id,
-                    "🔗 لینک مستقیم:\n" + "\n".join(result.direct_urls[:5]),
-                )
+            await deliver_media_result(self._bot, chat_id, result)
         except ValueError as exc:
             await self._bot.send_message(chat_id, f"❌ {exc}")
-
-    async def _send_file(self, chat_id: int, path: Path) -> None:
-        if not path.exists():
-            return
-        if path.suffix.lower() in {".mp4", ".mov"}:
-            await self._bot.send_video(chat_id, FSInputFile(path))
-        else:
-            await self._bot.send_photo(chat_id, FSInputFile(path))
-
-    @staticmethod
-    def _unlink(path: Path) -> None:
-        try:
-            path.unlink(missing_ok=True)
-        except OSError:
-            pass

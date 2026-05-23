@@ -42,6 +42,8 @@ class MediaResult:
     caption: str
     media_type: str
     direct_urls: list[str] = field(default_factory=list)
+    post_meta: object | None = None  # PostMeta when available
+    source_url: str = ""
 
 
 @dataclass

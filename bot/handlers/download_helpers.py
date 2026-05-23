@@ -1,8 +1,11 @@
 import asyncio
 from pathlib import Path
 
+from aiogram import Bot
 from aiogram.types import FSInputFile, Message
 
+from bot.keyboards import post_actions_kb
+from bot.post_display import PostMeta, format_post_caption
 from bot.services.instagram import (
     MediaResult,
     ProfileResult,
@@ -74,21 +77,55 @@ async def send_stories(message: Message, username: str) -> None:
         cleanup(item.path)
 
 
-async def send_media_result(message: Message, result: MediaResult) -> None:
-    if result.caption:
-        await message.answer(result.caption[:1024])
-    for path in result.paths:
-        if not path.exists():
-            continue
-        if path.suffix.lower() in {".mp4", ".mov"}:
-            await message.answer_video(FSInputFile(path))
-        else:
-            await message.answer_photo(FSInputFile(path))
-        cleanup(path)
-    if result.direct_urls:
-        await message.answer(
-            "🔗 لینک مستقیم:\n" + "\n".join(result.direct_urls[:5])
+async def deliver_media_result(
+    bot: Bot, chat_id: int, result: MediaResult
+) -> None:
+    meta: PostMeta | None = (
+        result.post_meta if isinstance(result.post_meta, PostMeta) else None
+    )
+    caption_html = (
+        format_post_caption(meta) if meta else (result.caption or "")[:1024]
+    )
+    keyboard = None
+    if meta and meta.post_url:
+        keyboard = post_actions_kb(meta.post_url, meta.short_code)
+
+    paths = [p for p in result.paths if p.exists()]
+    if not paths:
+        await bot.send_message(chat_id, "❌ فایل یافت نشد.")
+        return
+
+    first = paths[0]
+    is_video = first.suffix.lower() in {".mp4", ".mov"}
+
+    if is_video:
+        await bot.send_video(
+            chat_id,
+            FSInputFile(first),
+            caption=caption_html or None,
+            reply_markup=keyboard,
         )
+    else:
+        await bot.send_photo(
+            chat_id,
+            FSInputFile(first),
+            caption=caption_html or None,
+            reply_markup=keyboard,
+        )
+    cleanup(first)
+
+    for extra in paths[1:]:
+        if not extra.exists():
+            continue
+        if extra.suffix.lower() in {".mp4", ".mov"}:
+            await bot.send_video(chat_id, FSInputFile(extra))
+        else:
+            await bot.send_photo(chat_id, FSInputFile(extra))
+        cleanup(extra)
+
+
+async def send_media_result(message: Message, result: MediaResult) -> None:
+    await deliver_media_result(message.bot, message.chat.id, result)
 
 
 async def send_zip(message: Message, zip_path: Path, caption: str) -> None:
