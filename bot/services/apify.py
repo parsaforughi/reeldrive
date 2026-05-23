@@ -1,5 +1,6 @@
 """Instagram direct download via Apify Instagram Scraper actor."""
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -85,18 +86,48 @@ class ApifyDownloader:
                 params={"token": settings.apify_token},
                 json=payload,
             ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    logger.error("Apify HTTP %s: %s", resp.status, body[:500])
+                body_text = await resp.text()
+                # 200 OK and 201 Created are both success (Apify may return either)
+                if not (200 <= resp.status < 300):
+                    logger.error("Apify HTTP %s: %s", resp.status, body_text[:500])
                     raise ValueError(
                         f"Apify خطا ({resp.status}). توکن یا اعتبار را چک کن."
                     )
-                data = await resp.json()
-                if isinstance(data, list):
-                    return data
-                if isinstance(data, dict) and "error" in data:
-                    raise ValueError(str(data["error"]))
-                return []
+                if not body_text.strip():
+                    return []
+                try:
+                    data = json.loads(body_text)
+                except json.JSONDecodeError as exc:
+                    raise ValueError("پاسخ Apify نامعتبر بود.") from exc
+                return self._parse_dataset_response(data)
+
+    def _parse_dataset_response(self, data: object) -> list[dict]:
+        if isinstance(data, list):
+            return [x for x in data if isinstance(x, dict)]
+
+        if not isinstance(data, dict):
+            return []
+
+        if "error" in data:
+            raise ValueError(str(data["error"]))
+
+        # Accidental /runs response: { "data": { "id": "...", "status": "..." } }
+        inner = data.get("data")
+        if isinstance(inner, dict) and "id" in inner and "defaultDatasetId" in inner:
+            raise ValueError(
+                "Apify فقط Run را ساخت. از run-sync-get-dataset-items استفاده می‌شود — "
+                "اگر باز هم این پیام را دیدی، Actor یا توکن را چک کن."
+            )
+
+        if isinstance(inner, list):
+            return [x for x in inner if isinstance(x, dict)]
+
+        for key in ("items", "datasetItems"):
+            val = data.get(key)
+            if isinstance(val, list):
+                return [x for x in val if isinstance(x, dict)]
+
+        return []
 
     def _results_type(self, url: str) -> str:
         lower = url.lower()
@@ -121,6 +152,14 @@ class ApifyDownloader:
         add(item.get("display_url"))
         add(item.get("profilePicUrl"))
         add(item.get("profilePicUrlHD"))
+
+        for res_url in item.get("displayResourceUrls") or []:
+            add(res_url)
+
+        # Single video: use videoUrl instead of thumbnail displayUrl
+        post_type = (item.get("type") or "").lower()
+        if post_type == "video" and item.get("videoUrl") and not item.get("childPosts"):
+            urls = [str(item["videoUrl"])]
 
         for key in ("images", "imageUrls", "carouselMedia", "latestPosts"):
             val = item.get(key)
@@ -152,7 +191,7 @@ class ApifyDownloader:
     ) -> Path | None:
         try:
             async with session.get(url) as resp:
-                if resp.status != 200:
+                if not (200 <= resp.status < 300):
                     return None
                 data = await resp.read()
                 ext = ".mp4" if "video" in (resp.content_type or "") else ".jpg"
