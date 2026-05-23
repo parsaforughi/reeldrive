@@ -1,0 +1,7 @@
+# Use this config for the Dashboard WEB service in Railway (second service)
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "python -m dashboard"
+restartPolicyType = "ON_FAILURE"

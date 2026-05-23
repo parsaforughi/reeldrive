@@ -16,13 +16,25 @@
 
 ## Railway
 
-1. Repo: https://github.com/parsaforughi/reeldrive
-2. Variables: `TELEGRAM_BOT_TOKEN`, **`APIFY_TOKEN`** (الزامی برای لینک)
-3. برای اتصال پیج: `INSTAGRAM_BRIDGE_USERNAME` / `PASSWORD` + `INSTAGRAM_BRIDGE_DISPLAY`
-4. اختیاری: `INSTAGRAM_USERNAME` / `PASSWORD` (پروفایل/استوری)
-4. `INSTAGRAM_BRIDGE_DISPLAY` — نام نمایشی در پیام‌ها
-5. Volume روی `sessions/` و `data/`
-6. Start: `python -m bot.main`
+**سرویس ۱ — ربات (Worker)**  
+Start: `python -m bot.main`
+
+**سرویس ۲ — داشبورد (Web)**  
+Start: `python -m dashboard`  
+Public URL را باز کن → ورود با `DASHBOARD_PASSWORD`
+
+Variables مشترک: `DATABASE_URL` (Postgres توصیه می‌شود)، `TELEGRAM_BOT_TOKEN`, `APIFY_TOKEN`, `INSTAGRAM_BRIDGE_*`, `DASHBOARD_PASSWORD`, `DASHBOARD_SECRET`
+
+Volume: `sessions/` و `data/`
+
+## داشبورد ادمین
+
+UI با تم Telegram × Instagram: کاربران، لاگ زنده، اشتراک‌ها (free/pro/premium)، وضعیت Apify/IG.
+
+```bash
+python -m dashboard
+# → http://localhost:8080
+```
 
 ## محلی
 
@@ -30,7 +42,8 @@
 python3.13 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-python -m bot.main
+python -m bot.main   # ترمینال ۱
+python -m dashboard  # ترمینال ۲
 ```
 
 ## منوی تلگرام (مثل Regrambot)

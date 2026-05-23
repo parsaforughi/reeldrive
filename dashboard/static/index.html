@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reeldrive — Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --tg: #2aabee;
+      --tg-dark: #229ed9;
+      --ig1: #f09433;
+      --ig2: #e6683c;
+      --ig3: #dc2743;
+      --ig4: #cc2366;
+      --ig5: #bc1888;
+      --bg: #07070f;
+      --card: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.1);
+      --text: #f4f6fb;
+      --muted: #9aa3b8;
+      --glow: 0 0 40px rgba(42,171,238,0.25);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Vazirmatn", "Inter", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .mesh {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 80% 50% at 10% 20%, rgba(42,171,238,0.18), transparent),
+        radial-gradient(ellipse 60% 40% at 90% 10%, rgba(188,24,136,0.2), transparent),
+        radial-gradient(ellipse 50% 50% at 50% 100%, rgba(230,104,60,0.12), transparent);
+    }
+    .grid-bg {
+      position: fixed; inset: 0; z-index: 0; opacity: 0.04;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+    .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+    .login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      width: 100%; max-width: 400px; padding: 40px;
+      background: var(--card); backdrop-filter: blur(24px);
+      border: 1px solid var(--border); border-radius: 24px;
+      box-shadow: var(--glow);
+    }
+    .logo {
+      font-size: 1.75rem; font-weight: 700; margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--tg), var(--ig3), var(--ig5));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+    input {
+      width: 100%; padding: 14px 16px; border-radius: 12px;
+      border: 1px solid var(--border); background: rgba(0,0,0,0.35);
+      color: var(--text); font-family: inherit; margin-bottom: 16px;
+    }
+    input:focus { outline: none; border-color: var(--tg); box-shadow: 0 0 0 3px rgba(42,171,238,0.2); }
+    .btn {
+      padding: 12px 20px; border: none; border-radius: 12px; cursor: pointer;
+      font-family: inherit; font-weight: 600; font-size: 0.95rem;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, var(--tg-dark), var(--ig4));
+      color: white; box-shadow: 0 8px 32px rgba(42,171,238,0.35);
+    }
+    .btn-ghost {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+    }
+    .header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 28px;
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      background: linear-gradient(90deg, var(--tg), #fff, var(--ig3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 999px; font-size: 0.75rem;
+      background: rgba(42,171,238,0.15); border: 1px solid rgba(42,171,238,0.35);
+    }
+    .badge::before {
+      content: ""; width: 8px; height: 8px; border-radius: 50%;
+      background: #4ade80; box-shadow: 0 0 8px #4ade80;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    .stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .stat {
+      padding: 20px; border-radius: 16px; background: var(--card);
+      border: 1px solid var(--border); backdrop-filter: blur(12px);
+      position: relative; overflow: hidden;
+    }
+    .stat::after {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--tg), var(--ig3));
+    }
+    .stat-label { color: var(--muted); font-size: 0.8rem; margin-bottom: 8px; }
+    .stat-value { font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .panels { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; backdrop-filter: blur(16px); overflow: hidden;
+    }
+    .panel-head {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .panel-head h2 { font-size: 1rem; font-weight: 600; }
+    .panel-body { padding: 16px; max-height: 420px; overflow-y: auto; }
+    .log-item, .user-row {
+      padding: 12px; border-radius: 12px; margin-bottom: 8px;
+      background: rgba(0,0,0,0.25); border: 1px solid transparent;
+      font-size: 0.85rem;
+    }
+    .log-item:hover, .user-row:hover { border-color: var(--border); }
+    .log-type {
+      display: inline-block; padding: 2px 8px; border-radius: 6px;
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+    }
+    .log-type.download { background: rgba(188,24,136,0.25); color: #f9a8d4; }
+    .log-type.command { background: rgba(42,171,238,0.25); color: #7dd3fc; }
+    .log-type.callback { background: rgba(230,104,60,0.2); color: #fdba74; }
+    .log-type.default { background: rgba(255,255,255,0.08); color: var(--muted); }
+    .muted { color: var(--muted); font-size: 0.75rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .plan {
+      padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;
+    }
+    .plan.free { background: rgba(255,255,255,0.08); }
+    .plan.pro { background: linear-gradient(135deg, rgba(42,171,238,0.3), rgba(204,35,102,0.3)); }
+    .plan.premium { background: linear-gradient(135deg, var(--ig1), var(--ig5)); color: #fff; }
+    .sys-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .pill {
+      padding: 6px 12px; border-radius: 8px; font-size: 0.75rem;
+      border: 1px solid var(--border);
+    }
+    .pill.ok { border-color: rgba(74,222,128,0.5); color: #86efac; }
+    .pill.fail { border-color: rgba(248,113,113,0.5); color: #fca5a5; }
+    .hidden { display: none !important; }
+    .err { color: #f87171; font-size: 0.85rem; margin-top: 8px; }
+    .full { grid-column: 1 / -1; }
+    select {
+      padding: 6px 10px; border-radius: 8px; background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border); color: var(--text); font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+  <div class="mesh"></div>
+  <div class="grid-bg"></div>
+
+  <div id="login" class="login-screen">
+    <div class="login-card">
+      <div class="logo">Reeldrive</div>
+      <p class="logo-sub">Command Center · Telegram × Instagram</p>
+      <input type="password" id="password" placeholder="رمز داشبورد" autocomplete="current-password" />
+      <button class="btn btn-primary" id="loginBtn">ورود</button>
+      <p class="err hidden" id="loginErr">رمز اشتباه است</p>
+    </div>
+  </div>
+
+  <div id="app" class="wrap hidden">
+    <header class="header">
+      <div>
+        <h1>Reeldrive Command Center</h1>
+        <div class="sys-pills" id="systemPills"></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="badge">Live</span>
+        <button class="btn btn-ghost" id="logoutBtn">خروج</button>
+      </div>
+    </header>
+
+    <section class="stats" id="stats"></section>
+
+    <div class="panels">
+      <div class="panel full">
+        <div class="panel-head">
+          <h2>👥 کاربران</h2>
+          <input type="search" id="userSearch" placeholder="جستجو..." style="width:180px;margin:0" />
+        </div>
+        <div class="panel-body" style="max-height:360px">
+          <table>
+            <thead>
+              <tr>
+                <th>کاربر</th>
+                <th>پلن</th>
+                <th>IG</th>
+                <th>دانلود</th>
+                <th>آخرین بازدید</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>⭐ اشتراک‌ها</h2></div>
+        <div class="panel-body" id="subsList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>📡 لاگ زنده</h2></div>
+        <div class="panel-body" id="logsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let usersData = [];
+
+    async function api(path, opts = {}) {
+      const r = await fetch(path, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+      });
+      if (r.status === 401) {
+        $("#app").classList.add("hidden");
+        $("#login").classList.remove("hidden");
+        throw new Error("auth");
+      }
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+
+    $("#loginBtn").onclick = async () => {
+      try {
+        await api("/api/login", {
+          method: "POST",
+          body: JSON.stringify({ password: $("#password").value }),
+        });
+        $("#login").classList.add("hidden");
+        $("#app").classList.remove("hidden");
+        loadAll();
+      } catch {
+        $("#loginErr").classList.remove("hidden");
+      }
+    };
+
+    $("#logoutBtn").onclick = async () => {
+      await api("/api/logout", { method: "POST" }).catch(() => {});
+      location.reload();
+    };
+
+    function fmtDate(iso) {
+      if (!iso) return "—";
+      return new Date(iso).toLocaleString("fa-IR");
+    }
+
+    function renderStats(s) {
+      const cards = [
+        ["کاربران", s.total_users, "👤"],
+        ["اشتراکی", s.pro_users, "⭐"],
+        ["پیج متصل", s.connected_pages, "🔗"],
+        ["کل دانلود", s.total_downloads, "📥"],
+        ["فعالیت ۲۴س", s.activity_24h, "📡"],
+        ["دانلود ۲۴س", s.downloads_24h, "⚡"],
+      ];
+      $("#stats").innerHTML = cards.map(([l, v, ic]) => `
+        <div class="stat">
+          <div class="stat-label">${ic} ${l}</div>
+          <div class="stat-value">${v.toLocaleString("fa-IR")}</div>
+        </div>`).join("");
+
+      const sys = s.system;
+      $("#systemPills").innerHTML = [
+        ["Apify", sys.apify],
+        ["IG Service", sys.ig_service],
+        ["IG Bridge", sys.ig_bridge],
+      ].map(([n, ok]) => `<span class="pill ${ok ? "ok" : "fail"}">${n}</span>`).join("");
+    }
+
+    function renderUsers(filter = "") {
+      const q = filter.toLowerCase();
+      const rows = usersData.filter((u) =>
+        !q || String(u.telegram_id).includes(q) ||
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.name || "").toLowerCase().includes(q)
+      );
+      $("#usersTable").innerHTML = rows.map((u) => `
+        <tr class="user-row">
+          <td>
+            <strong>${u.username ? "@" + u.username : u.telegram_id}</strong><br/>
+            <span class="muted">${u.name}</span>
+          </td>
+          <td><span class="plan ${u.plan}">${u.plan}</span></td>
+          <td>${u.ig_connected === "connected" ? "✅ @" + (u.ig_username || "") : "—"}</td>
+          <td>${u.downloads}</td>
+          <td class="muted">${fmtDate(u.last_seen)}</td>
+          <td>
+            <select onchange="setPlan(${u.telegram_id}, this.value)">
+              <option value="">تغییر پلن</option>
+              <option value="free">free</option>
+              <option value="pro">pro</option>
+              <option value="premium">premium</option>
+            </select>
+          </td>
+        </tr>`).join("");
+    }
+
+    window.setPlan = async (tid, plan) => {
+      if (!plan) return;
+      await api(`/api/users/${tid}/subscription`, {
+        method: "PATCH",
+        body: JSON.stringify({ plan, days: 30 }),
+      });
+      loadAll();
+    };
+
+    function renderLogs(logs) {
+      $("#logsList").innerHTML = logs.map((l) => {
+        const cls = ["download", "command", "callback"].includes(l.event_type)
+          ? l.event_type : "default";
+        return `<div class="log-item">
+          <span class="log-type ${cls}">${l.event_type}</span>
+          <span class="muted" style="margin-right:8px">${l.telegram_id || "—"}</span>
+          <div style="margin-top:6px">${(l.detail || "").slice(0, 120)}</div>
+          <div class="muted" style="margin-top:4px">${fmtDate(l.created_at)}</div>
+        </div>`;
+      }).join("");
+    }
+
+    function renderSubs(subs) {
+      if (!subs.length) {
+        $("#subsList").innerHTML = '<p class="muted">اشتراک فعالی نیست</p>';
+        return;
+      }
+      $("#subsList").innerHTML = subs.map((s) => `
+        <div class="log-item">
+          <span class="plan ${s.plan}">${s.plan}</span>
+          @${s.username || s.telegram_id}<br/>
+          <span class="muted">انقضا: ${fmtDate(s.expires)} · ${s.downloads} دانلود</span>
+        </div>`).join("");
+    }
+
+    async function loadAll() {
+      try {
+        const [stats, users, logs, subs] = await Promise.all([
+          api("/api/stats"),
+          api("/api/users"),
+          api("/api/logs?limit=80"),
+          api("/api/subscriptions"),
+        ]);
+        renderStats(stats);
+        usersData = users;
+        renderUsers($("#userSearch").value);
+        renderLogs(logs);
+        renderSubs(subs);
+      } catch (e) {
+        if (e.message !== "auth") console.error(e);
+      }
+    }
+
+    $("#userSearch").oninput = (e) => renderUsers(e.target.value);
+
+    api("/api/stats").then(() => {
+      $("#login").classList.add("hidden");
+      $("#app").classList.remove("hidden");
+      loadAll();
+      setInterval(loadAll, 15000);
+    }).catch(() => {});
+
+    $("#password").onkeydown = (e) => {
+      if (e.key === "Enter") $("#loginBtn").click();
+    };
+  </script>
+</body>
+</html>

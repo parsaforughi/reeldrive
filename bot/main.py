@@ -12,6 +12,7 @@ from bot.config import settings
 from bot.db import init_db
 from bot.handlers import setup_routers
 from bot.menu import setup_bot_menu
+from bot.middleware import AnalyticsMiddleware
 from bot.services.bridge_poller import BridgePoller
 from bot.services.client_pool import client_pool
 
@@ -32,6 +33,8 @@ async def main() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dp = Dispatcher(storage=MemoryStorage())
+    dp.message.middleware(AnalyticsMiddleware())
+    dp.callback_query.middleware(AnalyticsMiddleware())
     dp.include_router(setup_routers())
 
     await setup_bot_menu(bot)

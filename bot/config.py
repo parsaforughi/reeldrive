@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     bridge_poll_interval_seconds: int = 20
     max_zip_posts: int = 100
 
+    # Admin dashboard
+    dashboard_password: str = "admin"
+    dashboard_secret: str = "change-me-dashboard-secret"
+    dashboard_port: int = 8080
+
     @property
     def service_session_file(self) -> Path:
         return Path(self.instagram_session_path)

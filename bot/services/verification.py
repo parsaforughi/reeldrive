@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from bot.config import settings
 from bot.db.engine import async_session
 from bot.db.models import UserConnection
+from bot.services.analytics import log_activity
 
 
 def generate_code() -> str:
@@ -80,6 +81,11 @@ async def confirm_connection(
             )
         )
         await session.commit()
+    await log_activity(
+        telegram_id,
+        "connect_ok",
+        detail=f"@{instagram_username}",
+    )
 
 
 async def get_connection(telegram_id: int) -> UserConnection | None:
