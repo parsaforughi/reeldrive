@@ -1,0 +1,10 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.session
+sessions/
+.instagram_session.json
+.DS_Store
+.railway/
