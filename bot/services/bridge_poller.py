@@ -9,7 +9,7 @@ from aiogram.types import FSInputFile
 
 from bot.config import settings
 from bot.services.client_pool import client_pool
-from bot.services.instagram import instagram_downloader
+from bot.services.direct_download import download_media_url
 from bot.services.verification import (
     confirm_connection,
     get_connected_by_ig_user_id,
@@ -133,9 +133,7 @@ class BridgePoller:
 
     async def _download_and_send(self, chat_id: int, url: str) -> None:
         try:
-            result = await asyncio.to_thread(
-                instagram_downloader.download_media_url, url
-            )
+            result = await download_media_url(url)
             for path in result.paths:
                 await self._send_file(chat_id, path)
                 self._unlink(path)

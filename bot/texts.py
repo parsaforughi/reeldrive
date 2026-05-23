@@ -31,16 +31,17 @@ FEATURES_FA = f"""💬 <b>امکانات {NAME}</b>
 <code>#tag</code> — هشتگ
 """
 
-HELP_DIRECT_FA = f"""⚡ <b>دایرکت دانلود (رایگان)</b>
+HELP_DIRECT_FA = f"""⚡ <b>دایرکت دانلود</b>
 
-همین‌جا در چت بفرست:
+<b>لینک</b> پست / ریل / کاروسel را همین‌جا بفرست (از Apify، بدون لاگین IG).
 
-1️⃣ <b>لینک</b> پست / ریل / اسلاید
-2️⃣ <b>یوزرنیم</b> — مثلاً <code>instagram</code>
-3️⃣ <b>هایلایت</b> — <code>highlights username</code> سپس <code>highlight username 1</code>
-4️⃣ <b>زیپ</b> — <code>zip stories user</code> | <code>zip posts user</code>
+برای پروفایل/استوری/هایلایت (اختیاری — نیاز به IG سرویس):
+• یوزرنیم — <code>instagram</code>
+• <code>highlights user</code> | <code>highlight user 1</code>
+• <code>zip stories user</code> | <code>zip posts user</code>
 
-بعد از /connect می‌توانی لینک را در دایرکت {BRIDGE} هم بفرستی.
+<b>اتصال پیج:</b> /connect → کد را در دایرکت {BRIDGE} بفرست.
+بعد از اتصال، لینک را در تلگرام یا همان دایرکت bridge هم بفرست.
 """
 
 HELP_SEARCH_FA = """🔍 <b>جستجو در اینستاگرام</b>

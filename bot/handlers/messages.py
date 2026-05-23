@@ -14,6 +14,7 @@ from bot.handlers.download_helpers import (
     send_zip,
 )
 from bot.services.client_pool import client_pool
+from bot.services.direct_download import direct_download_ready, download_media_url
 from bot.services.instagram import instagram_downloader
 from bot.services.verification import get_connection
 from bot.states import ConnectStates, SearchStates
@@ -47,10 +48,18 @@ async def handle_text(message: Message, state: FSMContext) -> None:
     if in_search:
         await state.clear()
 
-    if not client_pool.service_ready:
+    needs_ig = parsed.kind != "media_url"
+    if needs_ig and not client_pool.service_ready:
         await message.answer(
-            "⚠️ سرویس اینستاگرام آماده نیست. بعداً تلاش کن.\n"
-            "⚠️ Instagram service not ready."
+            "⚠️ برای پروفایل/استوری/هایلایت اکانت IG سرویس لازم است.\n"
+            "⚠️ Service IG required for profile/stories."
+        )
+        return
+    if parsed.kind == "media_url" and not direct_download_ready():
+        await message.answer(
+            "⚠️ دایرکت دانلود آماده نیست.\n"
+            "APIFY_TOKEN را در Railway بگذار.\n\n"
+            "⚠️ Set APIFY_TOKEN for direct download."
         )
         return
 
@@ -69,7 +78,7 @@ async def handle_text(message: Message, state: FSMContext) -> None:
 
 async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> None:
     if cmd.kind == "media_url" and cmd.url:
-        result = await run_sync(instagram_downloader.download_media_url, cmd.url)
+        result = await download_media_url(cmd.url)
         await status.delete()
         await send_media_result(message, result)
         return

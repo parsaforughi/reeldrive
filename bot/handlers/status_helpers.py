@@ -1,13 +1,17 @@
 from bot.config import settings
 from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
+from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
+from bot.services.direct_download import direct_download_ready
 from bot.services.verification import get_connection
 from sqlalchemy import select
 
 
 async def build_status_text(telegram_id: int) -> str:
-    svc = "✅" if client_pool.service_ready else "❌"
+    apify = "✅" if apify_downloader.ready else "❌"
+    svc = "✅" if direct_download_ready() else "❌"
+    ig_extra = " (instagrapi)" if client_pool.service_ready else ""
     brg = "✅" if client_pool.bridge_ready else "❌"
     conn = await get_connection(telegram_id)
 
@@ -20,8 +24,9 @@ async def build_status_text(telegram_id: int) -> str:
 
     return (
         f"<b>{settings.bot_name}</b>\n\n"
-        f"📥 سرویس دانلود: {svc}\n"
-        f"💬 پل دایرکت {settings.bridge_ig_handle}: {brg}\n"
+        f"⚡ دایرکت دانلود (Apify): {apify}\n"
+        f"📥 دانلود لینک: {svc}{ig_extra}\n"
+        f"💬 پل اتصال پیج {settings.bridge_ig_handle}: {brg}\n"
         f"🔗 پیج اینستاگرام تو: {page}"
     )
 

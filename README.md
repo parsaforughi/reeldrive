@@ -2,7 +2,9 @@
 
 ربات تلگرام شبیه [@Regrambot](https://t.me/Regrambot) — دانلود از اینستاگرام + اتصال پیج با کد تأیید.
 
-**همه امکانات فعلاً رایگان** — بدون Apify و بدون اشتراک پولی. فقط `instagrapi` و اکانت اینستاگرام خودت.
+**دایرکت دانلود (لینک)** از **Apify** — `APIFY_TOKEN` در Railway.  
+**اتصال پیج** از اکانت اینستاگرام bridge ربات (`INSTAGRAM_BRIDGE_*`).  
+پروفایل/استوری اختیاری با `INSTAGRAM_USERNAME` (instagrapi).
 
 ## امکانات
 
@@ -15,8 +17,9 @@
 ## Railway
 
 1. Repo: https://github.com/parsaforughi/reeldrive
-2. Variables: `TELEGRAM_BOT_TOKEN`, `INSTAGRAM_USERNAME`, `INSTAGRAM_PASSWORD`
-3. برای پل تأیید: `INSTAGRAM_BRIDGE_USERNAME` / `PASSWORD` (یا همان سرویس)
+2. Variables: `TELEGRAM_BOT_TOKEN`, **`APIFY_TOKEN`** (الزامی برای لینک)
+3. برای اتصال پیج: `INSTAGRAM_BRIDGE_USERNAME` / `PASSWORD` + `INSTAGRAM_BRIDGE_DISPLAY`
+4. اختیاری: `INSTAGRAM_USERNAME` / `PASSWORD` (پروفایل/استوری)
 4. `INSTAGRAM_BRIDGE_DISPLAY` — نام نمایشی در پیام‌ها
 5. Volume روی `sessions/` و `data/`
 6. Start: `python -m bot.main`

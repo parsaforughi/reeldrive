@@ -39,11 +39,18 @@ async def main() -> None:
 
     loop = asyncio.get_running_loop()
 
-    logger.info("Connecting Instagram service account…")
-    if client_pool.connect_service():
-        logger.info("Service Instagram ready")
+    from bot.services.apify import apify_downloader
+
+    if apify_downloader.ready:
+        logger.info("Apify direct download enabled")
     else:
-        logger.warning("Service IG not configured (INSTAGRAM_USERNAME/PASSWORD)")
+        logger.warning("APIFY_TOKEN not set — link download will need instagrapi fallback")
+
+    logger.info("Connecting Instagram service account (optional)…")
+    if client_pool.connect_service():
+        logger.info("Service Instagram ready (profile/stories)")
+    else:
+        logger.warning("Service IG not configured — only Apify link download + bridge if set")
 
     logger.info("Connecting Instagram bridge account…")
     if client_pool.connect_bridge():

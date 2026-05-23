@@ -12,7 +12,11 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str
 
-    # Service account — public downloads, stories, highlights
+    # Apify — direct download (links); no IG login needed
+    apify_token: str = ""
+    apify_timeout_seconds: int = 120
+
+    # Service account — optional: profile/stories/highlights (instagrapi)
     instagram_username: str = ""
     instagram_password: str = ""
     instagram_session_path: str = "sessions/service.json"
