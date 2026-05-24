@@ -58,6 +58,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Reeldrive Dashboard", lifespan=lifespan)
 
 
+@app.get("/health")
+async def health():
+    return {"ok": True, "service": "reeldrive-dashboard"}
+
+
 class LoginBody(BaseModel):
     password: str
 
