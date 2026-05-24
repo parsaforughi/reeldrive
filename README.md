@@ -16,14 +16,14 @@
 
 ## Railway
 
-**سرویس Web (داشبورد)** — `railway.toml`  
-- Start: `python -m dashboard`  
-- دامنه: [https://reeldrive.up.railway.app](https://reeldrive.up.railway.app)  
-- Railway خودش `PORT` را ست می‌کند (معمولاً 8080 نیست؛ کد از `PORT` استفاده می‌کند)
+**یک سرویس (پیش‌فرض)** — `railway.toml`  
+- Start: `sh scripts/start_production.sh` → ربات + داشبورد با هم  
+- دامنه: [https://reeldrive.up.railway.app](https://reeldrive.up.railway.app)
 
-**سرویس Worker (ربات)** — `railway.worker.toml`  
-- در Railway → Settings → Config file path: `railway.worker.toml`  
-- Start: `python -m bot.main` (بدون URL عمومی)
+**دو سرویس جدا (اختیاری، پایدارتر)**  
+- Web: `railway.web.toml` → فقط `python -m dashboard`  
+- Worker: `railway.worker.toml` → فقط `python -m bot.main`  
+- در Railway برای هر سرویس مسیر Config file را جدا بگذار
 
 Variables **هر دو سرویس:** `DATABASE_URL` (Postgres توصیه می‌شود)، `TELEGRAM_BOT_TOKEN`, `APIFY_TOKEN`, `INSTAGRAM_BRIDGE_*`  
 Variables **فقط Web:** `DASHBOARD_PASSWORD`, `DASHBOARD_SECRET`
