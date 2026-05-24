@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     instagram_bridge_username: str = ""
     instagram_bridge_password: str = ""
     instagram_bridge_session_path: str = "sessions/bridge.json"
-    instagram_bridge_display: str = "reeldrive_bridge"
+    instagram_bridge_display: str = "reeldrivebot"
 
     database_url: str = "sqlite+aiosqlite:///./data/reeldrive.db"
     bot_name: str = "Reeldrive"
@@ -51,7 +51,11 @@ class Settings(BaseSettings):
 
     @property
     def bridge_ig_handle(self) -> str:
-        name = self.instagram_bridge_display or self.instagram_bridge_username
+        name = (
+            self.instagram_bridge_display
+            or self.instagram_bridge_username
+            or self.bot_mention
+        )
         return f"@{name.lstrip('@')}"
 
 

@@ -41,7 +41,7 @@ HELP_DIRECT_FA = f"""⚡ <b>دایرکت دانلود</b>
 • <code>zip stories user</code> | <code>zip posts user</code>
 
 <b>اتصال پیج:</b> /connect → کد را در دایرکت {BRIDGE} بفرست.
-بعد از اتصال، لینک را در تلگرام یا همان دایرکت bridge هم بفرست.
+بعد از اتصال، لینک را در تلگرام یا همان دایرکت {BRIDGE} هم بفرست.
 """
 
 HELP_SEARCH_FA = """🔍 <b>جستجو در اینستاگرام</b>
