@@ -2,12 +2,11 @@
 
 import json
 import logging
-from datetime import datetime, timezone
-
 from aiogram.types import CallbackQuery, Message, TelegramObject, User
 
 from bot.db.engine import async_session
 from bot.db.models import ActivityLog, BotUser
+from bot.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ def _user_from_event(event: TelegramObject) -> User | None:
 async def touch_user(user: User, *, event_type: str = "message") -> None:
     if user.is_bot:
         return
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = utc_now()
     async with async_session() as session:
         row = await session.get(BotUser, user.id)
         if row:
@@ -71,15 +70,16 @@ async def log_activity(
         logger.exception("Failed to log activity %s", event_type)
 
 
-async def record_download(telegram_id: int, url: str = "") -> None:
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+async def record_download(telegram_id: int, url: str = "", *, user_label: str = "") -> None:
+    now = utc_now()
     async with async_session() as session:
         row = await session.get(BotUser, telegram_id)
         if row:
             row.download_count = (row.download_count or 0) + 1
             row.last_seen_at = now
             await session.commit()
-    await log_activity(telegram_id, "download", detail=url[:500])
+    detail = f"{user_label}: {url[:480]}" if user_label else url[:500]
+    await log_activity(telegram_id, "download", detail=detail)
 
 
 async def event_summary(event: TelegramObject) -> tuple[str, str, dict]:

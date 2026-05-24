@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+import json
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -18,6 +19,7 @@ from bot.db.engine import async_session, init_db
 from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
+from bot.time_utils import to_iso_utc
 
 STATIC_DIR = Path(__file__).parent / "static"
 SESSION_COOKIE = "reeldrive_admin"
@@ -47,6 +49,36 @@ def _verify_session(token: str | None) -> bool:
 async def require_admin(request: Request) -> None:
     if not _verify_session(request.cookies.get(SESSION_COOKIE)):
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def _parse_meta(meta_json: str | None) -> dict:
+    if not meta_json:
+        return {}
+    try:
+        return json.loads(meta_json)
+    except json.JSONDecodeError:
+        return {}
+
+
+def _log_user_label(
+    telegram_id: int | None,
+    meta: dict,
+    users_by_id: dict[int, BotUser],
+) -> str | None:
+    if meta.get("display"):
+        return meta["display"]
+    if meta.get("username"):
+        return f"@{meta['username']}"
+    if telegram_id and telegram_id in users_by_id:
+        u = users_by_id[telegram_id]
+        if u.username:
+            return f"@{u.username}"
+        name = " ".join(x for x in [u.first_name, u.last_name] if x).strip()
+        if name:
+            return f"{name} ({telegram_id})"
+    if telegram_id:
+        return str(telegram_id)
+    return None
 
 
 @asynccontextmanager
@@ -166,13 +198,11 @@ async def api_users(_: None = Depends(require_admin)):
                 ).strip()
                 or "—",
                 "plan": u.subscription_plan,
-                "expires": u.subscription_expires_at.isoformat()
-                if u.subscription_expires_at
-                else None,
+                "expires": to_iso_utc(u.subscription_expires_at),
                 "downloads": u.download_count,
                 "commands": u.command_count,
-                "first_seen": u.first_seen_at.isoformat() if u.first_seen_at else None,
-                "last_seen": u.last_seen_at.isoformat() if u.last_seen_at else None,
+                "first_seen": to_iso_utc(u.first_seen_at),
+                "last_seen": to_iso_utc(u.last_seen_at),
                 "ig_connected": conn.status if conn else None,
                 "ig_username": conn.instagram_username if conn else None,
                 "blocked": u.is_blocked,
@@ -191,16 +221,33 @@ async def api_logs(limit: int = 150, _: None = Depends(require_admin)):
                 )
             )
         ).scalars().all()
-    return [
-        {
-            "id": r.id,
-            "telegram_id": r.telegram_id,
-            "event_type": r.event_type,
-            "detail": r.detail,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        }
-        for r in rows
-    ]
+        ids = {r.telegram_id for r in rows if r.telegram_id}
+        users_by_id: dict[int, BotUser] = {}
+        if ids:
+            users_by_id = {
+                u.telegram_id: u
+                for u in (
+                    await session.execute(
+                        select(BotUser).where(BotUser.telegram_id.in_(ids))
+                    )
+                ).scalars().all()
+            }
+
+    out = []
+    for r in rows:
+        meta = _parse_meta(r.meta_json)
+        out.append(
+            {
+                "id": r.id,
+                "telegram_id": r.telegram_id,
+                "username": meta.get("username"),
+                "user_label": _log_user_label(r.telegram_id, meta, users_by_id),
+                "event_type": r.event_type,
+                "detail": r.detail,
+                "created_at": to_iso_utc(r.created_at),
+            }
+        )
+    return out
 
 
 @app.patch("/api/users/{telegram_id}/subscription")
@@ -233,7 +280,7 @@ async def patch_subscription(
             )
         )
         await session.commit()
-    return {"ok": True, "plan": plan, "expires": expires.isoformat() if expires else None}
+    return {"ok": True, "plan": plan, "expires": to_iso_utc(expires)}
 
 
 @app.get("/api/subscriptions")
@@ -251,9 +298,7 @@ async def api_subscriptions(_: None = Depends(require_admin)):
             "telegram_id": u.telegram_id,
             "username": u.username,
             "plan": u.subscription_plan,
-            "expires": u.subscription_expires_at.isoformat()
-            if u.subscription_expires_at
-            else None,
+            "expires": to_iso_utc(u.subscription_expires_at),
             "downloads": u.download_count,
         }
         for u in rows

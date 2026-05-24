@@ -15,6 +15,7 @@ from bot.handlers.download_helpers import (
 )
 from bot.services.client_pool import client_pool
 from bot.services.analytics import record_download
+from bot.time_utils import user_display_label
 from bot.services.direct_download import direct_download_ready, download_media_url
 from bot.services.instagram import instagram_downloader
 from bot.services.verification import get_connection
@@ -80,7 +81,11 @@ async def handle_text(message: Message, state: FSMContext) -> None:
 async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> None:
     if cmd.kind == "media_url" and cmd.url:
         result = await download_media_url(cmd.url)
-        await record_download(message.from_user.id, cmd.url)
+        await record_download(
+            message.from_user.id,
+            cmd.url,
+            user_label=user_display_label(message.from_user),
+        )
         await status.delete()
         await send_media_result(message, result)
         return

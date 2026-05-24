@@ -138,8 +138,10 @@
     }
     .log-type.download { background: rgba(188,24,136,0.25); color: #f9a8d4; }
     .log-type.command { background: rgba(42,171,238,0.25); color: #7dd3fc; }
+    .log-type.message { background: rgba(74,222,128,0.2); color: #86efac; }
     .log-type.callback { background: rgba(230,104,60,0.2); color: #fdba74; }
     .log-type.default { background: rgba(255,255,255,0.08); color: var(--muted); }
+    .log-who { font-weight: 600; color: var(--text); }
     .muted { color: var(--muted); font-size: 0.75rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid var(--border); }
@@ -186,7 +188,8 @@
         <h1>Reeldrive Command Center</h1>
         <div class="sys-pills" id="systemPills"></div>
       </div>
-      <div style="display:flex;gap:10px;align-items:center">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span id="clock" class="muted" style="font-variant-numeric:tabular-nums;font-size:0.9rem"></span>
         <span class="badge">Live</span>
         <button class="btn btn-ghost" id="logoutBtn">خروج</button>
       </div>
@@ -267,9 +270,43 @@
       location.reload();
     };
 
+    const TEHRAN = "Asia/Tehran";
+
+    function parseUtc(iso) {
+      if (!iso) return null;
+      let s = String(iso).trim();
+      if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) s += "Z";
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
     function fmtDate(iso) {
-      if (!iso) return "—";
-      return new Date(iso).toLocaleString("fa-IR");
+      const d = parseUtc(iso);
+      if (!d) return "—";
+      return d.toLocaleString("fa-IR", {
+        timeZone: TEHRAN,
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    }
+
+    function updateClock() {
+      const el = $("#clock");
+      if (!el) return;
+      el.textContent = new Date().toLocaleString("fa-IR", {
+        timeZone: TEHRAN,
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
     }
 
     function renderStats(s) {
@@ -334,12 +371,21 @@
 
     function renderLogs(logs) {
       $("#logsList").innerHTML = logs.map((l) => {
-        const cls = ["download", "command", "callback"].includes(l.event_type)
-          ? l.event_type : "default";
+        const types = ["download", "command", "callback", "message"];
+        const type = l.event_type === "download_request" ? "download" : l.event_type;
+        const cls = types.includes(type) ? type : "default";
+        const who = l.user_label
+          || (l.username ? "@" + l.username : null)
+          || (l.telegram_id ? "ID " + l.telegram_id : "—");
+        let body = (l.detail || "").slice(0, 200);
+        const prefix = who + ": ";
+        if (body.startsWith(prefix)) body = body.slice(prefix.length);
         return `<div class="log-item">
-          <span class="log-type ${cls}">${l.event_type}</span>
-          <span class="muted" style="margin-right:8px">${l.telegram_id || "—"}</span>
-          <div style="margin-top:6px">${(l.detail || "").slice(0, 120)}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="log-who">${who}</span>
+            <span class="log-type ${cls}">${l.event_type}</span>
+          </div>
+          <div style="margin-top:6px">${body || "—"}</div>
           <div class="muted" style="margin-top:4px">${fmtDate(l.created_at)}</div>
         </div>`;
       }).join("");
@@ -381,6 +427,8 @@
     api("/api/stats").then(() => {
       $("#login").classList.add("hidden");
       $("#app").classList.remove("hidden");
+      updateClock();
+      setInterval(updateClock, 1000);
       loadAll();
       setInterval(loadAll, 15000);
     }).catch(() => {});
