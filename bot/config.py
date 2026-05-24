@@ -2,6 +2,11 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Old Railway env values — never show these in /connect
+_LEGACY_BRIDGE_HANDLES = frozenset(
+    {"reeldrive_bridge", "reeldrive-bridge", "bridge", "regram_bridge"}
+)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -49,14 +54,20 @@ class Settings(BaseSettings):
     def bridge_session_file(self) -> Path:
         return Path(self.instagram_bridge_session_path)
 
+    def _normalize_ig_handle(self, value: str) -> str:
+        return value.strip().lstrip("@").lower()
+
+    def _public_bridge_handle(self) -> str:
+        """@ shown in /connect — always reeldrivebot unless a valid custom display is set."""
+        for raw in (self.instagram_bridge_display, self.instagram_bridge_username):
+            name = (raw or "").strip().lstrip("@")
+            if name and self._normalize_ig_handle(name) not in _LEGACY_BRIDGE_HANDLES:
+                return name
+        return self.bot_mention.lstrip("@")
+
     @property
     def bridge_ig_handle(self) -> str:
-        name = (
-            self.instagram_bridge_display
-            or self.instagram_bridge_username
-            or self.bot_mention
-        )
-        return f"@{name.lstrip('@')}"
+        return f"@{self._public_bridge_handle()}"
 
 
 settings = Settings()

@@ -56,6 +56,7 @@ async def main() -> None:
         logger.warning("Service IG not configured — only Apify link download + bridge if set")
 
     logger.info("Connecting Instagram bridge account…")
+    logger.info("User-facing bridge DM handle: %s", settings.bridge_ig_handle)
     if client_pool.connect_bridge():
         logger.info("Bridge Instagram ready")
     else:
