@@ -3,7 +3,8 @@ from aiogram.types import BotCommand, BotCommandScopeDefault
 
 # منوی آبی تلگرام — مشابه Regrambot (بدون اشتراک ویژه)
 BOT_COMMANDS: list[tuple[str, str]] = [
-    ("start", "🏠 منوی اصلی"),
+    ("start", "🏠 منوی اصلی / Home"),
+    ("language", "🌐 زبان / Language"),
     ("connect", "🔐 اتصال پیج اینستاگرام"),
     ("directdownload", "⚡ دایرکت دانلود (رایگان)"),
     ("myinstagram", "📩 اینستاگرام من"),

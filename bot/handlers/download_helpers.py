@@ -4,6 +4,7 @@ from pathlib import Path
 from aiogram import Bot
 from aiogram.types import FSInputFile, Message
 
+from bot.i18n import tu
 from bot.keyboards import post_actions_kb
 from bot.post_display import PostMeta, format_post_caption
 from bot.services.instagram import (
@@ -52,10 +53,7 @@ async def send_profile(message: Message, username: str, status: Message) -> None
         )
         cleanup(profile.profile_pic_path)
     if profile.is_private:
-        await message.answer(
-            "اکانت پرایوت — برای استوری/هایلایت پیج را /connect کن.\n"
-            "Private — use /connect for more access."
-        )
+        await message.answer(await tu(message.from_user.id, "error_private"))
         return
     await send_stories(message, username)
 
@@ -64,10 +62,13 @@ async def send_stories(message: Message, username: str) -> None:
     stories: list[StoryItem] = await run_sync(
         instagram_downloader.get_stories, username
     )
+    uid = message.from_user.id
     if not stories:
-        await message.answer("استوری فعالی نیست.\nNo active stories.")
+        await message.answer(await tu(uid, "no_stories"))
         return
-    await message.answer(f"📖 {len(stories)} استوری")
+    await message.answer(
+        await tu(uid, "stories_count", count=len(stories))
+    )
     for item in stories:
         cap = item.taken_at or None
         if item.is_video:

@@ -13,8 +13,9 @@ from bot.handlers.download_helpers import (
     send_stories,
     send_zip,
 )
-from bot.services.client_pool import client_pool
+from bot.i18n import friendly_error, require_user_lang, tu
 from bot.services.analytics import record_download
+from bot.services.client_pool import client_pool
 from bot.time_utils import user_display_label
 from bot.services.direct_download import direct_download_ready, download_media_url
 from bot.services.instagram import instagram_downloader
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 @router.message(F.text)
 async def handle_text(message: Message, state: FSMContext) -> None:
+    uid = message.from_user.id
+    lang = await require_user_lang(uid)
     current = await state.get_state()
     if current == ConnectStates.waiting_username.state:
         return
@@ -39,12 +42,9 @@ async def handle_text(message: Message, state: FSMContext) -> None:
     if not parsed:
         if in_search:
             await state.clear()
-            await message.answer("❌ ورودی نامعتبر.\n/search را دوباره بزن.")
+            await message.answer(await tu(uid, "search_invalid"))
         else:
-            await message.answer(
-                "یوزرنیم، لینک، یا دستور معتبر بفرست.\n"
-                "از دکمه Menu → /directdownload یا /search"
-            )
+            await message.answer(await tu(uid, "hint_invalid_input"))
         return
 
     if in_search:
@@ -52,37 +52,35 @@ async def handle_text(message: Message, state: FSMContext) -> None:
 
     needs_ig = parsed.kind != "media_url"
     if needs_ig and not client_pool.service_ready:
-        await message.answer(
-            "⚠️ برای پروفایل/استوری/هایلایت اکانت IG سرویس لازم است.\n"
-            "⚠️ Service IG required for profile/stories."
-        )
+        await message.answer(await tu(uid, "error_service_ig"))
         return
     if parsed.kind == "media_url" and not direct_download_ready():
-        await message.answer(
-            "⚠️ دایرکت دانلود آماده نیست.\n"
-            "APIFY_TOKEN را در Railway بگذار.\n\n"
-            "⚠️ Set APIFY_TOKEN for direct download."
-        )
+        await message.answer(await tu(uid, "error_direct_not_ready"))
         return
 
-    status = await message.answer("⏳ در حال پردازش…")
+    status = await message.answer(await tu(uid, "processing"))
 
     try:
-        await _dispatch(message, status, parsed)
+        await _dispatch(message, status, parsed, lang)
     except ValueError as exc:
-        await status.edit_text(f"❌ {exc}")
+        logger.warning("User request failed: %s", exc)
+        await status.edit_text(friendly_error(exc, lang))
     except LoginRequired:
-        await status.edit_text("❌ سشن اینستاگرام منقضی شد.")
+        logger.warning("Instagram login required")
+        await status.edit_text(await tu(uid, "error_login_required"))
     except Exception:
         logger.exception("Download error")
-        await status.edit_text("❌ خطا. دوباره امتحان کن.")
+        await status.edit_text(await tu(uid, "error_generic"))
 
 
-async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> None:
+async def _dispatch(
+    message: Message, status: Message, cmd: ParsedCommand, lang: str
+) -> None:
+    uid = message.from_user.id
     if cmd.kind == "media_url" and cmd.url:
         result = await download_media_url(cmd.url)
         await record_download(
-            message.from_user.id,
+            uid,
             cmd.url,
             user_label=user_display_label(message.from_user),
         )
@@ -94,18 +92,18 @@ async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> No
         links = await run_sync(instagram_downloader.search_hashtag, cmd.hashtag, 15)
         await status.delete()
         if not links:
-            await message.answer("پستی پیدا نشد.")
+            await message.answer(await tu(uid, "no_posts"))
             return
         text = f"#{cmd.hashtag}\n\n" + "\n".join(links[:15])
         await message.answer(text)
         return
 
     if not cmd.username:
-        await status.edit_text("❌ یوزرنیم نامعتبر")
+        await status.edit_text(await tu(uid, "error_invalid_username"))
         return
 
     user = cmd.username
-    conn = await get_connection(message.from_user.id)
+    conn = await get_connection(uid)
     connected = conn and conn.status == "connected"
 
     if cmd.kind == "profile":
@@ -121,12 +119,12 @@ async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> No
         highlights = await run_sync(instagram_downloader.list_highlights, user)
         await status.delete()
         if not highlights:
-            await message.answer("هایلایتی نیست.")
+            await message.answer(await tu(uid, "no_highlights"))
             return
-        lines = [f"📂 هایلایت‌های @{user}:\n"]
+        lines = [f"📂 @{user}:\n"]
         for i, h in enumerate(highlights, 1):
-            lines.append(f"{i}. {h.title} ({h.item_count} آیتم)")
-        lines.append(f"\nدانلود: <code>highlight {user} 1</code>")
+            lines.append(f"{i}. {h.title} ({h.item_count})")
+        lines.append(f"\n<code>highlight {user} 1</code>")
         await message.answer("\n".join(lines))
         return
 
@@ -136,7 +134,7 @@ async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> No
         )
         await status.delete()
         if not items:
-            await message.answer("خالی بود.")
+            await message.answer(await tu(uid, "empty_highlight"))
             return
         for item in items:
             if item.is_video:
@@ -162,10 +160,9 @@ async def _dispatch(message: Message, status: Message, cmd: ParsedCommand) -> No
         await send_zip(message, zip_path, f"Posts @{user}")
         return
 
-    # default profile
     await send_profile(message, user, status)
 
     if connected:
         await message.answer(
-            f"✅ پیج متصل: @{conn.instagram_username}"
+            await tu(uid, "page_connected", username=conn.instagram_username)
         )

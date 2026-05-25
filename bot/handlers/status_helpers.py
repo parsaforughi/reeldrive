@@ -1,6 +1,7 @@
 from bot.config import settings
 from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
+from bot.i18n import require_user_lang, t, tu
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.services.direct_download import direct_download_ready
@@ -9,6 +10,7 @@ from sqlalchemy import select
 
 
 async def build_status_text(telegram_id: int) -> str:
+    lang = await require_user_lang(telegram_id)
     apify = "✅" if apify_downloader.ready else "❌"
     svc = "✅" if direct_download_ready() else "❌"
     ig_extra = " (instagrapi)" if client_pool.service_ready else ""
@@ -18,46 +20,51 @@ async def build_status_text(telegram_id: int) -> str:
     if conn and conn.status == "connected":
         page = f"✅ @{conn.instagram_username}"
     elif conn and conn.status == "pending":
-        page = f"⏳ منتظر کد — @{conn.instagram_username}"
+        page = t("status_pending", lang, username=conn.instagram_username)
     else:
-        page = "❌ متصل نیست — /connect"
+        page = t("status_not_connected", lang)
 
-    return (
-        f"<b>{settings.bot_name}</b>\n\n"
-        f"⚡ دایرکت دانلود (Apify): {apify}\n"
-        f"📥 دانلود لینک: {svc}{ig_extra}\n"
-        f"💬 پل اتصال پیج {settings.bridge_ig_handle}: {brg}\n"
-        f"🔗 پیج اینستاگرام تو: {page}"
+    return t(
+        "status_body",
+        lang,
+        name=settings.bot_name,
+        apify=apify,
+        svc=svc,
+        ig_extra=ig_extra,
+        bridge=settings.bridge_ig_handle,
+        brg=brg,
+        page=page,
     )
 
 
 async def build_myinstagram_text(telegram_id: int) -> str:
+    lang = await require_user_lang(telegram_id)
     conn = await get_connection(telegram_id)
+    bridge = settings.bridge_ig_handle
+
     if not conn:
-        return (
-            "📩 <b>اینستاگرام من</b>\n\n"
-            "هنوز پیجی متصل نیست.\n"
-            "با /connect یا دکمه زیر وصل شو."
-        )
+        return t("myig_none", lang)
     if conn.status == "pending":
-        return (
-            f"📩 <b>اینستاگرام من</b>\n\n"
-            f"پیج: @{conn.instagram_username}\n"
-            f"⏳ در انتظار کد تأیید…\n"
-            f"کد را در دایرکت {settings.bridge_ig_handle} بفرست."
+        return t(
+            "myig_pending",
+            lang,
+            username=conn.instagram_username,
+            bridge=bridge,
         )
     connected_at = ""
     if conn.connected_at:
         connected_at = conn.connected_at.strftime("%Y-%m-%d %H:%M")
-    return (
-        f"📩 <b>اینستاگرام من</b>\n\n"
-        f"✅ متصل به @{conn.instagram_username}\n"
-        f"📅 از: {connected_at or '—'}\n\n"
-        f"لینک‌ها را اینجا یا در دایرکت {settings.bridge_ig_handle} بفرست."
+    return t(
+        "myig_connected",
+        lang,
+        username=conn.instagram_username,
+        date=connected_at or "—",
+        bridge=bridge,
     )
 
 
 async def build_feed_text(telegram_id: int) -> str:
+    lang = await require_user_lang(telegram_id)
     async with async_session() as session:
         rows = (
             await session.execute(
@@ -66,16 +73,10 @@ async def build_feed_text(telegram_id: int) -> str:
         ).scalars().all()
 
     if not rows:
-        return (
-            "🗄️ <b>فید</b>\n\n"
-            "لیست خالی است.\n"
-            "<code>/watch add username</code> — افزودن پیج\n\n"
-            "نیاز به اتصال پیج: /connect"
-        )
+        return t("feed_empty", lang)
 
-    lines = ["🗄️ <b>فید — پیج‌های تحت نظر</b>\n"]
+    lines = [t("feed_title", lang)]
     for r in rows:
         lines.append(f"• @{r.instagram_username}")
-    lines.append("\nبرای دانلود پست جدید، لینک یا یوزرنیم بفرست.")
-    lines.append("/watch list — مدیریت لیست")
+    lines.append(t("feed_footer", lang))
     return "\n".join(lines)

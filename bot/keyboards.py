@@ -1,13 +1,30 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.i18n import require_user_lang, t
 from bot.media_variants import MediaVariant
 
 
-def connect_cancel_kb() -> InlineKeyboardMarkup:
+def language_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text="❌ لغو", callback_data="connect:cancel")
+        InlineKeyboardButton(text="🇮🇷 فارسی", callback_data="lang:fa"),
+        InlineKeyboardButton(text="🇬🇧 English", callback_data="lang:en"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🇸🇦 العربية", callback_data="lang:ar"),
+    )
+    return builder.as_markup()
+
+
+async def connect_cancel_kb(telegram_id: int) -> InlineKeyboardMarkup:
+    lang = await require_user_lang(telegram_id)
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=t("btn_cancel", lang),
+            callback_data="connect:cancel",
+        )
     )
     return builder.as_markup()
 

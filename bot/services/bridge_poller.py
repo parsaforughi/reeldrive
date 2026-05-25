@@ -100,11 +100,17 @@ class BridgePoller:
                 item.user_id,
                 item.username,
             )
+            from bot.i18n import require_user_lang, t
+
+            lang = await require_user_lang(pending.telegram_id)
             await self._bot.send_message(
                 pending.telegram_id,
-                f"✅ ربات به پیج <b>@{item.username}</b> متصل شد!\n"
-                f"لینک‌ها را اینجا یا در دایرکت {settings.bridge_ig_handle} بفرست.\n\n"
-                f"✅ Connected to <b>@{item.username}</b>",
+                t(
+                    "connected_ok",
+                    lang,
+                    username=item.username,
+                    bridge=settings.bridge_ig_handle,
+                ),
             )
             return
 
@@ -115,7 +121,10 @@ class BridgePoller:
         await self._forward_to_telegram(conn.telegram_id, text)
 
     async def _forward_to_telegram(self, telegram_id: int, text: str) -> None:
-        prefix = "📩 <b>دایرکت اینستاگرام</b>\n"
+        from bot.i18n import require_user_lang, t
+
+        lang = await require_user_lang(telegram_id)
+        prefix = t("forward_ig_prefix", lang)
         urls = INSTAGRAM_URL_IN_TEXT.findall(text)
 
         if urls:

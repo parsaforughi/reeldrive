@@ -39,6 +39,7 @@ async def touch_user(user: User, *, event_type: str = "message") -> None:
                     username=user.username,
                     first_name=user.first_name,
                     last_name=user.last_name,
+                    language="",
                     first_seen_at=now,
                     last_seen_at=now,
                     command_count=1 if event_type == "command" else 0,

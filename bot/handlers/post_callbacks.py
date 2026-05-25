@@ -1,26 +1,25 @@
+import logging
+
 import aiohttp
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, FSInputFile
 
+from bot.handlers.download_helpers import send_media_result
+from bot.i18n import friendly_error, require_user_lang, tu
 from bot.keyboards import qualities_kb
 from bot.post_display import PostMeta, format_post_caption
 from bot.services.direct_download import download_media_url
 from bot.services.post_cache import get_post
-from bot.handlers.download_helpers import send_media_result
 
 router = Router()
+logger = logging.getLogger(__name__)
 TMP = "/tmp/reeldrive"
-
-
-def _code_from_callback(data: str) -> str | None:
-    parts = data.split(":")
-    if len(parts) >= 3 and parts[0] == "post":
-        return parts[2]
-    return None
 
 
 @router.callback_query(F.data.startswith("post:"))
 async def post_action(callback: CallbackQuery) -> None:
+    uid = callback.from_user.id
+    lang = await require_user_lang(uid)
     data = callback.data or ""
     parts = data.split(":")
     action = parts[1] if len(parts) > 1 else ""
@@ -31,30 +30,28 @@ async def post_action(callback: CallbackQuery) -> None:
         try:
             index = int(parts[3])
         except ValueError:
-            await callback.answer("نامعتبر")
+            await callback.answer(await tu(uid, "invalid"))
             return
-        await _download_variant(callback, code, index)
+        await _download_variant(callback, code, index, lang)
         return
 
     if not code:
-        await callback.answer("نامعتبر")
+        await callback.answer(await tu(uid, "invalid"))
         return
 
     cached = get_post(code)
 
     if action in ("ai", "subs", "audio"):
-        msgs = {
-            "ai": "به‌زودی — تحلیل هوش مصنوعی",
-            "subs": "به‌زودی — زیرنویس ویدیو",
-            "audio": "به‌زودی — دانلود صدا",
+        keys = {
+            "ai": "coming_soon_ai",
+            "subs": "coming_soon_subs",
+            "audio": "coming_soon_audio",
         }
-        await callback.answer(msgs[action], show_alert=True)
+        await callback.answer(await tu(uid, keys[action]), show_alert=True)
         return
 
     if not cached:
-        await callback.answer(
-            "اطلاعات پست منقضی شده — لینک را دوباره بفرست", show_alert=True
-        )
+        await callback.answer(await tu(uid, "post_expired"), show_alert=True)
         return
 
     if action == "caption":
@@ -73,13 +70,13 @@ async def post_action(callback: CallbackQuery) -> None:
         if not variants:
             urls = cached.direct_urls or []
             if not urls:
-                await callback.answer("لینکی ذخیره نشده", show_alert=True)
+                await callback.answer(await tu(uid, "no_links_saved"), show_alert=True)
                 return
-            text = "🌐 لینک‌های دانلود:\n\n" + "\n\n".join(
+            text = "🌐\n\n" + "\n\n".join(
                 f"{i + 1}. {u}" for i, u in enumerate(urls[:10])
             )
         else:
-            lines = ["🌐 لینک‌های دانلود:\n"]
+            lines = ["🌐\n"]
             for i, v in enumerate(variants, 1):
                 lines.append(f"{i}. <b>{v.label}</b>\n{v.url}")
             text = "\n\n".join(lines)
@@ -90,54 +87,58 @@ async def post_action(callback: CallbackQuery) -> None:
     if action == "qualities":
         variants = cached.variants
         if not variants:
-            await callback.answer("کیفیتی یافت نشد", show_alert=True)
+            await callback.answer(await tu(uid, "no_quality"), show_alert=True)
             return
         if len(variants) == 1:
             await callback.message.answer(
-                f"فقط یک نسخه از Apify برگشت:\n<b>{variants[0].label}</b>\n\n"
-                "برای چند کیفیت، لینک را دوباره بفرست یا 🔄 بروزرسانی بزن."
+                f"<b>{variants[0].label}</b>\n\n"
+                + await tu(uid, "post_expired")
             )
             await callback.answer()
             return
-        lines = ["💽 <b>همه کیفیت‌ها</b> — یکی را بزن تا دانلود شود:\n"]
-        for i, v in enumerate(variants, 1):
-            lines.append(f"{i}. {v.label}")
         await callback.message.answer(
-            "\n".join(lines),
+            "💽\n" + "\n".join(f"{i}. {v.label}" for i, v in enumerate(variants, 1)),
             reply_markup=qualities_kb(code, variants),
         )
         await callback.answer()
         return
 
     if action == "refresh":
-        await callback.answer("⏳ در حال بروزرسانی…")
+        await callback.answer(await tu(uid, "refreshing"))
         try:
             result = await download_media_url(cached.source_url)
             await send_media_result(callback.message, result)
         except ValueError as exc:
-            await callback.message.answer(f"❌ {exc}")
+            logger.warning("Post refresh failed: %s", exc)
+            await callback.message.answer(friendly_error(exc, lang))
+        except Exception:
+            logger.exception("Post refresh error")
+            await callback.message.answer(await tu(uid, "error_generic"))
         return
 
     await callback.answer()
 
 
-async def _download_variant(callback: CallbackQuery, code: str, index: int) -> None:
+async def _download_variant(
+    callback: CallbackQuery, code: str, index: int, lang: str
+) -> None:
+    uid = callback.from_user.id
     cached = get_post(code)
     if not cached or not cached.variants:
-        await callback.answer("منقضی شده — لینک را دوباره بفرست", show_alert=True)
+        await callback.answer(await tu(uid, "post_expired"), show_alert=True)
         return
     if index < 0 or index >= len(cached.variants):
-        await callback.answer("نامعتبر")
+        await callback.answer(await tu(uid, "invalid"))
         return
 
     var = cached.variants[index]
-    await callback.answer(f"⏳ دانلود {var.label}…")
+    await callback.answer(await tu(uid, "downloading", label=var.label))
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(var.url) as resp:
                 if not (200 <= resp.status < 300):
-                    await callback.message.answer(f"❌ دانلود ناموفق ({resp.status})")
+                    await callback.message.answer(await tu(uid, "download_failed"))
                     return
                 data = await resp.read()
         ext = ".mp4" if var.kind == "video" else ".jpg"
@@ -150,6 +151,5 @@ async def _download_variant(callback: CallbackQuery, code: str, index: int) -> N
         else:
             await callback.message.answer_photo(FSInputFile(path), caption=cap)
     except Exception:
-        await callback.message.answer(
-            f"❌ خطا در دانلود.\nلینک مستقیم:\n{var.url[:500]}"
-        )
+        logger.exception("Variant download failed")
+        await callback.message.answer(await tu(uid, "download_error"))

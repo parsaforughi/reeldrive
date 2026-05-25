@@ -5,6 +5,7 @@ from sqlalchemy import delete, select
 
 from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
+from bot.i18n import tu
 from bot.services.verification import get_connection
 
 router = Router()
@@ -12,23 +13,19 @@ router = Router()
 
 @router.message(Command("watch"))
 async def cmd_watch(message: Message) -> None:
-    conn = await get_connection(message.from_user.id)
+    uid = message.from_user.id
+    conn = await get_connection(uid)
     if not conn or conn.status != "connected":
-        await message.answer(
-            "برای لیست نظارت ابتدا پیج را /connect کن.\n"
-            "Connect your page first with /connect."
-        )
+        await message.answer(await tu(uid, "watch_need_connect"))
         return
 
     parts = (message.text or "").split()
     if len(parts) < 2:
-        await message.answer(
-            "/watch add username\n/watch list\n/watch remove username"
-        )
+        await message.answer(await tu(uid, "watch_usage"))
         return
 
     action = parts[1].lower()
-    tg_id = message.from_user.id
+    tg_id = uid
 
     if action == "list":
         async with async_session() as session:
@@ -40,16 +37,16 @@ async def cmd_watch(message: Message) -> None:
                 )
             ).scalars().all()
         if not rows:
-            await message.answer("لیست خالی است.\nWatchlist is empty.")
+            await message.answer(await tu(uid, "watch_empty"))
             return
-        text = "👁 <b>لیست نظارت:</b>\n" + "\n".join(
+        text = await tu(uid, "watch_list_title") + "\n" + "\n".join(
             f"• @{r.instagram_username}" for r in rows
         )
         await message.answer(text)
         return
 
     if len(parts) < 3:
-        await message.answer("یوزرنیم را وارد کن.")
+        await message.answer(await tu(uid, "watch_need_username"))
         return
 
     username = parts[2].lstrip("@").lower()
@@ -60,7 +57,7 @@ async def cmd_watch(message: Message) -> None:
                 WatchlistEntry(telegram_id=tg_id, instagram_username=username)
             )
             await session.commit()
-        await message.answer(f"✅ @{username} اضافه شد.")
+        await message.answer(await tu(uid, "watch_added", username=username))
         return
 
     if action == "remove":
@@ -72,7 +69,7 @@ async def cmd_watch(message: Message) -> None:
                 )
             )
             await session.commit()
-        await message.answer(f"🗑 @{username} حذف شد.")
+        await message.answer(await tu(uid, "watch_removed", username=username))
         return
 
-    await message.answer("دستور نامعتبر.")
+    await message.answer(await tu(uid, "watch_bad_command"))
