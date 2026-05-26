@@ -52,15 +52,19 @@ async def main() -> None:
     else:
         logger.warning("APIFY_TOKEN not set — link download will need instagrapi fallback")
 
-    logger.info("Connecting Instagram bridge account…")
-    logger.info("User-facing bridge DM handle: %s", settings.bridge_ig_handle)
-    bridge_ok = client_pool.connect_bridge()
+    bridge_ok = False
+    if settings.instagram_bridge_enabled:
+        logger.info("Connecting Instagram bridge account…")
+        logger.info("User-facing bridge DM handle: %s", settings.bridge_ig_handle)
+        bridge_ok = client_pool.connect_bridge()
+    else:
+        logger.info("Bridge login disabled (INSTAGRAM_BRIDGE_ENABLED=false)")
     if bridge_ok:
         logger.info("Bridge Instagram ready — /connect DM codes will work")
     else:
         logger.warning(
-            "Bridge IG not configured — /connect will not work until session or "
-            "credentials are fixed (see scripts/ig_export_session.py)"
+            "Bridge IG offline — Bio+/verify works; IG DMs won't forward. "
+            "Users should send links in Telegram chat."
         )
 
     svc_user = (settings.instagram_username or "").strip().lstrip("@").lower()

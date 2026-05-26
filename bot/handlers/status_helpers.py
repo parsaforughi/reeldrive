@@ -1,4 +1,5 @@
 from bot.config import settings
+from bot.handlers.connect_hints import connected_usage_hint
 from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
 from bot.i18n import require_user_lang, t, tu
@@ -59,7 +60,7 @@ async def build_myinstagram_text(telegram_id: int) -> str:
         lang,
         username=conn.instagram_username,
         date=connected_at or "—",
-        bridge=bridge,
+        usage=connected_usage_hint(lang),
     )
 
 

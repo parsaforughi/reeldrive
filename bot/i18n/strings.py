@@ -283,6 +283,37 @@ Coming soon: unfollowers list.""",
         "en": "✅ Connected to <b>@{username}</b>! You can restore your bio.",
         "ar": "✅ تم ربط <b>@{username}</b>! يمكنك إعادة السيرة كما كانت.",
     },
+    "verify_ok_use_telegram": {
+        "fa": (
+            "📲 <b>دانلود چطور کار می‌کند؟</b>\n\n"
+            "لینک پست / ریل / استوری را <b>همین‌جا در چت تلگرام</b> بفرست "
+            "(مثلاً <code>instagram.com/p/...</code>).\n\n"
+            "⚠️ فرستادن به دایرکت {bridge} در اینستاگرام <b>فعلاً به تلگرام نمی‌رسد</b> "
+            "— فقط تأیید اتصال با Bio انجام شد."
+        ),
+        "en": (
+            "📲 <b>How to download</b>\n\n"
+            "Send Instagram post/reel links <b>here in this Telegram chat</b>.\n\n"
+            "⚠️ DMs to {bridge} on Instagram <b>do not forward to Telegram yet</b> "
+            "— only the Bio connection was verified."
+        ),
+        "ar": (
+            "📲 <b>كيفية التحميل</b>\n\n"
+            "أرسل روابط إنستغرام <b>هنا في تيليجرام</b>.\n\n"
+            "⚠️ الرسائل إلى {bridge} على إنستغرام <b>لا تصل إلى تيليجرام حالياً</b>."
+        ),
+    },
+    "verify_ok_dm_also": {
+        "fa": (
+            "📲 لینک را در <b>تلگرام</b> یا دایرکت {bridge} بفرست — هر دو کار می‌کنند."
+        ),
+        "en": (
+            "📲 Send links in <b>Telegram</b> or DM {bridge} — both work."
+        ),
+        "ar": (
+            "📲 أرسل الروابط في <b>تيليجرام</b> أو إلى {bridge}."
+        ),
+    },
     "verify_no_pending": {
         "fa": "اتصالی در انتظار نیست. اول /connect را بزن.",
         "en": "No pending connection. Use /connect first.",
@@ -494,19 +525,19 @@ Coming soon: unfollowers list.""",
             "📩 <b>اینستاگرام من</b>\n\n"
             "✅ متصل به @{username}\n"
             "📅 از: {date}\n\n"
-            "لینک‌ها را اینجا یا در دایرکت {bridge} بفرست."
+            "{usage}"
         ),
         "en": (
             "📩 <b>My Instagram</b>\n\n"
             "✅ Connected to @{username}\n"
             "📅 Since: {date}\n\n"
-            "Send links here or DM {bridge}."
+            "{usage}"
         ),
         "ar": (
             "📩 <b>إنستغرامي</b>\n\n"
             "✅ مرتبط بـ @{username}\n"
             "📅 منذ: {date}\n\n"
-            "أرسل الروابط هنا أو إلى {bridge}."
+            "{usage}"
         ),
     },
     "feed_empty": {

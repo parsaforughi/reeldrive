@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.config import settings
+from bot.handlers.connect_hints import connected_usage_hint
 from bot.i18n import require_user_lang, t, tu
 from bot.keyboards import connect_cancel_kb
 from bot.services.bio_verification import verify_pending_via_bio
@@ -75,6 +76,7 @@ async def cmd_verify(message: Message) -> None:
         await message.answer(
             t("verify_ok", lang, username=conn_after.instagram_username)
         )
+        await message.answer(connected_usage_hint(lang))
         return
 
     if reason == "no_pending":
