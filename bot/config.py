@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Optional: sessionid from browser (avoids password login on Railway)
     instagram_session_id: str = ""
     instagram_bridge_session_id: str = ""
+    # Extra browser cookies (DevTools → instagram.com) — often required with sessionid
+    instagram_bridge_csrftoken: str = ""
+    instagram_bridge_mid: str = ""
     # Optional: http://user:pass@host:port if IG blocks datacenter IP
     instagram_proxy: str = ""
     # Set false to never try bridge login (Bio /verify + Telegram links still work)

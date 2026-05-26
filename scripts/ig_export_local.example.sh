@@ -4,8 +4,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Option 1: password login (use EMAIL if @handle fails)
 export INSTAGRAM_BRIDGE_LOGIN="your_ig_login_or_email"
 export INSTAGRAM_BRIDGE_PASSWORD="your_password"
+# export INSTAGRAM_2FA_CODE="123456"
+
+# Option 2: browser cookie (skip password API) — see docs/BRIDGE_SETUP_FA.md
+# export INSTAGRAM_BRIDGE_SESSION_ID="paste_sessionid_from_browser"
 
 PY=python3.13
 command -v "$PY" >/dev/null 2>&1 || PY=python3

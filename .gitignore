@@ -1,6 +1,7 @@
 .env
 .env.*
 scripts/ig_export_local.sh
+scripts/.bridge_sessionid
 data/
 .venv/
 venv/
