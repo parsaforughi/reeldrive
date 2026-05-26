@@ -42,6 +42,7 @@ class BridgePoller:
         self._running = False
         self._bootstrapped = False
         self._idle_ticks = 0
+        self._inbox_blocked_logged = False
 
     async def run_loop(self) -> None:
         self._running = True
@@ -51,11 +52,19 @@ class BridgePoller:
                     self._idle_ticks += 1
                     if self._idle_ticks == 1 or self._idle_ticks % 15 == 0:
                         logger.warning(
-                            "Bridge poller idle — Instagram bridge not logged in "
-                            "(export session: scripts/ig_export_session.py)"
+                            "Bridge poller idle — set INSTAGRAM_BRIDGE_SESSION_ID"
+                        )
+                elif not client_pool.bridge_inbox_ok:
+                    self._idle_ticks += 1
+                    if not self._inbox_blocked_logged:
+                        self._inbox_blocked_logged = True
+                        logger.warning(
+                            "Bridge poller idle — inbox blocked (467). "
+                            "Set INSTAGRAM_PROXY on Railway (residential proxy)."
                         )
                 else:
                     self._idle_ticks = 0
+                    self._inbox_blocked_logged = False
                     batch = await asyncio.to_thread(self._fetch_new_messages)
                     for item in batch:
                         await self._handle_message(item)
@@ -86,11 +95,13 @@ class BridgePoller:
         try:
             threads = client.direct_threads(amount=30)
         except Exception as exc:
-            logger.warning(
-                "Cannot read IG inbox (%s). Refresh INSTAGRAM_BRIDGE_SESSION_ID "
-                "or set INSTAGRAM_PROXY.",
-                exc,
-            )
+            client_pool.bridge_inbox_ok = False
+            if "467" in str(exc) and not self._inbox_blocked_logged:
+                self._inbox_blocked_logged = True
+                logger.warning(
+                    "IG inbox blocked from server IP (467). "
+                    "Set INSTAGRAM_PROXY=http://user:pass@host:port on Railway."
+                )
             return []
         for thread in threads:
             try:

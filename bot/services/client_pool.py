@@ -130,6 +130,7 @@ class ClientPool:
     def __init__(self) -> None:
         self.service: Client | None = None
         self.bridge: Client | None = None
+        self.bridge_inbox_ok: bool = False
 
     @property
     def service_ready(self) -> bool:
@@ -137,7 +138,13 @@ class ClientPool:
 
     @property
     def bridge_ready(self) -> bool:
+        """Session loaded (may still fail to read DMs on cloud IP)."""
         return self.bridge is not None
+
+    @property
+    def bridge_dm_ready(self) -> bool:
+        """Can read @reeldrivebot inbox (needs session + IP Instagram accepts)."""
+        return self.bridge is not None and self.bridge_inbox_ok
 
     def connect_service(self) -> bool:
         user = (settings.instagram_username or "").strip()
@@ -187,6 +194,7 @@ class ClientPool:
         )
         allow_password = bool(bridge_pass) and not session_id
 
+        self.bridge_inbox_ok = False
         self.bridge = _login_client(
             bridge_login,
             bridge_pass,
@@ -195,12 +203,27 @@ class ClientPool:
             allow_password_login=allow_password,
             trust_session_on_connect=bool(session_id),
         )
-        if self.bridge:
+        if not self.bridge:
+            return False
+
+        self.bridge_inbox_ok = _try_validate_inbox(self.bridge)
+        if self.bridge_inbox_ok:
             logger.info(
                 "Bridge IG ready — DMs to %s will forward to connected Telegram users",
                 public_handle,
             )
-        return self.bridge is not None
+        else:
+            proxy_hint = (
+                " Set INSTAGRAM_PROXY (residential http proxy) on Railway."
+                if not settings.instagram_proxy
+                else " Proxy is set but inbox still blocked — try another proxy."
+            )
+            logger.error(
+                "Bridge session loaded but Instagram blocks inbox from this server (467).%s "
+                "Bio+/verify and Telegram links still work.",
+                proxy_hint,
+            )
+        return True
 
     def get_download_client(self, use_connected: bool = False) -> Client:
         if self.service:

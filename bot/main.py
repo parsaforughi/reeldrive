@@ -59,12 +59,16 @@ async def main() -> None:
         bridge_ok = client_pool.connect_bridge()
     else:
         logger.info("Bridge login disabled (INSTAGRAM_BRIDGE_ENABLED=false)")
-    if bridge_ok:
-        logger.info("Bridge Instagram ready — /connect DM codes will work")
+    if client_pool.bridge_dm_ready:
+        logger.info("Bridge Instagram ready — IG DMs will forward to Telegram")
+    elif bridge_ok:
+        logger.warning(
+            "Bridge session OK but IG inbox blocked on this server (467). "
+            "Add INSTAGRAM_PROXY on Railway or DMs to @reeldrivebot won't work."
+        )
     else:
         logger.warning(
-            "Bridge IG offline — Bio+/verify works; IG DMs won't forward. "
-            "Users should send links in Telegram chat."
+            "Bridge IG offline — Bio+/verify works; send links in Telegram chat."
         )
 
     svc_user = (settings.instagram_username or "").strip().lstrip("@").lower()
@@ -87,7 +91,12 @@ async def main() -> None:
     poller = BridgePoller(bot, loop)
     poll_task = asyncio.create_task(poller.run_loop())
 
+    await bot.delete_webhook(drop_pending_updates=True)
     logger.info("Starting %s (polling)…", settings.bot_name)
+    logger.info(
+        "If you see TelegramConflictError: stop the bot on your Mac "
+        "(Ctrl+C in terminal) — only one instance may poll."
+    )
     try:
         await dp.start_polling(bot)
     finally:

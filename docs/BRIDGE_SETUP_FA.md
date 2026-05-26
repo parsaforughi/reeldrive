@@ -13,13 +13,27 @@ Redeploy. در لاگ: `Bridge IG ready`.
 
 ---
 
-## اگر DM کار نکرد
+## اگر لاگ `467` یا inbox blocked دیدی
 
-1. در **اپ اینستاگرام** پیام امنیتی را تأیید کن.
-2. **sessionid تازه** بگیر و دوباره در Railway بگذار.
-3. اگر سرور Railway است: گاهی IP بلاک است — `INSTAGRAM_PROXY` (پروکسی residential) بگذار.
+sessionid درست است، ولی **IP سرور Railway** برای خواندن DM بلاک می‌شود.
 
-**نیاز نیست:** پسورد، csrftoken، mid، آپلود فایل — فقط `sessionid`.
+در Railway یک متغیر دیگر بگذار:
+
+```
+INSTAGRAM_PROXY=http://USER:PASS@HOST:PORT
+```
+
+پروکسی باید **residential** باشد (نه datacenter). بعد redeploy.
+
+همچنین در اپ اینستاگرام «Was this you?» را تأیید کن.
+
+---
+
+## اگر `TelegramConflictError` دیدی
+
+ربات **دو جا** روشن است (مثلاً Railway + ترمینال مک). روی مک `Ctrl+C` بزن و فقط Railway بماند.
+
+**نیاز نیست:** پسورد، csrftoken، mid — فقط `sessionid` (+ پروکسی روی Railway).
 
 ---
 
