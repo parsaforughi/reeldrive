@@ -1,4 +1,6 @@
 .env
+.env.*
+scripts/ig_export_local.sh
 data/
 .venv/
 venv/

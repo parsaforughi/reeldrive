@@ -40,9 +40,14 @@ def main() -> None:
         print("Set INSTAGRAM_BRIDGE_LOGIN (or USERNAME) and INSTAGRAM_BRIDGE_PASSWORD")
         sys.exit(1)
 
+    # Strip smart quotes / copy-paste junk
+    username = username.strip().strip(""""\u201c\u201d'""")
+    password = password.strip().strip(""""\u201c\u201d'""")
+
     session_path.parent.mkdir(parents=True, exist_ok=True)
     client = Client()
-    print(f"Logging in as @{username} …")
+    print(f"Logging in as {username!r} …")
+    print("(Use email or IG username — not the Telegram bot name unless that's your IG login)")
     client.login(username, password)
     client.dump_settings(session_path)
     print(f"OK — session saved to {session_path}")

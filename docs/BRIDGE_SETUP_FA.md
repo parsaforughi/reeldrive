@@ -7,9 +7,12 @@
 ## ۱) روی مک خودت (خانه)
 
 ```bash
-cd reeldrive
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+cd "/Users/parsa/Desktop/regram pro"
+
+# Python 3.13 — not 3.14 (pydantic build fails on 3.14)
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r scripts/requirements-ig-export.txt
 
 # اگر با ایمیل لاگین می‌کنی:
 export INSTAGRAM_BRIDGE_LOGIN="email@example.com"
