@@ -35,6 +35,39 @@ class ApifyDownloader:
             f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
         )
 
+    async def fetch_profile_item(self, username: str) -> dict:
+        """Public profile metadata via Apify (no IG login)."""
+        if not self.ready:
+            raise ValueError("Apify not configured")
+
+        handle = username.strip().lstrip("@").lower()
+        url = f"https://www.instagram.com/{handle}/"
+        payload = {
+            "directUrls": [url],
+            "resultsType": "details",
+            "resultsLimit": 1,
+        }
+        items = await self._run_actor(payload)
+        if not items:
+            raise ValueError("Profile not found")
+        return items[0]
+
+    @staticmethod
+    def profile_biography(item: dict) -> str:
+        for key in ("biography", "bio", "Biography", "biographyText"):
+            val = item.get(key)
+            if val:
+                return str(val)
+        return ""
+
+    @staticmethod
+    def profile_user_id(item: dict) -> str:
+        for key in ("id", "userId", "ownerId", "instagramId", "pk"):
+            val = item.get(key)
+            if val is not None:
+                return str(val)
+        return ""
+
     async def download_media_url(self, url: str) -> MediaResult:
         if not self.ready:
             raise ValueError("Apify تنظیم نشده / Apify not configured")

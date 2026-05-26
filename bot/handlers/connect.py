@@ -4,10 +4,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot.config import settings
-from bot.i18n import tu
+from bot.i18n import require_user_lang, t, tu
 from bot.keyboards import connect_cancel_kb
+from bot.services.bio_verification import verify_pending_via_bio
 from bot.services.client_pool import client_pool
-from bot.services.verification import disconnect, start_verification
+from bot.services.verification import disconnect, get_connection, start_verification
 from bot.states import ConnectStates
 
 router = Router()
@@ -45,7 +46,8 @@ async def receive_username(message: Message, state: FSMContext) -> None:
 
     extra = ""
     if not client_pool.bridge_ready:
-        extra = await tu(uid, "connect_bridge_offline")
+        lang = await require_user_lang(uid)
+        extra = "\n" + t("connect_bridge_offline", lang, bridge=bridge)
 
     await state.clear()
     await message.answer(
@@ -59,6 +61,43 @@ async def receive_username(message: Message, state: FSMContext) -> None:
         )
         + extra
     )
+
+
+@router.message(Command("verify"))
+async def cmd_verify(message: Message) -> None:
+    uid = message.from_user.id
+    lang = await require_user_lang(uid)
+    conn = await get_connection(uid)
+
+    ok, reason = await verify_pending_via_bio(uid)
+    conn_after = await get_connection(uid)
+    if ok and conn_after:
+        await message.answer(
+            t("verify_ok", lang, username=conn_after.instagram_username)
+        )
+        return
+
+    if reason == "no_pending":
+        await message.answer(t("verify_no_pending", lang))
+        return
+    if reason == "private":
+        await message.answer(t("verify_private", lang))
+        return
+    if reason == "apify":
+        await message.answer(t("verify_apify", lang))
+        return
+    if reason == "not_in_bio" and conn:
+        await message.answer(
+            t(
+                "verify_not_in_bio",
+                lang,
+                code=conn.verification_code,
+                username=conn.instagram_username,
+            )
+        )
+        return
+
+    await message.answer(t("verify_not_in_bio", lang, code="?", username="?"))
 
 
 @router.message(Command("disconnect"))

@@ -224,17 +224,13 @@ Coming soon: unfollowers list.""",
     },
     "connect_bridge_offline": {
         "fa": (
-            "\n\n⚠️ <b>توجه:</b> اتصال اینستاگرام سرور برقرار نیست "
-            "(لاگین از IP ریل‌وی معمولاً بلاک است). "
-            "ادمین باید session را از کامپیوتر شخصی export کند."
+            "\n\n💡 <b>دایرکت {bridge} الان فعال نیست</b> — از روش Bio + /verify استفاده کن."
         ),
         "en": (
-            "\n\n⚠️ <b>Note:</b> Instagram bridge is offline on the server "
-            "(cloud IPs are often blocked). Admin must export a session from a PC."
+            "\n\n💡 <b>DM to {bridge} is offline</b> — use Bio + /verify instead."
         ),
         "ar": (
-            "\n\n⚠️ <b>تنبيه:</b> جسر إنستغرام غير متصل على الخادم. "
-            "يجب تصدير الجلسة من جهاز شخصي."
+            "\n\n💡 <b>الرسائل إلى {bridge} غير متاحة</b> — استخدم السيرة + /verify."
         ),
     },
     "connect_wrong_account": {
@@ -254,25 +250,67 @@ Coming soon: unfollowers list.""",
     "connect_code": {
         "fa": (
             "✅ پیج: <b>@{username}</b>\n\n"
-            "کد تأیید: <code>{code}</code>\n\n"
-            "این کد را در <b>دایرکت اینستاگرام</b> به {bridge} بفرست.\n"
+            "کد تأیید: <code>{code}</code>\n"
             "⏱ تا {ttl} دقیقه معتبر است.\n\n"
-            "بعد از چند دقیقه پیام «متصل شد» می‌گیری."
+            "<b>روش ۱ (پیشنهادی — بدون session):</b>\n"
+            "۱. کد <code>{code}</code> را در <b>Bio</b> اینستاگرام بگذار\n"
+            "۲. اینجا بزن: /verify\n\n"
+            "<b>روش ۲ (اختیاری):</b> همان کد را در دایرکت {bridge} بفرست "
+            "(فقط اگر bridge سرور آنلاین باشد)."
         ),
         "en": (
             "✅ Page: <b>@{username}</b>\n\n"
-            "Verification code: <code>{code}</code>\n\n"
-            "Send this code in <b>Instagram DM</b> to {bridge}.\n"
+            "Code: <code>{code}</code>\n"
             "⏱ Valid for {ttl} minutes.\n\n"
-            "You will get a «connected» message shortly."
+            "<b>Method 1 (recommended — no server session):</b>\n"
+            "1. Put <code>{code}</code> in your Instagram <b>bio</b>\n"
+            "2. Tap /verify here\n\n"
+            "<b>Method 2 (optional):</b> DM the code to {bridge} "
+            "(only if server bridge is online)."
         ),
         "ar": (
             "✅ الحساب: <b>@{username}</b>\n\n"
-            "رمز التحقق: <code>{code}</code>\n\n"
-            "أرسل هذا الرمز في <b>رسالة إنستغرام</b> إلى {bridge}.\n"
+            "الرمز: <code>{code}</code>\n"
             "⏱ صالح لمدة {ttl} دقيقة.\n\n"
-            "ستصلك رسالة «تم الربط» قريباً."
+            "<b>الطريقة ١ (موصى بها):</b>\n"
+            "١. ضع <code>{code}</code> في <b>السيرة</b>\n"
+            "٢. اضغط /verify هنا\n\n"
+            "<b>الطريقة ٢:</b> أرسل الرمز إلى {bridge} في الرسائل."
         ),
+    },
+    "verify_ok": {
+        "fa": "✅ پیج <b>@{username}</b> متصل شد! می‌توانی Bio را به حالت قبل برگردانی.",
+        "en": "✅ Connected to <b>@{username}</b>! You can restore your bio.",
+        "ar": "✅ تم ربط <b>@{username}</b>! يمكنك إعادة السيرة كما كانت.",
+    },
+    "verify_no_pending": {
+        "fa": "اتصالی در انتظار نیست. اول /connect را بزن.",
+        "en": "No pending connection. Use /connect first.",
+        "ar": "لا يوجد ربط معلّق. استخدم /connect أولاً.",
+    },
+    "verify_not_in_bio": {
+        "fa": (
+            "❌ کد <code>{code}</code> در Bio پیج <b>@{username}</b> دیده نشد.\n"
+            "کد را دقیق در Bio بگذار، ذخیره کن، ۱۰ ثانیه صبر کن و دوباره /verify بزن."
+        ),
+        "en": (
+            "❌ Code <code>{code}</code> not found in <b>@{username}</b> bio.\n"
+            "Add it to your bio, save, wait 10s, then /verify again."
+        ),
+        "ar": (
+            "❌ الرمز <code>{code}</code> غير موجود في سيرة <b>@{username}</b>.\n"
+            "أضفه واحفظ وانتظر 10 ثوانٍ ثم /verify."
+        ),
+    },
+    "verify_private": {
+        "fa": "❌ پیج خصوصی است — موقتاً Bio عمومی کن یا از روش دایرکت استفاده کن.",
+        "en": "❌ Private account — make bio visible or use DM method.",
+        "ar": "❌ الحساب خاص — اجعل السيرة مرئية أو استخدم الرسائل.",
+    },
+    "verify_apify": {
+        "fa": "❌ بررسی Bio ممکن نشد. APIFY_TOKEN را چک کن یا بعداً امتحان کن.",
+        "en": "❌ Could not check bio. Check APIFY_TOKEN or try later.",
+        "ar": "❌ تعذر فحص السيرة. تحقق من APIFY_TOKEN.",
     },
     "connect_disconnected": {
         "fa": "اتصال قطع شد.",

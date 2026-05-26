@@ -6,6 +6,7 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("start", "🏠 منوی اصلی / Home"),
     ("language", "🌐 زبان / Language"),
     ("connect", "🔐 اتصال پیج اینستاگرام"),
+    ("verify", "✅ تأیید اتصال (Bio)"),
     ("directdownload", "⚡ دایرکت دانلود (رایگان)"),
     ("myinstagram", "📩 اینستاگرام من"),
     ("search", "🔍 جستجو در اینستاگرام"),
