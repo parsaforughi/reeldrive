@@ -290,35 +290,44 @@ Coming soon: unfollowers list.""",
         "en": "✅ Connected to <b>@{username}</b>! You can restore your bio.",
         "ar": "✅ تم ربط <b>@{username}</b>! يمكنك إعادة السيرة كما كانت.",
     },
-    "verify_ok_use_telegram": {
+    "verify_ok_ig_dm_active": {
         "fa": (
-            "📲 <b>دانلود چطور کار می‌کند؟</b>\n\n"
-            "لینک پست / ریل / استوری را <b>همین‌جا در چت تلگرام</b> بفرست "
-            "(مثلاً <code>instagram.com/p/...</code>).\n\n"
-            "⚠️ فرستادن به دایرکت {bridge} در اینستاگرام <b>فعلاً به تلگرام نمی‌رسد</b> "
-            "— فقط تأیید اتصال با Bio انجام شد."
+            "📩 <b>دایرکت اینستاگرام فعال است</b>\n\n"
+            "لینک پست/ریل را در دایرکت {bridge} بفرست "
+            "(از همان پیجی که الان وصل کردی: @{username}).\n"
+            "ربات همان را اینجا در تلگرام تحویل می‌دهد.\n\n"
+            "یا لینک را همین‌جا در چت تلگرام هم بفرست."
         ),
         "en": (
-            "📲 <b>How to download</b>\n\n"
-            "Send Instagram post/reel links <b>here in this Telegram chat</b>.\n\n"
-            "⚠️ DMs to {bridge} on Instagram <b>do not forward to Telegram yet</b> "
-            "— only the Bio connection was verified."
+            "📩 <b>Instagram DM relay is ON</b>\n\n"
+            "Send post/reel links in DM to {bridge} (from @{username}).\n"
+            "You will receive them here in Telegram.\n\n"
+            "You can also paste links in this chat."
         ),
         "ar": (
-            "📲 <b>كيفية التحميل</b>\n\n"
-            "أرسل روابط إنستغرام <b>هنا في تيليجرام</b>.\n\n"
-            "⚠️ الرسائل إلى {bridge} على إنستغرام <b>لا تصل إلى تيليجرام حالياً</b>."
+            "📩 <b>رسائل إنستغرام مفعّلة</b>\n\n"
+            "أرسل الروابط إلى {bridge} من @{username}.\n"
+            "ستصل هنا في تيليجرام."
         ),
     },
-    "verify_ok_dm_also": {
+    "verify_ok_ig_dm_offline": {
         "fa": (
-            "📲 لینک را در <b>تلگرام</b> یا دایرکت {bridge} بفرست — هر دو کار می‌کنند."
+            "📩 <b>دایرکت {bridge} → تلگرام هنوز خاموش است</b>\n\n"
+            "اینستاگرام اجازه لاگین روی سرور ریل‌وی را نمی‌دهد. "
+            "ادمین <b>یک‌بار</b> session را از مک export می‌کند و روی Volume می‌گذارد "
+            "(راهنما: <code>docs/BRIDGE_SETUP_FA.md</code>).\n\n"
+            "تا آن موقع: لینک را <b>همین‌جا در تلگرام</b> بفرست — دایرکت دانلود کار می‌کند."
         ),
         "en": (
-            "📲 Send links in <b>Telegram</b> or DM {bridge} — both work."
+            "📩 <b>DM {bridge} → Telegram is OFF</b>\n\n"
+            "Admin must upload a session file once from a PC "
+            "(see <code>docs/BRIDGE_SETUP_FA.md</code>).\n\n"
+            "Until then: paste links <b>here in Telegram</b>."
         ),
         "ar": (
-            "📲 أرسل الروابط في <b>تيليجرام</b> أو إلى {bridge}."
+            "📩 <b>الرسائل {bridge} → تيليجرام غير مفعّلة</b>\n\n"
+            "يجب رفع ملف session مرة واحدة (راجع docs/BRIDGE_SETUP_FA.md).\n\n"
+            "حالياً: أرسل الروابط هنا في تيليجرام."
         ),
     },
     "verify_no_pending": {

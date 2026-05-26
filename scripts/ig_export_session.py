@@ -24,8 +24,10 @@ from instagrapi import Client  # noqa: E402
 
 
 def main() -> None:
-    username = os.environ.get("INSTAGRAM_BRIDGE_USERNAME") or os.environ.get(
-        "INSTAGRAM_USERNAME"
+    username = (
+        os.environ.get("INSTAGRAM_BRIDGE_LOGIN")
+        or os.environ.get("INSTAGRAM_BRIDGE_USERNAME")
+        or os.environ.get("INSTAGRAM_USERNAME")
     )
     password = os.environ.get("INSTAGRAM_BRIDGE_PASSWORD") or os.environ.get(
         "INSTAGRAM_PASSWORD"
@@ -35,7 +37,7 @@ def main() -> None:
     )
 
     if not username or not password:
-        print("Set INSTAGRAM_BRIDGE_USERNAME and INSTAGRAM_BRIDGE_PASSWORD")
+        print("Set INSTAGRAM_BRIDGE_LOGIN (or USERNAME) and INSTAGRAM_BRIDGE_PASSWORD")
         sys.exit(1)
 
     session_path.parent.mkdir(parents=True, exist_ok=True)

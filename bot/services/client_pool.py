@@ -136,20 +136,22 @@ class ClientPool:
         return self.service is not None
 
     def connect_bridge(self) -> bool:
-        bridge_user = (
-            (settings.instagram_bridge_username or settings.instagram_username or "")
-            .strip()
-            .lstrip("@")
-        )
+        bridge_login = (
+            settings.instagram_bridge_login
+            or settings.instagram_bridge_username
+            or settings.instagram_username
+            or ""
+        ).strip().lstrip("@")
         bridge_pass = (
             settings.instagram_bridge_password or settings.instagram_password or ""
         )
         session_id = settings.instagram_bridge_session_id
         session_file = settings.bridge_session_file
+        public_handle = settings.bridge_ig_handle
 
-        if not bridge_user:
+        if not bridge_login:
             logger.info(
-                "Bridge IG skipped — no INSTAGRAM_BRIDGE_USERNAME / INSTAGRAM_USERNAME"
+                "Bridge IG skipped — set INSTAGRAM_BRIDGE_LOGIN (email/username for API)"
             )
             self.bridge = None
             return False
@@ -157,24 +159,25 @@ class ClientPool:
         has_saved_session = bool(session_id) or session_file.exists()
         if not has_saved_session and not settings.instagram_bridge_force_login:
             logger.info(
-                "Bridge IG skipped for @%s — no session file/SESSION_ID on server "
-                "(password login blocked on Railway). Bio+/verify and Telegram links OK. "
-                "Upload %s or set INSTAGRAM_BRIDGE_SESSION_ID to enable IG DM relay.",
-                bridge_user,
+                "Bridge IG skipped — no %s on server. IG DM → Telegram needs one-time "
+                "session export (see docs/BRIDGE_SETUP_FA.md). Public handle: %s",
                 session_file,
+                public_handle,
             )
             self.bridge = None
             return False
 
-        if not settings.instagram_bridge_username and settings.instagram_username:
-            logger.info("Bridge using INSTAGRAM_USERNAME (@%s)", bridge_user)
-
         self.bridge = _login_client(
-            bridge_user,
+            bridge_login,
             bridge_pass,
             session_file,
             session_id=session_id,
         )
+        if self.bridge:
+            logger.info(
+                "Bridge IG ready — DMs to %s will forward to connected Telegram users",
+                public_handle,
+            )
         return self.bridge is not None
 
     def get_download_client(self, use_connected: bool = False) -> Client:

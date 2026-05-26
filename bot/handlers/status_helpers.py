@@ -60,7 +60,7 @@ async def build_myinstagram_text(telegram_id: int) -> str:
         lang,
         username=conn.instagram_username,
         date=connected_at or "—",
-        usage=connected_usage_hint(lang),
+        usage=connected_usage_hint(lang, username=conn.instagram_username),
     )
 
 

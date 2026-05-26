@@ -85,7 +85,9 @@ async def cmd_verify(message: Message) -> None:
         await message.answer(
             t("verify_ok", lang, username=conn_after.instagram_username)
         )
-        await message.answer(connected_usage_hint(lang))
+        await message.answer(
+            connected_usage_hint(lang, username=conn_after.instagram_username)
+        )
         return
 
     if reason == "no_pending":

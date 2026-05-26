@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     instagram_password: str = ""
     instagram_session_path: str = "sessions/service.json"
 
-    # Bridge account — receives verification codes & user DMs
+    # Bridge account — reads DMs to @reeldrivebot, forwards to Telegram
+    # LOGIN = email or username for Instagram API (often ≠ public @handle)
+    instagram_bridge_login: str = ""
     instagram_bridge_username: str = ""
     instagram_bridge_password: str = ""
     instagram_bridge_session_path: str = "sessions/bridge.json"

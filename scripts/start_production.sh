@@ -1,6 +1,7 @@
 #!/bin/sh
 # یک سرویس Railway: ربات در پس‌زمینه + داشبورد روی PORT (health check)
 set -e
+mkdir -p sessions data
 
 echo "[start] Telegram bot (background)..."
 python -m bot.main &
