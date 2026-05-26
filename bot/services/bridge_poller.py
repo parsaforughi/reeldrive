@@ -41,14 +41,21 @@ class BridgePoller:
         self._seen: set[str] = set()
         self._running = False
         self._bootstrapped = False
+        self._idle_ticks = 0
 
     async def run_loop(self) -> None:
         self._running = True
         while self._running:
             try:
                 if not client_pool.bridge_ready:
-                    logger.warning("Bridge poller idle — Instagram bridge not logged in")
+                    self._idle_ticks += 1
+                    if self._idle_ticks == 1 or self._idle_ticks % 15 == 0:
+                        logger.warning(
+                            "Bridge poller idle — Instagram bridge not logged in "
+                            "(export session: scripts/ig_export_session.py)"
+                        )
                 else:
+                    self._idle_ticks = 0
                     batch = await asyncio.to_thread(self._fetch_new_messages)
                     for item in batch:
                         await self._handle_message(item)

@@ -52,18 +52,33 @@ async def main() -> None:
     else:
         logger.warning("APIFY_TOKEN not set — link download will need instagrapi fallback")
 
-    logger.info("Connecting Instagram service account (optional)…")
-    if client_pool.connect_service():
-        logger.info("Service Instagram ready (profile/stories)")
-    else:
-        logger.warning("Service IG not configured — only Apify link download + bridge if set")
-
     logger.info("Connecting Instagram bridge account…")
     logger.info("User-facing bridge DM handle: %s", settings.bridge_ig_handle)
-    if client_pool.connect_bridge():
-        logger.info("Bridge Instagram ready")
+    bridge_ok = client_pool.connect_bridge()
+    if bridge_ok:
+        logger.info("Bridge Instagram ready — /connect DM codes will work")
     else:
-        logger.warning("Bridge IG not configured")
+        logger.warning(
+            "Bridge IG not configured — /connect will not work until session or "
+            "credentials are fixed (see scripts/ig_export_session.py)"
+        )
+
+    svc_user = (settings.instagram_username or "").strip().lstrip("@").lower()
+    br_user = (
+        (settings.instagram_bridge_username or settings.instagram_username or "")
+        .strip()
+        .lstrip("@")
+        .lower()
+    )
+    if bridge_ok and svc_user and svc_user == br_user:
+        client_pool.service = client_pool.bridge
+        logger.info("Service IG shares bridge session (@%s)", svc_user)
+    else:
+        logger.info("Connecting Instagram service account (optional)…")
+        if client_pool.connect_service():
+            logger.info("Service Instagram ready (profile/stories)")
+        elif svc_user:
+            logger.warning("Service IG login failed — profile/stories unavailable")
 
     poller = BridgePoller(bot, loop)
     poll_task = asyncio.create_task(poller.run_loop())

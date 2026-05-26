@@ -224,16 +224,17 @@ Coming soon: unfollowers list.""",
     },
     "connect_bridge_offline": {
         "fa": (
-            "\n\n⚠️ <b>توجه:</b> سرویس دریافت دایرکت اینستاگرام الان آفلاین است. "
-            "تا وقتی ادمین اکانت bridge را وصل نکند، کد تأیید خوانده نمی‌شود."
+            "\n\n⚠️ <b>توجه:</b> اتصال اینستاگرام سرور برقرار نیست "
+            "(لاگین از IP ریل‌وی معمولاً بلاک است). "
+            "ادمین باید session را از کامپیوتر شخصی export کند."
         ),
         "en": (
-            "\n\n⚠️ <b>Note:</b> Instagram DM bridge is offline. "
-            "Your code cannot be read until the bridge account is configured."
+            "\n\n⚠️ <b>Note:</b> Instagram bridge is offline on the server "
+            "(cloud IPs are often blocked). Admin must export a session from a PC."
         ),
         "ar": (
-            "\n\n⚠️ <b>تنبيه:</b> جسر رسائل إنستغرام غير متصل. "
-            "لن يُقرأ الرمز حتى يتم إعداد حساب الجسر."
+            "\n\n⚠️ <b>تنبيه:</b> جسر إنستغرام غير متصل على الخادم. "
+            "يجب تصدير الجلسة من جهاز شخصي."
         ),
     },
     "connect_wrong_account": {

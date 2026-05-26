@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     instagram_bridge_password: str = ""
     instagram_bridge_session_path: str = "sessions/bridge.json"
     instagram_bridge_display: str = "reeldrivebot"
+    # Optional: sessionid from browser (avoids password login on Railway)
+    instagram_session_id: str = ""
+    instagram_bridge_session_id: str = ""
+    # Optional: http://user:pass@host:port if IG blocks datacenter IP
+    instagram_proxy: str = ""
 
     database_url: str = "sqlite+aiosqlite:///./data/reeldrive.db"
     bot_name: str = "Reeldrive"
