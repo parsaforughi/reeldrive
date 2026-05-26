@@ -37,8 +37,10 @@ class Settings(BaseSettings):
     instagram_bridge_session_id: str = ""
     # Optional: http://user:pass@host:port if IG blocks datacenter IP
     instagram_proxy: str = ""
-    # Set false to skip bridge login attempts on startup (Bio /verify still works)
+    # Set false to never try bridge login (Bio /verify + Telegram links still work)
     instagram_bridge_enabled: bool = True
+    # Try password login on server only if true (usually blocked on Railway)
+    instagram_bridge_force_login: bool = False
 
     database_url: str = "sqlite+aiosqlite:///./data/reeldrive.db"
     bot_name: str = "Reeldrive"

@@ -117,10 +117,20 @@ class ClientPool:
         user = (settings.instagram_username or "").strip()
         if not user:
             return False
+        session_file = settings.service_session_file
+        if (
+            not settings.instagram_session_id
+            and not session_file.exists()
+            and not settings.instagram_bridge_force_login
+        ):
+            logger.info(
+                "Service IG skipped — no session file (profile/stories need local export)"
+            )
+            return False
         self.service = _login_client(
             user,
             settings.instagram_password,
-            settings.service_session_file,
+            session_file,
             session_id=settings.instagram_session_id,
         )
         return self.service is not None
@@ -135,42 +145,34 @@ class ClientPool:
             settings.instagram_bridge_password or settings.instagram_password or ""
         )
         session_id = settings.instagram_bridge_session_id
+        session_file = settings.bridge_session_file
 
         if not bridge_user:
-            logger.error(
-                "Bridge IG offline: set INSTAGRAM_BRIDGE_USERNAME (or INSTAGRAM_USERNAME) "
-                "for %s",
-                settings.bridge_ig_handle,
+            logger.info(
+                "Bridge IG skipped — no INSTAGRAM_BRIDGE_USERNAME / INSTAGRAM_USERNAME"
             )
             self.bridge = None
             return False
 
-        has_session = (
-            bool(session_id)
-            or settings.bridge_session_file.exists()
-            or bool(bridge_pass)
-        )
-        if not has_session:
-            logger.error(
-                "Bridge IG offline for @%s: set INSTAGRAM_BRIDGE_PASSWORD, "
-                "INSTAGRAM_BRIDGE_SESSION_ID, or upload %s",
+        has_saved_session = bool(session_id) or session_file.exists()
+        if not has_saved_session and not settings.instagram_bridge_force_login:
+            logger.info(
+                "Bridge IG skipped for @%s — no session file/SESSION_ID on server "
+                "(password login blocked on Railway). Bio+/verify and Telegram links OK. "
+                "Upload %s or set INSTAGRAM_BRIDGE_SESSION_ID to enable IG DM relay.",
                 bridge_user,
-                settings.bridge_session_file,
+                session_file,
             )
             self.bridge = None
             return False
 
         if not settings.instagram_bridge_username and settings.instagram_username:
-            logger.info(
-                "Using INSTAGRAM_USERNAME for bridge (@%s) — "
-                "set INSTAGRAM_BRIDGE_* explicitly if needed",
-                bridge_user,
-            )
+            logger.info("Bridge using INSTAGRAM_USERNAME (@%s)", bridge_user)
 
         self.bridge = _login_client(
             bridge_user,
             bridge_pass,
-            settings.bridge_session_file,
+            session_file,
             session_id=session_id,
         )
         return self.bridge is not None
