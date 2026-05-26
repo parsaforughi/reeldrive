@@ -222,6 +222,34 @@ Coming soon: unfollowers list.""",
         "en": "Invalid username.",
         "ar": "اسم المستخدم غير صالح.",
     },
+    "connect_bridge_offline": {
+        "fa": (
+            "\n\n⚠️ <b>توجه:</b> سرویس دریافت دایرکت اینستاگرام الان آفلاین است. "
+            "تا وقتی ادمین اکانت bridge را وصل نکند، کد تأیید خوانده نمی‌شود."
+        ),
+        "en": (
+            "\n\n⚠️ <b>Note:</b> Instagram DM bridge is offline. "
+            "Your code cannot be read until the bridge account is configured."
+        ),
+        "ar": (
+            "\n\n⚠️ <b>تنبيه:</b> جسر رسائل إنستغرام غير متصل. "
+            "لن يُقرأ الرمز حتى يتم إعداد حساب الجسر."
+        ),
+    },
+    "connect_wrong_account": {
+        "fa": (
+            "❌ کد از اکانت <b>@{got}</b> آمد، ولی تو پیج <b>@{expected}</b> را ثبت کرده بودی.\n"
+            "از همان پیجی که در /connect نوشتی کد را بفرست."
+        ),
+        "en": (
+            "❌ Code came from <b>@{got}</b>, but you registered <b>@{expected}</b>.\n"
+            "Send the code from the same Instagram account."
+        ),
+        "ar": (
+            "❌ الرمز من <b>@{got}</b> لكنك سجّلت <b>@{expected}</b>.\n"
+            "أرسل الرمز من نفس حساب إنستغرام."
+        ),
+    },
     "connect_code": {
         "fa": (
             "✅ پیج: <b>@{username}</b>\n\n"

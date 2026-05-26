@@ -1,3 +1,4 @@
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -7,17 +8,24 @@ from bot.config import settings
 from bot.db.engine import async_session
 from bot.db.models import UserConnection
 from bot.services.analytics import log_activity
+from bot.time_utils import utc_now
+
+VERIFICATION_CODE_RE = re.compile(r"\b([A-F0-9]{6})\b", re.IGNORECASE)
 
 
 def generate_code() -> str:
     return secrets.token_hex(3).upper()
 
 
+def extract_verification_code(text: str) -> str | None:
+    """Find 6-char hex code inside DM text (e.g. only 'B7D9D6' or 'code B7D9D6')."""
+    match = VERIFICATION_CODE_RE.search((text or "").strip())
+    return match.group(1).upper() if match else None
+
+
 async def start_verification(telegram_id: int, instagram_username: str) -> str:
     code = generate_code()
-    expires = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.verification_code_ttl_minutes
-    )
+    expires = utc_now() + timedelta(minutes=settings.verification_code_ttl_minutes)
     username = instagram_username.lower().lstrip("@")
 
     async with async_session() as session:
@@ -43,7 +51,9 @@ async def start_verification(telegram_id: int, instagram_username: str) -> str:
 
 
 async def get_pending_by_code(code: str) -> UserConnection | None:
-    code = code.strip().upper()
+    code = extract_verification_code(code) or code.strip().upper()
+    if len(code) != 6:
+        return None
     now = datetime.now(timezone.utc)
     async with async_session() as session:
         result = await session.execute(

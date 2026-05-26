@@ -56,14 +56,21 @@ class ClientPool:
         return self.service is not None
 
     def connect_bridge(self) -> bool:
-        bridge_user = settings.instagram_bridge_username or settings.instagram_username
-        bridge_pass = settings.instagram_bridge_password or settings.instagram_password
-        bridge_session = (
-            settings.bridge_session_file
-            if settings.instagram_bridge_username
-            else settings.service_session_file
+        bridge_user = (settings.instagram_bridge_username or "").strip()
+        bridge_pass = settings.instagram_bridge_password or ""
+        if not bridge_user or not bridge_pass:
+            logger.error(
+                "Bridge IG offline: set INSTAGRAM_BRIDGE_USERNAME and "
+                "INSTAGRAM_BRIDGE_PASSWORD for %s",
+                settings.bridge_ig_handle,
+            )
+            self.bridge = None
+            return False
+        self.bridge = _login_client(
+            bridge_user,
+            bridge_pass,
+            settings.bridge_session_file,
         )
-        self.bridge = _login_client(bridge_user, bridge_pass, bridge_session)
         return self.bridge is not None
 
     def get_download_client(self, use_connected: bool = False) -> Client:

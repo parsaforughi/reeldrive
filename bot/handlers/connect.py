@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from bot.config import settings
 from bot.i18n import tu
 from bot.keyboards import connect_cancel_kb
+from bot.services.client_pool import client_pool
 from bot.services.verification import disconnect, start_verification
 from bot.states import ConnectStates
 
@@ -42,6 +43,10 @@ async def receive_username(message: Message, state: FSMContext) -> None:
     bridge = settings.bridge_ig_handle
     ttl = settings.verification_code_ttl_minutes
 
+    extra = ""
+    if not client_pool.bridge_ready:
+        extra = await tu(uid, "connect_bridge_offline")
+
     await state.clear()
     await message.answer(
         await tu(
@@ -52,6 +57,7 @@ async def receive_username(message: Message, state: FSMContext) -> None:
             bridge=bridge,
             ttl=ttl,
         )
+        + extra
     )
 
 
