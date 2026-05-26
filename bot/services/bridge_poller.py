@@ -83,7 +83,15 @@ class BridgePoller:
             return []
 
         out: list[BridgeMessage] = []
-        threads = client.direct_threads(amount=30)
+        try:
+            threads = client.direct_threads(amount=30)
+        except Exception as exc:
+            logger.warning(
+                "Cannot read IG inbox (%s). Refresh INSTAGRAM_BRIDGE_SESSION_ID "
+                "or set INSTAGRAM_PROXY.",
+                exc,
+            )
+            return []
         for thread in threads:
             try:
                 messages = client.direct_messages(thread.id, amount=15)

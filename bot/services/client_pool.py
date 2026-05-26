@@ -22,26 +22,14 @@ def _apply_proxy(client: Client, proxy: str) -> None:
         logger.info("Instagram proxy enabled")
 
 
-def _apply_sessionid(
-    client: Client,
-    session_id: str,
-    username: str,
-    *,
-    csrftoken: str = "",
-    mid: str = "",
-) -> None:
-    """Apply browser session without user_info API (avoids HTTP 467)."""
+def _apply_sessionid(client: Client, session_id: str, username: str) -> None:
+    """Sessionid only — no extra cookies, no user_info API."""
     sid = unquote(session_id.strip())
     match = re.search(r"^\d+", sid)
     if not match:
-        raise ValueError("sessionid must start with numeric user id")
+        raise ValueError("INSTAGRAM_BRIDGE_SESSION_ID must start with user id digits")
     uid = match.group()
-    cookies: dict[str, str] = {"sessionid": sid}
-    if csrftoken:
-        cookies["csrftoken"] = csrftoken.strip()
-    if mid:
-        cookies["mid"] = mid.strip()
-    client.settings["cookies"] = cookies
+    client.settings["cookies"] = {"sessionid": sid}
     client.init()
     client.authorization_data = {
         "ds_user_id": uid,
@@ -49,16 +37,16 @@ def _apply_sessionid(
         "should_use_header_over_cookies": True,
     }
     client.cookie_dict["ds_user_id"] = uid
-    if csrftoken:
-        client.cookie_dict["csrftoken"] = csrftoken.strip()
-    if mid:
-        client.cookie_dict["mid"] = mid.strip()
-    client.username = username or None
+    client.username = (username or "bridge").lstrip("@")
 
 
-def _validate_session(client: Client) -> None:
-    """Check session via inbox only — timeline often triggers challenge on cloud IPs."""
-    client.direct_threads(5)
+def _try_validate_inbox(client: Client) -> bool:
+    try:
+        client.direct_threads(3)
+        return True
+    except Exception as exc:
+        logger.warning("Inbox check failed (session may still work): %s", exc)
+        return False
 
 
 def _login_client(
@@ -68,68 +56,54 @@ def _login_client(
     *,
     session_id: str = "",
     proxy: str = "",
-    extra_cookies: dict[str, str] | None = None,
     allow_password_login: bool = True,
+    trust_session_on_connect: bool = False,
 ) -> Client | None:
-    username = (username or "").strip().lstrip("@")
-    if not username:
-        return None
-
+    username = (username or "bridge").strip().lstrip("@")
     proxy = proxy or settings.instagram_proxy
     session_path.parent.mkdir(parents=True, exist_ok=True)
-    extra = extra_cookies or {}
     sid = unquote((session_id or "").strip())
 
-    # 1) Session ID from env — soft apply, never login_by_sessionid (467 on user/info)
     if sid:
         client = Client()
         client.delay_range = [1, 3]
         _apply_proxy(client, proxy)
         try:
-            _apply_sessionid(
-                client,
-                sid,
-                username,
-                csrftoken=extra.get("csrftoken", ""),
-                mid=extra.get("mid", ""),
-            )
+            _apply_sessionid(client, sid, username)
             client.dump_settings(session_path)
-            _validate_session(client)
-            logger.info("Instagram OK via session id: @%s", client.username or username)
-            return client
-        except Exception as exc:
+            if trust_session_on_connect:
+                logger.info(
+                    "Bridge session loaded from INSTAGRAM_BRIDGE_SESSION_ID (@%s)",
+                    client.username,
+                )
+                return client
+            if _try_validate_inbox(client):
+                logger.info("Instagram OK via session id: @%s", client.username)
+                return client
             logger.error(
-                "Session ID invalid or blocked for @%s: %s. "
-                "Open Instagram app → confirm security alert → refresh sessionid. "
-                "Also set csrftoken + mid cookies if available.",
-                username,
-                exc,
+                "Session id rejected by Instagram API. Get a fresh sessionid from "
+                "browser (logged in as reeldrivebot) or set INSTAGRAM_PROXY."
             )
             return None
+        except Exception as exc:
+            logger.error("Invalid INSTAGRAM_BRIDGE_SESSION_ID: %s", exc)
+            return None
 
-    # 2) Saved session file
     if session_path.exists():
         client = Client()
         client.delay_range = [1, 3]
         _apply_proxy(client, proxy)
         try:
             client.load_settings(session_path)
-            _validate_session(client)
-            logger.info("Instagram OK via saved session: @%s", client.username or username)
-            return client
+            if trust_session_on_connect or _try_validate_inbox(client):
+                logger.info("Instagram OK via saved session: @%s", client.username or username)
+                return client
         except LoginRequired:
             logger.info("Saved session expired for @%s", username)
         except Exception as exc:
             logger.warning("Could not reuse session file %s: %s", session_path, exc)
 
-    # 3) Password login (often blocked on cloud IPs)
     if not allow_password_login or not password:
-        if not password and not sid:
-            logger.error(
-                "No valid session for @%s. Set INSTAGRAM_BRIDGE_SESSION_ID or run:\n"
-                "  python scripts/ig_export_session.py",
-                username,
-            )
         return None
 
     client = Client()
@@ -138,24 +112,15 @@ def _login_client(
     try:
         client.login(username, password)
         client.dump_settings(session_path)
-        _validate_session(client)
-        logger.info("Instagram OK via password: @%s", username)
-        return client
+        if _try_validate_inbox(client):
+            logger.info("Instagram OK via password: @%s", username)
+            return client
     except BadPassword:
-        logger.error(
-            "Instagram blocked or wrong password for @%s. "
-            "Export session on your PC (scripts/ig_export_session.py) "
-            "and set INSTAGRAM_BRIDGE_SESSION_ID on Railway.",
-            username,
-        )
+        logger.error("Instagram blocked password login for @%s — use INSTAGRAM_BRIDGE_SESSION_ID", username)
     except TwoFactorRequired:
-        logger.error("2FA on @%s — use browser sessionid instead.", username)
+        logger.error("2FA on @%s — use INSTAGRAM_BRIDGE_SESSION_ID", username)
     except ChallengeRequired:
-        logger.error(
-            "Instagram security challenge for @%s — confirm in IG app, "
-            "then set a fresh INSTAGRAM_BRIDGE_SESSION_ID.",
-            username,
-        )
+        logger.error("Challenge on @%s — use INSTAGRAM_BRIDGE_SESSION_ID", username)
     except Exception:
         logger.exception("Instagram login failed for @%s", username)
     return None
@@ -184,9 +149,7 @@ class ClientPool:
             and not session_file.exists()
             and not settings.instagram_bridge_force_login
         ):
-            logger.info(
-                "Service IG skipped — no session file (profile/stories need local export)"
-            )
+            logger.info("Service IG skipped — no session file")
             return False
         self.service = _login_client(
             user,
@@ -197,42 +160,31 @@ class ClientPool:
         return self.service is not None
 
     def connect_bridge(self) -> bool:
+        session_id = (settings.instagram_bridge_session_id or "").strip()
+        session_file = settings.bridge_session_file
+        public_handle = settings.bridge_ig_handle
+
+        if not session_id and not session_file.exists():
+            if not settings.instagram_bridge_force_login:
+                logger.info(
+                    "Bridge IG skipped — set INSTAGRAM_BRIDGE_SESSION_ID (one variable). "
+                    "Handle: %s",
+                    public_handle,
+                )
+                self.bridge = None
+                return False
+
         bridge_login = (
             settings.instagram_bridge_login
             or settings.instagram_bridge_username
+            or settings.instagram_bridge_display
             or settings.instagram_username
-            or ""
+            or "reeldrivebot"
         ).strip().lstrip("@")
+
         bridge_pass = (
             settings.instagram_bridge_password or settings.instagram_password or ""
         )
-        session_id = settings.instagram_bridge_session_id
-        session_file = settings.bridge_session_file
-        public_handle = settings.bridge_ig_handle
-        extra_cookies = {
-            "csrftoken": settings.instagram_bridge_csrftoken,
-            "mid": settings.instagram_bridge_mid,
-        }
-
-        if not bridge_login:
-            logger.info(
-                "Bridge IG skipped — set INSTAGRAM_BRIDGE_LOGIN (email/username for API)"
-            )
-            self.bridge = None
-            return False
-
-        has_saved_session = bool(session_id) or session_file.exists()
-        if not has_saved_session and not settings.instagram_bridge_force_login:
-            logger.info(
-                "Bridge IG skipped — no %s on server. IG DM → Telegram needs one-time "
-                "session export (see docs/BRIDGE_SETUP_FA.md). Public handle: %s",
-                session_file,
-                public_handle,
-            )
-            self.bridge = None
-            return False
-
-        # If session id is set, never password-login on server (triggers challenge)
         allow_password = bool(bridge_pass) and not session_id
 
         self.bridge = _login_client(
@@ -240,8 +192,8 @@ class ClientPool:
             bridge_pass,
             session_file,
             session_id=session_id,
-            extra_cookies=extra_cookies,
             allow_password_login=allow_password,
+            trust_session_on_connect=bool(session_id),
         )
         if self.bridge:
             logger.info(

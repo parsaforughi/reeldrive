@@ -42,15 +42,7 @@ def _sessionid_login(client: Client, sessionid: str) -> None:
     if not user_id:
         raise ValueError("sessionid must start with numeric user id")
     uid = user_id.group()
-    cookies: dict[str, str] = {"sessionid": sessionid}
-    for key, env in (
-        ("csrftoken", "INSTAGRAM_BRIDGE_CSRFTOKEN"),
-        ("mid", "INSTAGRAM_BRIDGE_MID"),
-    ):
-        val = os.environ.get(env, "").strip()
-        if val:
-            cookies[key] = val
-    client.settings["cookies"] = cookies
+    client.settings["cookies"] = {"sessionid": sessionid}
     client.init()
     client.authorization_data = {
         "ds_user_id": uid,
