@@ -58,11 +58,17 @@ def parse_username(text: str) -> str | None:
 
 
 def parse_media_url(text: str) -> str | None:
-    text = text.strip()
+    """Find post/reel URL even if the message has extra text around it."""
+    text = (text or "").strip()
     match = INSTAGRAM_URL_RE.search(text)
-    if match:
-        return normalize_instagram_url(text)
-    return None
+    if not match:
+        return None
+    start = match.start()
+    snippet = text[start:].split()[0].rstrip(".,;)")
+    if not snippet.lower().startswith("http"):
+        snippet = "https://" + snippet.lstrip("/")
+    base = snippet.split("?")[0].rstrip("/")
+    return base + "/"
 
 
 def normalize_instagram_url(text: str) -> str:

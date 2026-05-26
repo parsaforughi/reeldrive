@@ -21,10 +21,34 @@ from bot.services.direct_download import direct_download_ready, download_media_u
 from bot.services.instagram import instagram_downloader
 from bot.services.verification import get_connection
 from bot.states import ConnectStates, SearchStates
-from bot.utils import ParsedCommand, parse_command
+from bot.utils import ParsedCommand, parse_command, parse_media_url
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+
+async def download_from_text(message: Message, text: str) -> None:
+    """Direct download from a message (also used when user sends link during /connect)."""
+    uid = message.from_user.id
+    lang = await require_user_lang(uid)
+    parsed = parse_command(text.strip())
+    if not parsed or parsed.kind != "media_url" or not parsed.url:
+        await message.answer(await tu(uid, "hint_invalid_input"))
+        return
+    if not direct_download_ready():
+        await message.answer(await tu(uid, "error_direct_not_ready"))
+        return
+    status = await message.answer(await tu(uid, "processing"))
+    try:
+        await _dispatch(message, status, parsed, lang)
+    except ValueError as exc:
+        logger.warning("User request failed: %s", exc)
+        await status.edit_text(friendly_error(exc, lang))
+    except LoginRequired:
+        await status.edit_text(await tu(uid, "error_login_required"))
+    except Exception:
+        logger.exception("Download error")
+        await status.edit_text(await tu(uid, "error_generic"))
 
 
 @router.message(F.text)
@@ -32,10 +56,12 @@ async def handle_text(message: Message, state: FSMContext) -> None:
     uid = message.from_user.id
     lang = await require_user_lang(uid)
     current = await state.get_state()
-    if current == ConnectStates.waiting_username.state:
-        return
-
     text = (message.text or "").strip()
+
+    if current == ConnectStates.waiting_username.state:
+        if not parse_media_url(text):
+            return
+        await state.clear()
     in_search = current == SearchStates.waiting_query.state
 
     parsed = parse_command(text)

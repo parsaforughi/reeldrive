@@ -35,18 +35,20 @@ MESSAGES: dict[str, dict[str, str]] = {
     "start": {
         "fa": f"""سلام! 👋 به <b>{NAME}</b> خوش اومدی.
 
-⚡ برای استفاده ساده، <b>دایرکت دانلود</b> — لینک یا یوزرنیم اینستاگرام را بفرست.
+⚡ <b>دایرکت دانلود (فعال):</b> لینک پست / ریل اینستاگرام را <b>همین‌جا</b> بفرست — خودکار دانلود می‌شود.
+مثال: <code>instagram.com/reel/...</code>
 
-🔐 اتصال پیج شخصی: /connect
+🔐 اتصال پیج (اختیاری): /connect
 
 همه امکانات فعلاً <b>رایگان</b> است.
 
 از دکمه آبی <b>Menu</b> کنار چت استفاده کن 👇""",
         "en": f"""Hi! 👋 Welcome to <b>{NAME}</b>.
 
-⚡ <b>Direct download</b> — send an Instagram link or username.
+⚡ <b>Direct download (active):</b> send a post/reel link <b>here</b> — auto download.
+Example: <code>instagram.com/reel/...</code>
 
-🔐 Connect your page: /connect
+🔐 Connect page (optional): /connect
 
 Everything is <b>free</b> for now.
 
@@ -216,6 +218,11 @@ Coming soon: unfollowers list.""",
         "fa": "لغو شد.",
         "en": "Cancelled.",
         "ar": "تم الإلغاء.",
+    },
+    "connect_cancelled_for_link": {
+        "fa": "اتصال پیج لغو شد — دایرکت دانلود:",
+        "en": "Connect cancelled — direct download:",
+        "ar": "تم إلغاء الربط — تحميل مباشر:",
     },
     "connect_invalid_username": {
         "fa": "یوزرنیم نامعتبر است.",

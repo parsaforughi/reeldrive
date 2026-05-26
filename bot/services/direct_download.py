@@ -8,7 +8,8 @@ from bot.services.instagram import MediaResult, instagram_downloader
 
 
 def direct_download_ready() -> bool:
-    return apify_downloader.ready or client_pool.service_ready
+    """Link download works with Apify only — no IG login required."""
+    return apify_downloader.ready
 
 
 async def download_media_url(url: str) -> MediaResult:
