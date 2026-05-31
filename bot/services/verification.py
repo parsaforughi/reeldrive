@@ -1,6 +1,6 @@
 import re
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from sqlalchemy import select, update
 
@@ -54,7 +54,7 @@ async def get_pending_by_code(code: str) -> UserConnection | None:
     code = extract_verification_code(code) or code.strip().upper()
     if len(code) != 6:
         return None
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     async with async_session() as session:
         result = await session.execute(
             select(UserConnection).where(
@@ -65,10 +65,7 @@ async def get_pending_by_code(code: str) -> UserConnection | None:
         row = result.scalar_one_or_none()
         if not row or not row.code_expires_at:
             return None
-        expires = row.code_expires_at
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone.utc)
-        if expires < now:
+        if row.code_expires_at < now:
             return None
         return row
 
@@ -76,7 +73,7 @@ async def get_pending_by_code(code: str) -> UserConnection | None:
 async def confirm_connection(
     telegram_id: int, instagram_user_id: str, instagram_username: str
 ) -> None:
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     async with async_session() as session:
         await session.execute(
             update(UserConnection)
