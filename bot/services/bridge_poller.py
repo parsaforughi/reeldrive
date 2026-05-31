@@ -7,8 +7,11 @@ from aiogram import Bot
 from bot.config import settings
 from bot.handlers.download_helpers import deliver_media_result
 from bot.i18n import require_user_lang, t
+from bot.post_display import post_meta_from_url
+from bot.services.cdn_download import download_cdn_files
 from bot.services.client_pool import client_pool
 from bot.services.direct_download import download_media_url
+from bot.services.instagram import MediaResult
 from bot.services.verification import (
     confirm_connection,
     extract_verification_code,
@@ -221,8 +224,8 @@ class BridgePoller:
 
         # Same pipeline as pasting a link in Telegram chat (Apify + caption + buttons).
         ig_url = item.media_url or parse_media_url(text)
-        if ig_url:
-            await self._download_and_send(chat_id, ig_url)
+        if ig_url or item.media_files:
+            await self._download_and_send(chat_id, ig_url, item.media_files)
             return
 
         await self._forward_plain_text(chat_id, text)
@@ -234,11 +237,34 @@ class BridgePoller:
         prefix = t("forward_ig_prefix", lang)
         await self._bot.send_message(telegram_id, f"{prefix}{text}")
 
-    async def _download_and_send(self, chat_id: int, url: str) -> None:
-        try:
-            result = await download_media_url(url)
-            await deliver_media_result(self._bot, chat_id, result)
-        except ValueError as exc:
-            logger.warning("Bridge forward download failed: %s", exc)
-            lang = await require_user_lang(chat_id)
-            await self._bot.send_message(chat_id, t("error_not_found", lang))
+    async def _download_and_send(
+        self,
+        chat_id: int,
+        url: str,
+        media_files: list[tuple[str, bool]] | None = None,
+    ) -> None:
+        if url:
+            try:
+                result = await download_media_url(url)
+                await deliver_media_result(self._bot, chat_id, result)
+                return
+            except ValueError as exc:
+                logger.warning("Bridge Apify download failed: %s", exc)
+
+        if media_files:
+            paths = await download_cdn_files(media_files)
+            if paths:
+                direct_urls = [u for u, _ in media_files]
+                result = MediaResult(
+                    paths=paths,
+                    caption="",
+                    media_type="reels" if any(v for _, v in media_files) else "posts",
+                    direct_urls=direct_urls,
+                    post_meta=post_meta_from_url(url) if url else None,
+                    source_url=url,
+                )
+                await deliver_media_result(self._bot, chat_id, result)
+                return
+
+        lang = await require_user_lang(chat_id)
+        await self._bot.send_message(chat_id, t("error_not_found", lang))

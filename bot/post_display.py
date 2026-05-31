@@ -79,6 +79,21 @@ def post_meta_from_apify(item: dict, source_url: str) -> PostMeta:
     )
 
 
+def post_meta_from_url(source_url: str) -> PostMeta:
+    import re
+
+    m = re.search(
+        r"instagram\.com/(?:reel|reels|p|tv)/([^/?#]+)/?",
+        source_url,
+        re.I,
+    )
+    code = m.group(1) if m else ""
+    url = source_url if source_url.startswith("http") else ""
+    if not url and code:
+        url = f"https://www.instagram.com/reel/{code}/"
+    return PostMeta(short_code=code, post_url=url, post_tag="DM")
+
+
 def format_post_caption(meta: PostMeta, *, refreshed: bool = False) -> str:
     tag_line = f"# #{meta.post_tag}" if meta.post_tag else "#"
     date_line = f"📅 {_format_jalali(meta.timestamp_iso)}"

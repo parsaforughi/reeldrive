@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import aiohttp
 
 from bot.config import settings
+from bot.services.cdn_download import download_cdn_url
 from bot.media_variants import extract_media_variants, pick_best_download
 from bot.post_display import post_meta_from_apify
 from bot.services.instagram import MediaResult
@@ -98,17 +99,17 @@ class ApifyDownloader:
         async with aiohttp.ClientSession() as session:
             # Main preview: best quality video, or all carousel images
             if best and best.kind == "video":
-                path = await self._download_file(session, best.url, folder, 0)
+                path = await download_cdn_url(session, best.url, folder, 0)
                 if path:
                     paths.append(path)
             else:
                 for i, var in enumerate(variants[:10]):
                     if var.kind == "image":
-                        path = await self._download_file(session, var.url, folder, i)
+                        path = await download_cdn_url(session, var.url, folder, i)
                         if path:
                             paths.append(path)
             if not paths and best:
-                path = await self._download_file(session, best.url, folder, 0)
+                path = await download_cdn_url(session, best.url, folder, 0)
                 if path:
                     paths.append(path)
 
@@ -195,28 +196,6 @@ class ApifyDownloader:
         if PROFILE_PATH_RE.search(lower):
             return "details"
         return "posts"
-
-    async def _download_file(
-        self,
-        session: aiohttp.ClientSession,
-        url: str,
-        folder: Path,
-        index: int,
-    ) -> Path | None:
-        try:
-            async with session.get(url) as resp:
-                if not (200 <= resp.status < 300):
-                    return None
-                data = await resp.read()
-                ext = ".mp4" if "video" in (resp.content_type or "") else ".jpg"
-                if ".mp4" in url.split("?")[0].lower():
-                    ext = ".mp4"
-                path = folder / f"apify_{index}{ext}"
-                path.write_bytes(data)
-                return path
-        except Exception:
-            logger.exception("Failed to download %s", url[:80])
-            return None
 
     @staticmethod
     def _normalize_url(url: str) -> str:
