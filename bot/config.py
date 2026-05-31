@@ -49,7 +49,9 @@ class Settings(BaseSettings):
     bot_mention: str = "reeldrivebot"
 
     verification_code_ttl_minutes: int = 15
-    bridge_poll_interval_seconds: int = 20
+    # How often to check IG DMs (seconds). Lower = faster relay, more API calls.
+    bridge_poll_interval_seconds: float = 2.0
+    bridge_poll_idle_seconds: float = 10.0
     max_zip_posts: int = 100
 
     # Admin dashboard

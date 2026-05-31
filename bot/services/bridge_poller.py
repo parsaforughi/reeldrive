@@ -26,6 +26,13 @@ INSTAGRAM_URL_IN_TEXT = re.compile(
     r"https?://(?:www\.)?instagram\.com/[^\s]+", re.IGNORECASE
 )
 
+_FETCH_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+}
+
 
 @dataclass
 class BridgeMessage:
@@ -47,19 +54,32 @@ class BridgePoller:
         self._bootstrapped = False
         self._idle_ticks = 0
         self._inbox_blocked_logged = False
+        self._last_inbox_seq: str = ""
+        self._http: aiohttp.ClientSession | None = None
+        self._pending_tasks: set[asyncio.Task] = set()
+
+    async def _ensure_http(self) -> aiohttp.ClientSession:
+        if self._http is None or self._http.closed:
+            timeout = aiohttp.ClientTimeout(total=90, connect=10)
+            self._http = aiohttp.ClientSession(timeout=timeout, headers=_FETCH_HEADERS)
+        return self._http
 
     async def run_loop(self) -> None:
         self._running = True
+        await self._ensure_http()
         while self._running:
+            interval = settings.bridge_poll_interval_seconds
             try:
                 if not client_pool.bridge_ready:
                     self._idle_ticks += 1
+                    interval = settings.bridge_poll_idle_seconds
                     if self._idle_ticks == 1 or self._idle_ticks % 15 == 0:
                         logger.warning(
                             "Bridge poller idle — set INSTAGRAM_BRIDGE_SESSION_ID"
                         )
                 elif not client_pool.bridge_inbox_ok:
                     self._idle_ticks += 1
+                    interval = settings.bridge_poll_idle_seconds
                     if not self._inbox_blocked_logged:
                         self._inbox_blocked_logged = True
                         logger.warning(
@@ -71,22 +91,38 @@ class BridgePoller:
                     self._inbox_blocked_logged = False
                     batch = await asyncio.to_thread(self._fetch_new_messages)
                     for item in batch:
-                        await self._handle_message(item)
+                        self._spawn(self._handle_message(item))
             except Exception:
                 logger.exception("Bridge poll error")
-            await asyncio.sleep(settings.bridge_poll_interval_seconds)
+            await asyncio.sleep(interval)
+
+    def _spawn(self, coro) -> None:
+        task = asyncio.create_task(coro)
+        self._pending_tasks.add(task)
+        task.add_done_callback(self._pending_tasks.discard)
 
     def stop(self) -> None:
         self._running = False
+        if self._http and not self._http.closed:
+            asyncio.create_task(self._http.close())
 
     def _fetch_new_messages(self) -> list[BridgeMessage]:
         web = client_pool.bridge_web
         if not web:
             return []
 
+        # Fast path: skip full inbox if IG reports no new activity (~100ms).
+        if self._bootstrapped:
+            seq, _badge = web.peek_activity()
+            if seq and seq == self._last_inbox_seq:
+                return []
+
         out: list[BridgeMessage] = []
         try:
-            threads = web.fetch_threads(limit=30, thread_message_limit=10)
+            threads = web.fetch_threads(limit=12, thread_message_limit=5)
+            seq, _ = web.peek_activity()
+            if seq:
+                self._last_inbox_seq = seq
         except Exception as exc:
             client_pool.bridge_inbox_ok = False
             if not self._inbox_blocked_logged:
@@ -110,7 +146,7 @@ class BridgePoller:
 
                 text = item.text.strip()
                 media_url = item.media_url
-                if not text and not media_url:
+                if not text and not media_url and not item.media_files:
                     continue
 
                 # On first run skip old chatter, but still pick up verification codes
@@ -207,18 +243,17 @@ class BridgePoller:
         if not conn:
             return
 
-        # Shared reel/post: media is already in the DM payload — send it directly.
-        if item.media_files and await self._send_payload_media(
-            conn.telegram_id, item.media_files
-        ):
+        chat_id = conn.telegram_id
+
+        # Shared reel/post: CDN URL in payload — send ASAP.
+        if item.media_files and await self._send_payload_media(chat_id, item.media_files):
             return
 
-        # Fallback: download via the instagram.com link (Apify)
         if item.media_url:
-            await self._download_and_send(conn.telegram_id, item.media_url)
+            await self._download_and_send(chat_id, item.media_url)
             return
 
-        await self._forward_to_telegram(conn.telegram_id, text)
+        await self._forward_to_telegram(chat_id, text)
 
     async def _forward_to_telegram(self, telegram_id: int, text: str) -> None:
         lang = await require_user_lang(telegram_id)
@@ -226,9 +261,9 @@ class BridgePoller:
         urls = INSTAGRAM_URL_IN_TEXT.findall(text)
 
         if urls:
-            await self._bot.send_message(telegram_id, f"{prefix}{text[:900]}")
+            self._spawn(self._bot.send_message(telegram_id, f"{prefix}{text[:900]}"))
             for url in urls:
-                await self._download_and_send(telegram_id, url)
+                self._spawn(self._download_and_send(telegram_id, url))
             return
 
         media_url = parse_media_url(text)
@@ -241,9 +276,12 @@ class BridgePoller:
     async def _send_payload_media(
         self, chat_id: int, files: list[tuple[str, bool]]
     ) -> bool:
-        """Send reel/post media taken directly from the DM payload. True if any sent."""
+        """Send shared reel/post media. Tries Telegram URL fetch first (fastest)."""
         sent = 0
         for url, is_video in files:
+            if await self._try_send_by_url(chat_id, url, is_video):
+                sent += 1
+                continue
             data = await self._fetch_bytes(url)
             if not data:
                 continue
@@ -261,21 +299,25 @@ class BridgePoller:
                 logger.warning("Failed to send payload media to %s: %s", chat_id, exc)
         return sent > 0
 
-    async def _fetch_bytes(self, url: str) -> bytes | None:
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-        }
+    async def _try_send_by_url(self, chat_id: int, url: str, is_video: bool) -> bool:
+        """Let Telegram servers fetch the CDN file — often arrives in 1–2s."""
         try:
-            timeout = aiohttp.ClientTimeout(total=120)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers) as resp:
-                    if resp.status != 200:
-                        logger.warning("Media fetch HTTP %s for %s", resp.status, url[:60])
-                        return None
-                    return await resp.read()
+            if is_video:
+                await self._bot.send_video(chat_id, video=url)
+            else:
+                await self._bot.send_photo(chat_id, photo=url)
+            return True
+        except Exception:
+            return False
+
+    async def _fetch_bytes(self, url: str) -> bytes | None:
+        try:
+            session = await self._ensure_http()
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    logger.warning("Media fetch HTTP %s for %s", resp.status, url[:60])
+                    return None
+                return await resp.read()
         except Exception as exc:
             logger.warning("Media fetch error: %s", exc)
             return None

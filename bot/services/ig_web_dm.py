@@ -54,8 +54,11 @@ def _build_media_url(code: str, media_type) -> str:
 
 def _single_media_files(media: dict) -> list[tuple[str, bool]]:
     vv = media.get("video_versions") or []
-    if vv and vv[0].get("url"):
-        return [(vv[0]["url"], True)]
+    if vv:
+        # Smallest rendition = fastest download; good enough for phone screens.
+        pick = vv[-1] if len(vv) > 1 else vv[0]
+        if pick.get("url"):
+            return [(pick["url"], True)]
     candidates = (media.get("image_versions2") or {}).get("candidates") or []
     if candidates and candidates[0].get("url"):
         return [(candidates[0]["url"], False)]
@@ -150,8 +153,19 @@ class WebDMClient:
             logger.warning("Web DM session check failed: %s", exc)
             return False
 
+    def peek_activity(self) -> tuple[str, int]:
+        """Lightweight inbox activity check (~100ms). Returns (seq_id, badge_count)."""
+        try:
+            r = self._session.get(BADGE_URL, timeout=5)
+            if r.status_code != 200:
+                return "", -1
+            data = r.json()
+            return str(data.get("seq_id") or ""), int(data.get("badge_count") or 0)
+        except Exception:
+            return "", -1
+
     def fetch_threads(
-        self, limit: int = 20, thread_message_limit: int = 10
+        self, limit: int = 12, thread_message_limit: int = 5
     ) -> list[WebDMThread]:
         params = {
             "visual_message_return_type": "unseen",
@@ -159,7 +173,7 @@ class WebDMClient:
             "persistentBadging": "true",
             "limit": str(limit),
         }
-        r = self._session.get(INBOX_URL, params=params, timeout=25)
+        r = self._session.get(INBOX_URL, params=params, timeout=12)
         r.raise_for_status()
         data = r.json()
         raw_threads = data.get("inbox", {}).get("threads", []) or []
