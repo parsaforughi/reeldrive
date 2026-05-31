@@ -8,9 +8,9 @@ from bot.config import settings
 from bot.handlers.download_helpers import deliver_media_result
 from bot.i18n import require_user_lang, t
 from bot.post_display import post_meta_from_url
+from bot.services.apify import apify_downloader
 from bot.services.cdn_download import download_cdn_files
 from bot.services.client_pool import client_pool
-from bot.services.direct_download import download_media_url
 from bot.services.instagram import MediaResult
 from bot.services.verification import (
     confirm_connection,
@@ -243,28 +243,47 @@ class BridgePoller:
         url: str,
         media_files: list[tuple[str, bool]] | None = None,
     ) -> None:
-        if url:
+        apify_item: dict | None = None
+        normalized = url
+        results_type = "posts"
+        variants: list = []
+        paths: list = []
+
+        if url and apify_downloader.ready:
             try:
-                result = await download_media_url(url)
-                await deliver_media_result(self._bot, chat_id, result)
-                return
-            except ValueError as exc:
-                logger.warning("Bridge Apify download failed: %s", exc)
-
-        if media_files:
-            paths = await download_cdn_files(media_files)
-            if paths:
-                direct_urls = [u for u, _ in media_files]
-                result = MediaResult(
-                    paths=paths,
-                    caption="",
-                    media_type="reels" if any(v for _, v in media_files) else "posts",
-                    direct_urls=direct_urls,
-                    post_meta=post_meta_from_url(url) if url else None,
-                    source_url=url,
+                normalized, results_type, apify_item, variants = (
+                    await apify_downloader.scrape_media_url(url)
                 )
-                await deliver_media_result(self._bot, chat_id, result)
-                return
+                paths = await apify_downloader.download_variants(variants)
+                if not paths:
+                    logger.warning(
+                        "Bridge Apify CDN download failed for %s — trying DM payload",
+                        url,
+                    )
+            except ValueError as exc:
+                logger.warning("Bridge Apify scrape failed: %s", exc)
 
-        lang = await require_user_lang(chat_id)
-        await self._bot.send_message(chat_id, t("error_not_found", lang))
+        if not paths and media_files:
+            paths = await download_cdn_files(media_files)
+
+        if not paths:
+            lang = await require_user_lang(chat_id)
+            await self._bot.send_message(chat_id, t("error_not_found", lang))
+            return
+
+        if apify_item and variants:
+            result = apify_downloader.build_media_result(
+                apify_item, normalized, results_type, paths, variants
+            )
+        else:
+            direct_urls = [u for u, _ in media_files] if media_files else []
+            result = MediaResult(
+                paths=paths,
+                caption="",
+                media_type="reels" if any(v for _, v in (media_files or [])) else "posts",
+                direct_urls=direct_urls,
+                post_meta=post_meta_from_url(url) if url else None,
+                source_url=url,
+            )
+
+        await deliver_media_result(self._bot, chat_id, result)

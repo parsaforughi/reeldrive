@@ -69,7 +69,10 @@ class ApifyDownloader:
                 return str(val)
         return ""
 
-    async def download_media_url(self, url: str) -> MediaResult:
+    async def scrape_media_url(
+        self, url: str
+    ) -> tuple[str, str, dict, list]:
+        """Run Apify actor; return (normalized_url, results_type, item, variants)."""
         if not self.ready:
             raise ValueError("Apify تنظیم نشده / Apify not configured")
 
@@ -89,15 +92,14 @@ class ApifyDownloader:
         variants = extract_media_variants(item)
         if not variants:
             raise ValueError("لینک مدیا در خروجی نبود / No media URLs in response")
+        return normalized, results_type, item, variants
 
+    async def download_variants(self, variants: list) -> list[Path]:
         best = pick_best_download(variants)
-        all_urls = [v.url for v in variants]
-
         folder = TMP
         folder.mkdir(parents=True, exist_ok=True)
         paths: list[Path] = []
         async with aiohttp.ClientSession() as session:
-            # Main preview: best quality video, or all carousel images
             if best and best.kind == "video":
                 path = await download_cdn_url(session, best.url, folder, 0)
                 if path:
@@ -112,10 +114,17 @@ class ApifyDownloader:
                 path = await download_cdn_url(session, best.url, folder, 0)
                 if path:
                     paths.append(path)
+        return paths
 
-        if not paths:
-            raise ValueError("دانلود فایل ناموفق / File download failed")
-
+    def build_media_result(
+        self,
+        item: dict,
+        normalized: str,
+        results_type: str,
+        paths: list[Path],
+        variants: list,
+    ) -> MediaResult:
+        all_urls = [v.url for v in variants]
         meta = post_meta_from_apify(item, normalized)
         if meta.short_code:
             cache_post(
@@ -135,6 +144,13 @@ class ApifyDownloader:
             post_meta=meta,
             source_url=normalized,
         )
+
+    async def download_media_url(self, url: str) -> MediaResult:
+        normalized, results_type, item, variants = await self.scrape_media_url(url)
+        paths = await self.download_variants(variants)
+        if not paths:
+            raise ValueError("دانلود فایل ناموفق / File download failed")
+        return self.build_media_result(item, normalized, results_type, paths, variants)
 
     async def _run_actor(self, payload: dict) -> list[dict]:
         timeout = aiohttp.ClientTimeout(total=settings.apify_timeout_seconds)
