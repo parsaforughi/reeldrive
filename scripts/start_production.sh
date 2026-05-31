@@ -1,9 +1,8 @@
 #!/bin/sh
 # یک سرویس Railway: ربات در پس‌زمینه + داشبورد روی PORT (health check)
 set -e
-mkdir -p sessions data /app/data 2>/dev/null || true
-
-echo "[start] data dirs ready (mount Railway Volume at /app/data for persistent SQLite)"
+cd "$(dirname "$0")/.."
+sh scripts/ensure_data_dirs.sh
 
 echo "[start] Telegram bot (background)..."
 python -m bot.main &

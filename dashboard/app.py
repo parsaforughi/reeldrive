@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc, func, select
 
 from bot.config import settings
-from bot.db.engine import async_session, init_db
+from bot.db.engine import async_session, db_ping, init_db
 from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
@@ -92,7 +92,14 @@ app = FastAPI(title="Reeldrive Dashboard", lifespan=lifespan)
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "service": "reeldrive-dashboard"}
+    db_ok = await db_ping()
+    return {
+        "ok": db_ok,
+        "service": "reeldrive-dashboard",
+        "database": "postgres" if settings.database_is_postgres else "sqlite",
+        "database_ok": db_ok,
+        "data_dir": str(settings.persistent_data_dir),
+    }
 
 
 class LoginBody(BaseModel):

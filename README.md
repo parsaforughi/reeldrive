@@ -18,7 +18,8 @@
 
 **یک سرویس (پیش‌فرض)** — `railway.toml`  
 - Start: `sh scripts/start_production.sh` → ربات + داشبورد با هم  
-- دامنه: [https://reeldrive.up.railway.app](https://reeldrive.up.railway.app)
+- دامنه: [https://reeldrive.up.railway.app](https://reeldrive.up.railway.app)  
+- **DB پایدار:** `./scripts/setup_railway.sh` یا Postgres در Dashboard — [راهنما](docs/RAILWAY_DB_FA.md)
 
 **دو سرویس جدا (اختیاری، پایدارتر)**  
 - Web: `railway.web.toml` → فقط `python -m dashboard`  

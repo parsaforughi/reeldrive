@@ -8,3 +8,6 @@ healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
+
+# Persistent DB: add PostgreSQL in Railway dashboard (recommended).
+# Or attach a Volume with mount path /app/data (see docs/RAILWAY_DB_FA.md).

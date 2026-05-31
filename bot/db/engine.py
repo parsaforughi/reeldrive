@@ -1,17 +1,34 @@
+import logging
 from pathlib import Path
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from bot.config import settings
 from bot.db.models import Base
 
-engine = create_async_engine(settings.database_url, echo=False)
+logger = logging.getLogger(__name__)
+
+_engine_kwargs: dict = {}
+if settings.database_is_postgres:
+    _engine_kwargs = {
+        "pool_pre_ping": True,
+        "pool_size": 5,
+        "max_overflow": 10,
+    }
+
+engine = create_async_engine(settings.database_url, echo=False, **_engine_kwargs)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def _ensure_language_column(conn) -> None:
-    from sqlalchemy import text
+def sqlite_db_path() -> Path | None:
+    url = settings.database_url
+    if not url.startswith("sqlite"):
+        return None
+    return Path(url.split("sqlite+aiosqlite:///")[-1])
 
+
+async def _ensure_language_column(conn) -> None:
     dialect = conn.dialect.name
     if dialect == "sqlite":
         sql = "ALTER TABLE bot_users ADD COLUMN language VARCHAR(5) DEFAULT ''"
@@ -24,9 +41,22 @@ async def _ensure_language_column(conn) -> None:
 
 
 async def init_db() -> None:
-    if settings.database_url.startswith("sqlite"):
-        path = settings.database_url.split("///")[-1]
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
+    db_path = sqlite_db_path()
+    if db_path:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info("SQLite database file: %s", db_path)
+    settings.persistent_data_dir.mkdir(parents=True, exist_ok=True)
+    (settings.persistent_data_dir / "sessions").mkdir(parents=True, exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await _ensure_language_column(conn)
+
+
+async def db_ping() -> bool:
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception as exc:
+        logger.warning("Database ping failed: %s", exc)
+        return False

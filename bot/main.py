@@ -32,12 +32,14 @@ async def main() -> None:
     if settings.database_is_postgres:
         logger.info("Database: PostgreSQL (persistent across deploys)")
     elif os.environ.get("RAILWAY_ENVIRONMENT"):
+        vol = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "")
         logger.info(
-            "Database: SQLite at /app/data — attach a Railway Volume on /app/data "
-            "OR add Postgres (see docs/RAILWAY_DB_FA.md)"
+            "Database: SQLite at %s%s",
+            settings.persistent_data_dir,
+            " (Railway Volume)" if vol else " — add Postgres or Volume /app/data",
         )
     else:
-        logger.info("Database: SQLite local (./data/)")
+        logger.info("Database: SQLite at %s", settings.persistent_data_dir)
 
     bot = Bot(
         token=settings.telegram_bot_token,
