@@ -31,6 +31,54 @@ class WebDMItem:
     text: str
     item_type: str
     is_sent_by_viewer: bool
+    media_url: str = ""  # built from a shared reel/post (item_type clip/media_share)
+
+
+def _build_media_url(code: str, media_type) -> str:
+    kind = "reel" if str(media_type) == "2" else "p"
+    return f"https://www.instagram.com/{kind}/{code}/"
+
+
+def _find_code(obj) -> tuple[str, object] | None:
+    """Depth-first search for a media shortcode in a shared item payload."""
+    if isinstance(obj, dict):
+        code = obj.get("code")
+        if isinstance(code, str) and code:
+            return code, obj.get("media_type")
+        for value in obj.values():
+            found = _find_code(value)
+            if found:
+                return found
+    elif isinstance(obj, list):
+        for value in obj:
+            found = _find_code(value)
+            if found:
+                return found
+    return None
+
+
+def _extract_share_url(raw_item: dict) -> str:
+    """Extract an instagram.com URL from a shared reel/post/clip DM item."""
+    item_type = raw_item.get("item_type") or ""
+    share_keys = (
+        "clip",
+        "media_share",
+        "story_share",
+        "felix_share",
+        "reel_share",
+        "xma_media_share",
+        "xma_clip",
+    )
+    if item_type not in share_keys and not any(k in raw_item for k in share_keys):
+        return ""
+    for key in share_keys:
+        container = raw_item.get(key)
+        if container:
+            found = _find_code(container)
+            if found:
+                code, media_type = found
+                return _build_media_url(code, media_type)
+    return ""
 
 
 @dataclass
@@ -106,6 +154,7 @@ class WebDMClient:
                         text=(it.get("text") or "").strip(),
                         item_type=str(it.get("item_type") or ""),
                         is_sent_by_viewer=bool(it.get("is_sent_by_viewer")),
+                        media_url=_extract_share_url(it),
                     )
                 )
             threads.append(WebDMThread(thread_id=tid, users=users, items=items))

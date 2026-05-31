@@ -32,6 +32,7 @@ class BridgeMessage:
     user_id: str
     username: str | None
     text: str
+    media_url: str = ""
 
 
 class BridgePoller:
@@ -105,7 +106,8 @@ class BridgePoller:
                     self._seen = set(list(self._seen)[-2000:])
 
                 text = item.text.strip()
-                if not text:
+                media_url = item.media_url
+                if not text and not media_url:
                     continue
 
                 # On first run skip old chatter, but still pick up verification codes
@@ -119,6 +121,7 @@ class BridgePoller:
                         user_id=item.user_id,
                         username=thread.users.get(item.user_id),
                         text=text,
+                        media_url=media_url,
                     )
                 )
 
@@ -198,6 +201,10 @@ class BridgePoller:
 
         conn = await get_connected_by_ig_user_id(item.user_id)
         if not conn:
+            return
+
+        if item.media_url:
+            await self._download_and_send(conn.telegram_id, item.media_url)
             return
 
         await self._forward_to_telegram(conn.telegram_id, text)
