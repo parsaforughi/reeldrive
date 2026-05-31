@@ -59,8 +59,8 @@ class BridgePoller:
                     if not self._inbox_blocked_logged:
                         self._inbox_blocked_logged = True
                         logger.warning(
-                            "Bridge poller idle — inbox blocked (467). "
-                            "Set INSTAGRAM_PROXY on Railway (residential proxy)."
+                            "Bridge poller idle — DM inbox unavailable. "
+                            "Refresh INSTAGRAM_BRIDGE_SESSION_ID."
                         )
                 else:
                     self._idle_ticks = 0
@@ -75,54 +75,36 @@ class BridgePoller:
     def stop(self) -> None:
         self._running = False
 
-    def _resolve_username(self, client, user_id: str, thread_users: dict[str, str | None]) -> str | None:
-        name = thread_users.get(str(user_id))
-        if name:
-            return name
-        try:
-            info = client.user_info(int(user_id))
-            return info.username
-        except Exception:
-            logger.warning("Could not resolve IG username for user_id=%s", user_id)
-            return None
-
     def _fetch_new_messages(self) -> list[BridgeMessage]:
-        client = client_pool.bridge
-        if not client:
+        web = client_pool.bridge_web
+        if not web:
             return []
 
         out: list[BridgeMessage] = []
         try:
-            threads = client.direct_threads(amount=30)
+            threads = web.fetch_threads(limit=30, thread_message_limit=10)
         except Exception as exc:
             client_pool.bridge_inbox_ok = False
-            if "467" in str(exc) and not self._inbox_blocked_logged:
+            if not self._inbox_blocked_logged:
                 self._inbox_blocked_logged = True
                 logger.warning(
-                    "IG inbox blocked from server IP (467). "
-                    "Set INSTAGRAM_PROXY=http://user:pass@host:port on Railway."
+                    "IG web inbox read failed (%s). Refresh INSTAGRAM_BRIDGE_SESSION_ID.",
+                    exc,
                 )
             return []
+
         for thread in threads:
-            try:
-                messages = client.direct_messages(thread.id, amount=15)
-            except Exception:
-                logger.exception("Failed to read DM thread %s", thread.id)
-                continue
-
-            thread_users: dict[str, str | None] = {}
-            for u in thread.users or []:
-                thread_users[str(u.pk)] = u.username
-
-            for msg in messages:
-                key = f"{thread.id}:{msg.id}"
+            for item in thread.items:
+                if item.is_sent_by_viewer:
+                    continue
+                key = f"{thread.thread_id}:{item.item_id}"
                 if key in self._seen:
                     continue
                 self._seen.add(key)
                 if len(self._seen) > 5000:
                     self._seen = set(list(self._seen)[-2000:])
 
-                text = (msg.text or "").strip()
+                text = item.text.strip()
                 if not text:
                     continue
 
@@ -132,12 +114,10 @@ class BridgePoller:
 
                 out.append(
                     BridgeMessage(
-                        thread_id=str(thread.id),
-                        message_id=str(msg.id),
-                        user_id=str(msg.user_id),
-                        username=self._resolve_username(
-                            client, str(msg.user_id), thread_users
-                        ),
+                        thread_id=thread.thread_id,
+                        message_id=item.item_id,
+                        user_id=item.user_id,
+                        username=thread.users.get(item.user_id),
                         text=text,
                     )
                 )
@@ -165,13 +145,6 @@ class BridgePoller:
                 return
 
             sender = item.username
-            if not sender:
-                client = client_pool.bridge
-                if client:
-                    sender = await asyncio.to_thread(
-                        self._resolve_username, client, item.user_id, {}
-                    )
-
             if not sender:
                 logger.error(
                     "DM code %s matched pending @%s but sender username unknown",

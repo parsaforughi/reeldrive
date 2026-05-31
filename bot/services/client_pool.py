@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from pathlib import Path
@@ -12,8 +13,30 @@ from instagrapi.exceptions import (
 )
 
 from bot.config import settings
+from bot.services.ig_web_dm import WebDMClient
 
 logger = logging.getLogger(__name__)
+
+
+def _session_credentials(session_id_env: str, session_path: Path) -> tuple[str, str]:
+    """Return (sessionid, ds_user_id) from env var or dumped session file."""
+    sid = unquote((session_id_env or "").strip())
+    if sid:
+        m = re.match(r"^(\d+)", sid)
+        return sid, (m.group(1) if m else "")
+    if session_path.exists():
+        try:
+            data = json.loads(session_path.read_text())
+            auth = data.get("authorization_data") or {}
+            sid = auth.get("sessionid") or (data.get("cookies") or {}).get("sessionid", "")
+            uid = str(auth.get("ds_user_id") or "")
+            if sid and not uid:
+                m = re.match(r"^(\d+)", sid)
+                uid = m.group(1) if m else ""
+            return sid, uid
+        except Exception as exc:
+            logger.warning("Could not read sessionid from %s: %s", session_path, exc)
+    return "", ""
 
 
 def _apply_proxy(client: Client, proxy: str) -> None:
@@ -130,6 +153,7 @@ class ClientPool:
     def __init__(self) -> None:
         self.service: Client | None = None
         self.bridge: Client | None = None
+        self.bridge_web: WebDMClient | None = None
         self.bridge_inbox_ok: bool = False
 
     @property
@@ -195,6 +219,7 @@ class ClientPool:
         allow_password = bool(bridge_pass) and not session_id
 
         self.bridge_inbox_ok = False
+        self.bridge_web = None
         self.bridge = _login_client(
             bridge_login,
             bridge_pass,
@@ -206,22 +231,34 @@ class ClientPool:
         if not self.bridge:
             return False
 
+        # DM reading uses the web API (www.instagram.com) — the mobile API that
+        # instagrapi uses is rejected for browser session ids (467 / prompt 4415001).
+        sid, uid = _session_credentials(session_id, session_file)
+        if sid:
+            web = WebDMClient(sid, uid, proxy=settings.instagram_proxy)
+            if web.is_alive():
+                self.bridge_web = web
+                self.bridge_inbox_ok = True
+                logger.info(
+                    "Bridge IG ready (web DM API) — DMs to %s will forward to "
+                    "connected Telegram users",
+                    public_handle,
+                )
+                return True
+
+        # Fallback: try instagrapi mobile inbox (rarely works with browser session)
         self.bridge_inbox_ok = _try_validate_inbox(self.bridge)
         if self.bridge_inbox_ok:
             logger.info(
-                "Bridge IG ready — DMs to %s will forward to connected Telegram users",
+                "Bridge IG ready (mobile API) — DMs to %s will forward",
                 public_handle,
             )
         else:
-            proxy_hint = (
-                " Set INSTAGRAM_PROXY (residential http proxy) on Railway."
-                if not settings.instagram_proxy
-                else " Proxy is set but inbox still blocked — try another proxy."
-            )
             logger.error(
-                "Bridge session loaded but Instagram blocks inbox from this server (467).%s "
-                "Bio+/verify and Telegram links still work.",
-                proxy_hint,
+                "Bridge session loaded but Instagram blocks the DM inbox. "
+                "Refresh INSTAGRAM_BRIDGE_SESSION_ID (log in as %s in a browser, "
+                "copy the sessionid cookie). Bio+/verify and Telegram links still work.",
+                public_handle,
             )
         return True
 

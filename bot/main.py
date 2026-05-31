@@ -63,8 +63,8 @@ async def main() -> None:
         logger.info("Bridge Instagram ready — IG DMs will forward to Telegram")
     elif bridge_ok:
         logger.warning(
-            "Bridge session OK but IG inbox blocked on this server (467). "
-            "Add INSTAGRAM_PROXY on Railway or DMs to @reeldrivebot won't work."
+            "Bridge session loaded but DM inbox unavailable. "
+            "Refresh INSTAGRAM_BRIDGE_SESSION_ID (fresh browser sessionid)."
         )
     else:
         logger.warning(

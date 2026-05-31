@@ -1,31 +1,30 @@
 # دایرکت اینستا → تلگرام (Bridge)
 
+ربات DM اکانت `@reeldrivebot` را از **API وب اینستاگرام** (`www.instagram.com`) می‌خواند.
+این روش با کوکی مرورگر کار می‌کند و خطای `467` / proxy ندارد.
+
 فقط **یک متغیر** روی Railway:
 
 ```
 INSTAGRAM_BRIDGE_SESSION_ID=مقدار_کوکی_sessionid
 ```
 
-از مرورگر: لاگین `reeldrivebot` → DevTools → Application → Cookies → `instagram.com` → **`sessionid`**  
-می‌توانی با `%3A` یا `:` کپی کنی — هر دو کار می‌کند.
+از مرورگر: لاگین `reeldrivebot` → DevTools → Application → Cookies → `instagram.com` → **`sessionid`**
+با `%3A` یا `:` هر دو کار می‌کند.
 
-Redeploy. در لاگ: `Bridge IG ready`.
+Redeploy. در لاگ: `Bridge IG ready (web DM API)`.
 
 ---
 
-## اگر لاگ `467` یا inbox blocked دیدی
+## اگر DM نیامد
 
-sessionid درست است، ولی **IP سرور Railway** برای خواندن DM بلاک می‌شود.
+session منقضی/باطل شده. کافی است **sessionid تازه** بگیری:
 
-در Railway یک متغیر دیگر بگذار:
+1. در مرورگر دوباره با `reeldrivebot` لاگین کن
+2. کوکی `sessionid` تازه را کپی کن
+3. `INSTAGRAM_BRIDGE_SESSION_ID` را در Railway عوض کن → redeploy
 
-```
-INSTAGRAM_PROXY=http://USER:PASS@HOST:PORT
-```
-
-پروکسی باید **residential** باشد (نه datacenter). بعد redeploy.
-
-همچنین در اپ اینستاگرام «Was this you?» را تأیید کن.
+در لاگ باید `Bridge IG ready (web DM API)` بیاید.
 
 ---
 
@@ -33,20 +32,13 @@ INSTAGRAM_PROXY=http://USER:PASS@HOST:PORT
 
 ربات **دو جا** روشن است (مثلاً Railway + ترمینال مک). روی مک `Ctrl+C` بزن و فقط Railway بماند.
 
-**نیاز نیست:** پسورد، csrftoken، mid — فقط `sessionid` (+ پروکسی روی Railway).
+**نیاز نیست:** پسورد، csrftoken، mid، proxy — فقط `sessionid`.
 
 ---
 
-## روی مک (اختیاری)
+## روی مک (تست محلی)
 
 ```bash
 echo 'SESSIONID_HERE' > scripts/.bridge_sessionid
 ./scripts/ig_export_from_sessionid_file.sh
-```
-
-یا:
-
-```bash
-export INSTAGRAM_BRIDGE_SESSION_ID="..."
-python3 scripts/ig_export_session.py
 ```
