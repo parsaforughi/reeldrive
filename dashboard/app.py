@@ -16,6 +16,7 @@ from sqlalchemy import desc, func, select
 
 from bot.config import settings
 from bot.db.engine import async_session, db_ping, init_db
+from bot.db.migrate import maybe_migrate_sqlite_to_postgres
 from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
@@ -84,6 +85,7 @@ def _log_user_label(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await maybe_migrate_sqlite_to_postgres()
     yield
 
 

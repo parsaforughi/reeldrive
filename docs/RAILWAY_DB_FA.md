@@ -13,19 +13,26 @@ chmod +x scripts/setup_railway.sh
 یا در Dashboard:
 
 1. **+ New → Database → PostgreSQL**
-2. Postgres را به سرویس Reeldrive **Link** کن
-3. **Redeploy**
+2. سرویس **Reeldrive** → **Variables**
+3. اگر `DATABASE_URL=sqlite...` داری → **حذفش کن**
+4. **New Variable** → `DATABASE_URL` = `${{Postgres.DATABASE_PRIVATE_URL}}`  
+   (یا از منوی Postgres → **Connect** به Reeldrive)
+5. **Redeploy**
 
 ---
 
 ## روش ۱ — PostgreSQL (پیشنهادی)
 
-Railway خودش `DATABASE_URL` می‌گذارد. ربات آن را به `postgresql+asyncpg://` تبدیل می‌کند.
+ربات اول Postgres را از env می‌خواند (`DATABASE_PRIVATE_URL`, `DATABASE_URL`, `PGHOST`, …).
 
 لاگ موفق:
 ```
-Database: PostgreSQL (persistent across deploys)
+Database: PostgreSQL via DATABASE_PRIVATE_URL (persistent)
+Postgres empty — importing from /app/data/reeldrive.db
+SQLite → Postgres migration completed
 ```
+
+اگر Postgres خالی است ولی `/connect` کار کرده → داده‌ها هنوز در **SQLite روی Volume** هستند، نه Postgres. بعد از Link درست + Redeploy، import خودکار انجام می‌شود.
 
 Health check: `GET /health` → `"database": "postgres", "database_ok": true`
 
@@ -48,9 +55,9 @@ Session files هم در `/app/data/sessions/` ذخیره می‌شوند.
 
 | لاگ | وضعیت |
 |-----|--------|
-| `Database: PostgreSQL` | ✅ اتصال‌ها می‌مانند |
-| `Database: SQLite at /app/data (Railway Volume)` | ✅ با Volume |
-| `SQLite at /app/data — add Postgres or Volume` | ⚠️ هنوز پایدار نیست |
+| `Database: PostgreSQL via …` | ✅ اتصال‌ها می‌مانند |
+| `Postgres URL found in … but bot still uses SQLite` | ❌ `DATABASE_URL=sqlite` را حذف کن |
+| `Database: SQLite at /app/data (Volume)` | ⚠️ Postgres وصل نیست — داده روی Volume است |
 
 ---
 

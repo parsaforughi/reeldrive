@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from bot.config import settings
 from bot.db import init_db
+from bot.db.migrate import maybe_migrate_sqlite_to_postgres
 from bot.handlers import setup_routers
 from bot.menu import setup_bot_menu
 from bot.middleware import AnalyticsMiddleware
@@ -29,14 +30,28 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     load_dotenv()
     await init_db()
+    await maybe_migrate_sqlite_to_postgres()
+
+    pg_env, pg_key = "", ""
+    from bot.config import _postgres_url_from_env
+
+    pg_env, pg_key = _postgres_url_from_env()
+
     if settings.database_is_postgres:
-        logger.info("Database: PostgreSQL (persistent across deploys)")
+        logger.info("Database: PostgreSQL via %s (persistent)", pg_key or "DATABASE_URL")
     elif os.environ.get("RAILWAY_ENVIRONMENT"):
         vol = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "")
+        if pg_env:
+            logger.error(
+                "Postgres URL found in %s but bot still uses SQLite! "
+                "Remove manual DATABASE_URL=sqlite from Reeldrive Variables. "
+                "Set DATABASE_URL=${{Postgres.DATABASE_PRIVATE_URL}} and redeploy.",
+                pg_key,
+            )
         logger.info(
             "Database: SQLite at %s%s",
             settings.persistent_data_dir,
-            " (Railway Volume)" if vol else " — add Postgres or Volume /app/data",
+            " (Volume)" if vol else "",
         )
     else:
         logger.info("Database: SQLite at %s", settings.persistent_data_dir)
