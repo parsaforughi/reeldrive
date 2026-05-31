@@ -1,5 +1,7 @@
 from pathlib import Path
+import os
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Old Railway env values — never show these in /connect
@@ -47,6 +49,33 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/reeldrive.db"
     bot_name: str = "Reeldrive"
     bot_mention: str = "reeldrivebot"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        url = (value or "").strip()
+        if not url:
+            return url
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif (
+            url.startswith("postgresql://")
+            and "+asyncpg" not in url
+            and "+psycopg" not in url
+        ):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # On Railway use /app/data (mount a Volume there so sqlite survives redeploy)
+        if (
+            os.environ.get("RAILWAY_ENVIRONMENT")
+            and "sqlite" in url
+            and "/app/data" not in url
+        ):
+            url = "sqlite+aiosqlite:////app/data/reeldrive.db"
+        return url
+
+    @property
+    def database_is_postgres(self) -> bool:
+        return "postgresql" in self.database_url
 
     verification_code_ttl_minutes: int = 15
     # How often to check IG DMs (seconds). Lower = faster relay, more API calls.

@@ -1,11 +1,8 @@
 import asyncio
 import logging
-import re
 from dataclasses import dataclass, field
 
-import aiohttp
 from aiogram import Bot
-from aiogram.types import BufferedInputFile
 
 from bot.config import settings
 from bot.handlers.download_helpers import deliver_media_result
@@ -21,17 +18,6 @@ from bot.services.verification import (
 from bot.utils import parse_media_url
 
 logger = logging.getLogger(__name__)
-
-INSTAGRAM_URL_IN_TEXT = re.compile(
-    r"https?://(?:www\.)?instagram\.com/[^\s]+", re.IGNORECASE
-)
-
-_FETCH_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    )
-}
 
 
 @dataclass
@@ -55,18 +41,10 @@ class BridgePoller:
         self._idle_ticks = 0
         self._inbox_blocked_logged = False
         self._last_inbox_seq: str = ""
-        self._http: aiohttp.ClientSession | None = None
         self._pending_tasks: set[asyncio.Task] = set()
-
-    async def _ensure_http(self) -> aiohttp.ClientSession:
-        if self._http is None or self._http.closed:
-            timeout = aiohttp.ClientTimeout(total=90, connect=10)
-            self._http = aiohttp.ClientSession(timeout=timeout, headers=_FETCH_HEADERS)
-        return self._http
 
     async def run_loop(self) -> None:
         self._running = True
-        await self._ensure_http()
         while self._running:
             interval = settings.bridge_poll_interval_seconds
             try:
@@ -103,15 +81,12 @@ class BridgePoller:
 
     def stop(self) -> None:
         self._running = False
-        if self._http and not self._http.closed:
-            asyncio.create_task(self._http.close())
 
     def _fetch_new_messages(self) -> list[BridgeMessage]:
         web = client_pool.bridge_web
         if not web:
             return []
 
-        # Fast path: skip full inbox if IG reports no new activity (~100ms).
         if self._bootstrapped:
             seq, _badge = web.peek_activity()
             if seq and seq == self._last_inbox_seq:
@@ -149,7 +124,6 @@ class BridgePoller:
                 if not text and not media_url and not item.media_files:
                     continue
 
-                # On first run skip old chatter, but still pick up verification codes
                 if not self._bootstrapped and not extract_verification_code(text):
                     continue
 
@@ -245,82 +219,20 @@ class BridgePoller:
 
         chat_id = conn.telegram_id
 
-        # Shared reel/post: CDN URL in payload — send ASAP.
-        if item.media_files and await self._send_payload_media(chat_id, item.media_files):
+        # Same pipeline as pasting a link in Telegram chat (Apify + caption + buttons).
+        ig_url = item.media_url or parse_media_url(text)
+        if ig_url:
+            await self._download_and_send(chat_id, ig_url)
             return
 
-        if item.media_url:
-            await self._download_and_send(chat_id, item.media_url)
+        await self._forward_plain_text(chat_id, text)
+
+    async def _forward_plain_text(self, telegram_id: int, text: str) -> None:
+        if not text.strip():
             return
-
-        await self._forward_to_telegram(chat_id, text)
-
-    async def _forward_to_telegram(self, telegram_id: int, text: str) -> None:
         lang = await require_user_lang(telegram_id)
         prefix = t("forward_ig_prefix", lang)
-        urls = INSTAGRAM_URL_IN_TEXT.findall(text)
-
-        if urls:
-            self._spawn(self._bot.send_message(telegram_id, f"{prefix}{text[:900]}"))
-            for url in urls:
-                self._spawn(self._download_and_send(telegram_id, url))
-            return
-
-        media_url = parse_media_url(text)
-        if media_url:
-            await self._download_and_send(telegram_id, media_url)
-            return
-
         await self._bot.send_message(telegram_id, f"{prefix}{text}")
-
-    async def _send_payload_media(
-        self, chat_id: int, files: list[tuple[str, bool]]
-    ) -> bool:
-        """Send shared reel/post media. Tries Telegram URL fetch first (fastest)."""
-        sent = 0
-        for url, is_video in files:
-            if await self._try_send_by_url(chat_id, url, is_video):
-                sent += 1
-                continue
-            data = await self._fetch_bytes(url)
-            if not data:
-                continue
-            try:
-                if is_video:
-                    await self._bot.send_video(
-                        chat_id, BufferedInputFile(data, "reel.mp4")
-                    )
-                else:
-                    await self._bot.send_photo(
-                        chat_id, BufferedInputFile(data, "image.jpg")
-                    )
-                sent += 1
-            except Exception as exc:
-                logger.warning("Failed to send payload media to %s: %s", chat_id, exc)
-        return sent > 0
-
-    async def _try_send_by_url(self, chat_id: int, url: str, is_video: bool) -> bool:
-        """Let Telegram servers fetch the CDN file — often arrives in 1–2s."""
-        try:
-            if is_video:
-                await self._bot.send_video(chat_id, video=url)
-            else:
-                await self._bot.send_photo(chat_id, photo=url)
-            return True
-        except Exception:
-            return False
-
-    async def _fetch_bytes(self, url: str) -> bytes | None:
-        try:
-            session = await self._ensure_http()
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    logger.warning("Media fetch HTTP %s for %s", resp.status, url[:60])
-                    return None
-                return await resp.read()
-        except Exception as exc:
-            logger.warning("Media fetch error: %s", exc)
-            return None
 
     async def _download_and_send(self, chat_id: int, url: str) -> None:
         try:

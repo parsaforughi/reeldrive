@@ -25,7 +25,7 @@
 - Worker: `railway.worker.toml` → فقط `python -m bot.main`  
 - در Railway برای هر سرویس مسیر Config file را جدا بگذار
 
-Variables **هر دو سرویس:** `DATABASE_URL` (Postgres توصیه می‌شود)، `TELEGRAM_BOT_TOKEN`, `APIFY_TOKEN`, `INSTAGRAM_BRIDGE_*`  
+Variables **هر دو سرویس:** `DATABASE_URL` (Postgres توصیه می‌شود — [راهنما](docs/RAILWAY_DB_FA.md))، `TELEGRAM_BOT_TOKEN`, `APIFY_TOKEN`, `INSTAGRAM_BRIDGE_*`  
 Variables **فقط Web:** `DASHBOARD_PASSWORD`, `DASHBOARD_SECRET`
 
 Volume: `sessions/` و `data/` (روی Worker؛ Web فقط DB مشترک لازم دارد)

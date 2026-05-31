@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 
 from aiogram import Bot, Dispatcher
@@ -28,6 +29,15 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     load_dotenv()
     await init_db()
+    if settings.database_is_postgres:
+        logger.info("Database: PostgreSQL (persistent across deploys)")
+    elif os.environ.get("RAILWAY_ENVIRONMENT"):
+        logger.info(
+            "Database: SQLite at /app/data — attach a Railway Volume on /app/data "
+            "OR add Postgres (see docs/RAILWAY_DB_FA.md)"
+        )
+    else:
+        logger.info("Database: SQLite local (./data/)")
 
     bot = Bot(
         token=settings.telegram_bot_token,
