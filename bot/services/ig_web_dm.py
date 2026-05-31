@@ -31,7 +31,20 @@ class WebDMItem:
     text: str
     item_type: str
     is_sent_by_viewer: bool
-    media_url: str = ""  # built from a shared reel/post (item_type clip/media_share)
+    media_url: str = ""  # instagram.com link for a shared reel/post (fallback/caption)
+    # Direct CDN files from the DM payload: list of (url, is_video)
+    media_files: list[tuple[str, bool]] = field(default_factory=list)
+
+
+SHARE_KEYS = (
+    "clip",
+    "media_share",
+    "story_share",
+    "felix_share",
+    "reel_share",
+    "xma_media_share",
+    "xma_clip",
+)
 
 
 def _build_media_url(code: str, media_type) -> str:
@@ -39,46 +52,62 @@ def _build_media_url(code: str, media_type) -> str:
     return f"https://www.instagram.com/{kind}/{code}/"
 
 
-def _find_code(obj) -> tuple[str, object] | None:
-    """Depth-first search for a media shortcode in a shared item payload."""
+def _single_media_files(media: dict) -> list[tuple[str, bool]]:
+    vv = media.get("video_versions") or []
+    if vv and vv[0].get("url"):
+        return [(vv[0]["url"], True)]
+    candidates = (media.get("image_versions2") or {}).get("candidates") or []
+    if candidates and candidates[0].get("url"):
+        return [(candidates[0]["url"], False)]
+    return []
+
+
+def _media_files(media: dict) -> list[tuple[str, bool]]:
+    carousel = media.get("carousel_media")
+    if isinstance(carousel, list) and carousel:
+        out: list[tuple[str, bool]] = []
+        for child in carousel:
+            if isinstance(child, dict):
+                out.extend(_single_media_files(child))
+        return out
+    return _single_media_files(media)
+
+
+def _find_media_dict(obj) -> dict | None:
+    """Depth-first search for the media object (has code/video/image versions)."""
     if isinstance(obj, dict):
-        code = obj.get("code")
-        if isinstance(code, str) and code:
-            return code, obj.get("media_type")
+        if obj.get("code") and (
+            "video_versions" in obj
+            or "image_versions2" in obj
+            or "carousel_media" in obj
+        ):
+            return obj
         for value in obj.values():
-            found = _find_code(value)
+            found = _find_media_dict(value)
             if found:
                 return found
     elif isinstance(obj, list):
         for value in obj:
-            found = _find_code(value)
+            found = _find_media_dict(value)
             if found:
                 return found
     return None
 
 
-def _extract_share_url(raw_item: dict) -> str:
-    """Extract an instagram.com URL from a shared reel/post/clip DM item."""
+def _extract_share(raw_item: dict) -> tuple[str, list[tuple[str, bool]]]:
+    """Return (instagram_url, [(cdn_url, is_video), ...]) for a shared reel/post."""
     item_type = raw_item.get("item_type") or ""
-    share_keys = (
-        "clip",
-        "media_share",
-        "story_share",
-        "felix_share",
-        "reel_share",
-        "xma_media_share",
-        "xma_clip",
-    )
-    if item_type not in share_keys and not any(k in raw_item for k in share_keys):
-        return ""
-    for key in share_keys:
+    if item_type not in SHARE_KEYS and not any(k in raw_item for k in SHARE_KEYS):
+        return "", []
+    for key in SHARE_KEYS:
         container = raw_item.get(key)
-        if container:
-            found = _find_code(container)
-            if found:
-                code, media_type = found
-                return _build_media_url(code, media_type)
-    return ""
+        if not container:
+            continue
+        media = _find_media_dict(container)
+        if media:
+            url = _build_media_url(media.get("code", ""), media.get("media_type"))
+            return url, _media_files(media)
+    return "", []
 
 
 @dataclass
@@ -147,6 +176,7 @@ class WebDMClient:
                     users[pk] = u.get("username")
             items: list[WebDMItem] = []
             for it in raw.get("items", []) or []:
+                share_url, media_files = _extract_share(it)
                 items.append(
                     WebDMItem(
                         item_id=str(it.get("item_id") or it.get("message_id") or ""),
@@ -154,7 +184,8 @@ class WebDMClient:
                         text=(it.get("text") or "").strip(),
                         item_type=str(it.get("item_type") or ""),
                         is_sent_by_viewer=bool(it.get("is_sent_by_viewer")),
-                        media_url=_extract_share_url(it),
+                        media_url=share_url,
+                        media_files=media_files,
                     )
                 )
             threads.append(WebDMThread(thread_id=tid, users=users, items=items))

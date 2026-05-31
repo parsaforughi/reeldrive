@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+import aiohttp
 from aiogram import Bot
+from aiogram.types import BufferedInputFile
 
 from bot.config import settings
 from bot.handlers.download_helpers import deliver_media_result
@@ -33,6 +35,7 @@ class BridgeMessage:
     username: str | None
     text: str
     media_url: str = ""
+    media_files: list[tuple[str, bool]] = field(default_factory=list)
 
 
 class BridgePoller:
@@ -122,6 +125,7 @@ class BridgePoller:
                         username=thread.users.get(item.user_id),
                         text=text,
                         media_url=media_url,
+                        media_files=item.media_files,
                     )
                 )
 
@@ -203,6 +207,13 @@ class BridgePoller:
         if not conn:
             return
 
+        # Shared reel/post: media is already in the DM payload — send it directly.
+        if item.media_files and await self._send_payload_media(
+            conn.telegram_id, item.media_files
+        ):
+            return
+
+        # Fallback: download via the instagram.com link (Apify)
         if item.media_url:
             await self._download_and_send(conn.telegram_id, item.media_url)
             return
@@ -226,6 +237,48 @@ class BridgePoller:
             return
 
         await self._bot.send_message(telegram_id, f"{prefix}{text}")
+
+    async def _send_payload_media(
+        self, chat_id: int, files: list[tuple[str, bool]]
+    ) -> bool:
+        """Send reel/post media taken directly from the DM payload. True if any sent."""
+        sent = 0
+        for url, is_video in files:
+            data = await self._fetch_bytes(url)
+            if not data:
+                continue
+            try:
+                if is_video:
+                    await self._bot.send_video(
+                        chat_id, BufferedInputFile(data, "reel.mp4")
+                    )
+                else:
+                    await self._bot.send_photo(
+                        chat_id, BufferedInputFile(data, "image.jpg")
+                    )
+                sent += 1
+            except Exception as exc:
+                logger.warning("Failed to send payload media to %s: %s", chat_id, exc)
+        return sent > 0
+
+    async def _fetch_bytes(self, url: str) -> bytes | None:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
+        try:
+            timeout = aiohttp.ClientTimeout(total=120)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status != 200:
+                        logger.warning("Media fetch HTTP %s for %s", resp.status, url[:60])
+                        return None
+                    return await resp.read()
+        except Exception as exc:
+            logger.warning("Media fetch error: %s", exc)
+            return None
 
     async def _download_and_send(self, chat_id: int, url: str) -> None:
         try:
