@@ -110,7 +110,8 @@
       place-items: center;
     }
 
-    .option.selected .radio {
+    .option.selected .radio,
+    .duration-option.selected .radio {
       border-color: var(--accent);
     }
 
@@ -124,7 +125,8 @@
       transition: 0.15s;
     }
 
-    .option.selected .radio-dot {
+    .option.selected .radio-dot,
+    .duration-option.selected .radio-dot {
       opacity: 1;
       transform: scale(1);
     }
@@ -154,6 +156,13 @@
 
     .icon-stars { background: rgba(245, 197, 24, 0.2); }
     .icon-card { background: rgba(123, 92, 255, 0.25); }
+
+    .option,
+    .duration-option {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+    }
 
     .duration-option {
       display: flex;
@@ -280,17 +289,19 @@
 
     <div class="section">
       <div class="section-title">💳 روش پرداخت:</div>
-      <div class="option selected" data-group="pay" data-value="stars" onclick="selectPay('stars')">
+      <div class="option selected" data-group="pay" data-value="stars">
         <div class="radio"><div class="radio-dot"></div></div>
         <div class="option-body">
           <div class="option-label">Telegram Stars</div>
+          <div class="option-sub">پرداخت با ستاره تلگرام</div>
         </div>
         <div class="option-icon icon-stars">⭐</div>
       </div>
-      <div class="option" data-group="pay" data-value="card" onclick="selectPay('card')">
+      <div class="option" data-group="pay" data-value="card">
         <div class="radio"><div class="radio-dot"></div></div>
         <div class="option-body">
           <div class="option-label">کارت به کارت</div>
+          <div class="option-sub">واریز به حساب بانکی</div>
         </div>
         <div class="option-icon icon-card">💳</div>
       </div>
@@ -323,7 +334,7 @@
   </div>
 
   <div class="footer hidden" id="footer">
-    <button class="btn-primary" id="ctaBtn" onclick="submit()">ایجاد فاکتور</button>
+    <button class="btn-primary" id="ctaBtn" type="button">ایجاد فاکتور</button>
   </div>
 
   <script>
@@ -357,16 +368,36 @@
       el.classList.remove("hidden");
     }
 
+    function planPriceLabel(plan) {
+      return payMethod === "stars"
+        ? `${plan.stars} ⭐`
+        : fmtToman(plan.tomans);
+    }
+
     function renderPlans() {
       const list = document.getElementById("plansList");
       list.innerHTML = shop.plans.map((plan) => `
         <div class="duration-option ${plan.days === selectedDays ? "selected" : ""}"
-             data-days="${plan.days}" onclick="selectPlan(${plan.days})">
+             data-days="${plan.days}" role="button" tabindex="0">
           <div class="radio"><div class="radio-dot"></div></div>
           <div class="duration-label">${plan.label}</div>
-          <div class="duration-price">${fmtToman(plan.tomans)}</div>
+          <div class="duration-price">${planPriceLabel(plan)}</div>
         </div>
       `).join("");
+    }
+
+    function bindInteractions() {
+      document.getElementById("plansList").addEventListener("click", (e) => {
+        const row = e.target.closest(".duration-option");
+        if (!row) return;
+        selectPlan(Number(row.dataset.days));
+      });
+
+      document.querySelectorAll('[data-group="pay"]').forEach((el) => {
+        el.addEventListener("click", () => selectPay(el.dataset.value));
+      });
+
+      document.getElementById("ctaBtn").addEventListener("click", submit);
     }
 
     function updateInvoice() {
@@ -383,6 +414,7 @@
         el.classList.toggle("selected", Number(el.dataset.days) === days);
       });
       updateInvoice();
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
     }
 
     function selectPay(method) {
@@ -394,7 +426,9 @@
         method === "stars" ? "Telegram Stars" : "کارت به کارت";
       document.getElementById("ctaBtn").textContent =
         method === "stars" ? "ایجاد فاکتور" : "ارتباط با پشتیبانی";
+      renderPlans();
       updateInvoice();
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
     }
 
     async function loadShop() {
@@ -475,6 +509,8 @@
         btn.disabled = false;
       }
     }
+
+    bindInteractions();
 
     loadShop();
   </script>
