@@ -1,6 +1,5 @@
 """OpenAI chat + vision via REST (no extra SDK)."""
 
-import base64
 import logging
 from typing import Any
 
@@ -11,6 +10,8 @@ from bot.config import settings
 logger = logging.getLogger(__name__)
 
 _LANG_NAMES = {"fa": "Persian (Farsi)", "en": "English", "ar": "Arabic"}
+
+VisionFrame = tuple[str, str, str]  # label, b64, mime
 
 
 class AIClient:
@@ -23,35 +24,67 @@ class AIClient:
         *,
         metrics_text: str,
         lang: str,
+        frames: list[VisionFrame] | None = None,
         image_b64: str | None = None,
         image_mime: str = "image/jpeg",
+        is_video: bool = False,
     ) -> str:
         if not self.ready:
             raise ValueError("AI not configured")
 
         lang_name = _LANG_NAMES.get(lang, "Persian (Farsi)")
         system = (
-            "You are an expert Instagram growth analyst. "
+            "You are an expert short-form video editor and Instagram Reels strategist. "
             f"Write the full analysis in {lang_name}. "
             "Use Telegram HTML only: <b> for section titles, no markdown. "
             "Be concrete and actionable. Keep total length under 3500 characters."
         )
-        user_text = (
-            "Analyze this Instagram post using the metrics below"
-            + (" and the attached image/thumbnail." if image_b64 else ".")
-            + "\n\n"
-            "Include these sections with <b> titles:\n"
-            "1) خلاصه محتوا / Content summary\n"
-            "2) تحلیل بصری / Visual analysis (hook, composition, text on screen, vibe)\n"
-            "3) تحلیل کپشن / Caption (tone, CTA, hashtags)\n"
-            "4) مقایسه با میانگین پیج / vs page average\n"
-            "5) پیشنهاد پست بعدی / Next post tip\n"
-            "6) نمره / Score: X/10 — قوی|متوسط|ضعیف (or English/Arabic equivalents)\n\n"
-            f"{metrics_text}"
-        )
+
+        if frames:
+            visual_note = (
+                "You receive MULTIPLE frames from the SAME reel at different timestamps. "
+                "Compare frames to infer cuts, pacing, hook structure, and visual storytelling. "
+                "Do NOT guess from caption — base hook/cut/editing analysis ONLY on what you see in frames."
+            )
+        elif image_b64:
+            visual_note = "You receive one preview image. Analyze what is visible; do not invent unseen cuts."
+        else:
+            visual_note = "No visual provided — keep visual section brief and note limitation."
+
+        if is_video and frames:
+            sections = (
+                "Include these sections with <b> titles:\n"
+                "1) <b>هوک اول ۳ ثانیه</b> — What happens in opening frames? Pattern interrupt? Face/text/hook?\n"
+                "2) <b>ساختار و کات</b> — Scene changes, jump cuts, B-roll vs talking head, rhythm between frames\n"
+                "3) <b>تحلیل بصری</b> — Composition, lighting, on-screen text, vibe, retention tricks\n"
+                "4) <b>کپشن (فقط مکمل)</b> — One short paragraph; do NOT repeat visual analysis from caption\n"
+                "5) <b>مقایسه با میانگین پیج</b> — Use stats only\n"
+                "6) <b>پیشنهاد ریل بعدی</b> — Specific editing/hook idea\n"
+                "7) <b>نمره</b> — X/10 — قوی|متوسط|ضعیف"
+            )
+        else:
+            sections = (
+                "Include: content summary, visual analysis, brief caption note, "
+                "vs page average, next post tip, score X/10."
+            )
+
+        user_text = f"{visual_note}\n\n{sections}\n\nReference data (stats; caption is NOT primary source):\n{metrics_text}"
 
         content: list[dict[str, Any]] = [{"type": "text", "text": user_text}]
-        if image_b64 and settings.ai_vision_enabled:
+
+        if frames:
+            for label, b64, mime in frames:
+                content.append({"type": "text", "text": f"Frame: {label}"})
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime};base64,{b64}",
+                            "detail": "low",
+                        },
+                    }
+                )
+        elif image_b64 and settings.ai_vision_enabled:
             content.append(
                 {
                     "type": "image_url",
@@ -69,7 +102,7 @@ class AIClient:
                 {"role": "user", "content": content},
             ],
             "max_tokens": settings.ai_max_tokens,
-            "temperature": 0.6,
+            "temperature": 0.5,
         }
 
         timeout = aiohttp.ClientTimeout(total=settings.ai_timeout_seconds)

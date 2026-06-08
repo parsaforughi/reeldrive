@@ -83,9 +83,10 @@ async def main() -> None:
 
     if ai_client.ready:
         logger.info(
-            "AI post analysis enabled (model=%s, vision=%s, pro_only=%s)",
+            "AI post analysis enabled (model=%s, video_frames=%s, ffmpeg=%s, pro_only=%s)",
             settings.ai_model,
-            settings.ai_vision_enabled,
+            settings.ai_video_frames_enabled,
+            ffmpeg_ready(),
             settings.ai_analysis_requires_pro,
         )
     else:

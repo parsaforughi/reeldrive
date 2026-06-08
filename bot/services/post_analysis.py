@@ -19,6 +19,7 @@ from bot.services.apify import apify_downloader
 from bot.services.cdn_download import IG_CDN_HEADERS
 from bot.services.post_cache import CachedPost
 from bot.services.subscription import get_bot_user, is_plan_active
+from bot.services.video_frames import _is_video_item, extract_vision_frames, ffmpeg_ready
 from bot.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
@@ -158,8 +159,11 @@ def _build_metrics_text(
     item: dict,
     source_url: str,
     benchmark: dict | None,
+    *,
+    video_mode: bool = False,
 ) -> str:
     meta = post_meta_from_apify(item, source_url)
+    caption = (meta.caption or "")[:400] if video_mode else (meta.caption or "")[:1500]
     lines = [
         f"Post URL: {meta.post_url}",
         f"Username: @{meta.username}" if meta.username else "",
@@ -169,9 +173,15 @@ def _build_metrics_text(
         f"Shares: {meta.shares}",
         f"Type: {item.get('type') or item.get('productType') or 'unknown'}",
         f"Timestamp: {meta.timestamp_iso or 'unknown'}",
-        f"Caption:\n{(meta.caption or '')[:1500]}",
-        f"Hashtags: {', '.join(meta.hashtags[:25]) if meta.hashtags else 'none'}",
     ]
+    if video_mode:
+        lines.append(
+            "Caption (secondary reference only — analyze VIDEO FRAMES for hook/cuts): "
+            + (caption or "none")
+        )
+    else:
+        lines.append(f"Caption:\n{caption}")
+    lines.append(f"Hashtags: {', '.join(meta.hashtags[:25]) if meta.hashtags else 'none'}")
     if benchmark:
         lines.extend(
             [
@@ -198,15 +208,22 @@ async def analyze_cached_post(
 
     item = cached.apify_item
     meta = post_meta_from_apify(item, cached.source_url)
+    is_video = _is_video_item(item, cached.variants)
     benchmark = await _page_benchmark(
         meta.username,
         exclude_code=meta.short_code,
     )
-    metrics = _build_metrics_text(item, cached.source_url, benchmark)
+    metrics = _build_metrics_text(
+        item, cached.source_url, benchmark, video_mode=is_video
+    )
+
+    frames: list[tuple[str, str, str]] = []
+    if settings.ai_vision_enabled and is_video:
+        frames = await extract_vision_frames(item, cached.variants)
 
     image_b64 = None
     image_mime = "image/jpeg"
-    if settings.ai_vision_enabled:
+    if not frames and settings.ai_vision_enabled:
         preview = preview_image_url(item, cached.variants)
         if preview:
             img = await _download_image_b64(preview)
@@ -216,8 +233,10 @@ async def analyze_cached_post(
     report = await ai_client.analyze_post(
         metrics_text=metrics,
         lang=lang,
+        frames=frames or None,
         image_b64=image_b64,
         image_mime=image_mime,
+        is_video=is_video and bool(frames),
     )
 
     await log_activity(
@@ -226,7 +245,9 @@ async def analyze_cached_post(
         detail=cached.source_url[:200],
         meta={
             "short_code": meta.short_code,
-            "vision": bool(image_b64),
+            "vision": bool(frames or image_b64),
+            "video_frames": len(frames),
+            "ffmpeg": ffmpeg_ready(),
             "benchmark": bool(benchmark),
         },
     )

@@ -1,0 +1,3 @@
+# Railway / Nixpacks — ffmpeg for AI reel frame extraction
+[phases.setup]
+nixPkgs = ["python313", "ffmpeg"]

@@ -721,9 +721,9 @@ Coming soon: unfollowers list.""",
         "ar": "قريباً — تحليل بالذكاء الاصطناعي",
     },
     "ai_analyzing": {
-        "fa": "⏳ در حال تحلیل (Vision + AI)…",
-        "en": "⏳ Analyzing (Vision + AI)…",
-        "ar": "⏳ جاري التحليل…",
+        "fa": "⏳ در حال تماشای ریل و استخراج فریم‌ها…",
+        "en": "⏳ Watching reel & extracting frames…",
+        "ar": "⏳ جاري تحليل الريل…",
     },
     "ai_report_header": {
         "fa": "🤖 <b>تحلیل هوشمند پست</b>",
