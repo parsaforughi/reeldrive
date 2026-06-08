@@ -16,6 +16,48 @@ def is_plan_active(user: BotUser | None) -> bool:
     return exp > utc_now()
 
 
+def _parse_csv_lower(raw: str) -> frozenset[str]:
+    return frozenset(x.strip().lower().lstrip("@") for x in raw.split(",") if x.strip())
+
+
+def _parse_csv_ids(raw: str) -> frozenset[int]:
+    out: set[int] = set()
+    for part in raw.split(","):
+        part = part.strip()
+        if part.isdigit():
+            out.add(int(part))
+    return frozenset(out)
+
+
+async def is_ai_unlimited(telegram_id: int, username: str | None = None) -> bool:
+    """Owner/VIP — skip Pro gate and monthly AI limits."""
+    from bot.config import settings
+
+    if telegram_id in _parse_csv_ids(settings.ai_unlimited_telegram_ids):
+        return True
+
+    allowed = _parse_csv_lower(settings.ai_unlimited_usernames)
+    if not allowed:
+        return False
+
+    if username and username.lower().lstrip("@") in allowed:
+        return True
+
+    user = await get_bot_user(telegram_id)
+    if user and user.username and user.username.lower() in allowed:
+        return True
+    return False
+
+
+async def has_pro_access(telegram_id: int, username: str | None = None) -> bool:
+    if await is_ai_unlimited(telegram_id, username):
+        return True
+    user = await get_bot_user(telegram_id)
+    return bool(
+        is_plan_active(user) and user and user.subscription_plan in ("pro", "premium")
+    )
+
+
 async def get_bot_user(telegram_id: int) -> BotUser | None:
     async with async_session() as session:
         return await session.get(BotUser, telegram_id)

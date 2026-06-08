@@ -97,7 +97,7 @@ async def cmd_help_unfollowers_legacy(message: Message) -> None:
 @router.message(Command("settings"))
 async def cmd_settings(message: Message) -> None:
     uid = message.from_user.id
-    text, kb = await build_settings_message(uid)
+    text, kb = await build_settings_message(uid, message.from_user.username)
     await message.answer(text, reply_markup=kb)
 
 
@@ -115,4 +115,6 @@ async def cmd_privacy(message: Message) -> None:
 
 @router.message(Command("status"))
 async def cmd_status(message: Message) -> None:
-    await message.answer(await build_status_text(message.from_user.id))
+    await message.answer(
+        await build_status_text(message.from_user.id, message.from_user.username)
+    )

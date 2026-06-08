@@ -514,6 +514,11 @@ Coming soon: unfollowers list.""",
         "en": "{plan} until {date}",
         "ar": "{plan} حتى {date}",
     },
+    "status_plan_vip": {
+        "fa": "VIP ♾️ — تحلیل AI نامحدود",
+        "en": "VIP ♾️ — unlimited AI analysis",
+        "ar": "VIP ♾️ — تحليل AI غير محدود",
+    },
     "pro_upsell": {
         "fa": (
             "⭐ <b>Reeldrive Pro</b> — {stars} ستاره / ۳۰ روز\n"

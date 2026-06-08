@@ -203,6 +203,8 @@ class Settings(BaseSettings):
     ai_analysis_requires_pro: bool = True
     ai_free_monthly_limit: int = 0
     ai_pro_monthly_limit: int = 80
+    ai_unlimited_usernames: str = "parsaforughi"
+    ai_unlimited_telegram_ids: str = "99686187"
     ai_page_benchmark_enabled: bool = True
     ai_page_posts_for_avg: int = 12
     ai_max_tokens: int = 1500

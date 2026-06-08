@@ -50,7 +50,10 @@ async def post_action(callback: CallbackQuery) -> None:
             from bot.services.post_analysis import analyze_cached_post
 
             report = await analyze_cached_post(
-                cached, telegram_id=uid, lang=lang
+                cached,
+                telegram_id=uid,
+                lang=lang,
+                username=callback.from_user.username,
             )
             header = await tu(uid, "ai_report_header")
             await callback.message.answer(f"{header}\n\n{report}")

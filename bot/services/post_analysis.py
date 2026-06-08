@@ -18,7 +18,7 @@ from bot.services.analytics import log_activity
 from bot.services.apify import apify_downloader
 from bot.services.cdn_download import IG_CDN_HEADERS
 from bot.services.post_cache import CachedPost
-from bot.services.subscription import get_bot_user, is_plan_active
+from bot.services.subscription import get_bot_user, is_ai_unlimited, is_plan_active
 from bot.services.video_frames import _is_video_item, extract_vision_frames, ffmpeg_ready
 from bot.time_utils import utc_now
 
@@ -98,9 +98,14 @@ async def _count_ai_usage(telegram_id: int) -> int:
         return int(count or 0)
 
 
-async def check_ai_access(telegram_id: int) -> tuple[bool, str]:
+async def check_ai_access(
+    telegram_id: int, username: str | None = None
+) -> tuple[bool, str]:
     if not ai_client.ready:
         return False, "ai_not_configured"
+    if await is_ai_unlimited(telegram_id, username):
+        return True, ""
+
     user = await get_bot_user(telegram_id)
     pro = is_plan_active(user) and user and user.subscription_plan in ("pro", "premium")
     if settings.ai_analysis_requires_pro and not pro:
@@ -201,8 +206,9 @@ async def analyze_cached_post(
     *,
     telegram_id: int,
     lang: str,
+    username: str | None = None,
 ) -> str:
-    ok, reason = await check_ai_access(telegram_id)
+    ok, reason = await check_ai_access(telegram_id, username)
     if not ok:
         raise ValueError(reason)
 
