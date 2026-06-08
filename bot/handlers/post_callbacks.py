@@ -41,9 +41,32 @@ async def post_action(callback: CallbackQuery) -> None:
 
     cached = get_post(code)
 
-    if action in ("ai", "subs", "audio"):
+    if action == "ai":
+        if not cached:
+            await callback.answer(await tu(uid, "post_expired"), show_alert=True)
+            return
+        await callback.answer(await tu(uid, "ai_analyzing"))
+        try:
+            from bot.services.post_analysis import analyze_cached_post
+
+            report = await analyze_cached_post(
+                cached, telegram_id=uid, lang=lang
+            )
+            header = await tu(uid, "ai_report_header")
+            await callback.message.answer(f"{header}\n\n{report}")
+        except ValueError as exc:
+            key = str(exc)
+            if key in ("ai_not_configured", "ai_pro_required", "ai_limit_reached"):
+                await callback.message.answer(await tu(uid, key))
+            else:
+                await callback.message.answer(friendly_error(exc, lang))
+        except Exception:
+            logger.exception("AI analysis failed")
+            await callback.message.answer(await tu(uid, "ai_failed"))
+        return
+
+    if action in ("subs", "audio"):
         keys = {
-            "ai": "coming_soon_ai",
             "subs": "coming_soon_subs",
             "audio": "coming_soon_audio",
         }

@@ -192,6 +192,17 @@ class Settings(BaseSettings):
     pro_stars_price: int = 250
     pro_subscription_days: int = 30
 
+    openai_api_key: str = ""
+    ai_model: str = "gpt-4o-mini"
+    ai_vision_enabled: bool = True
+    ai_analysis_requires_pro: bool = True
+    ai_free_monthly_limit: int = 0
+    ai_pro_monthly_limit: int = 80
+    ai_page_benchmark_enabled: bool = True
+    ai_page_posts_for_avg: int = 12
+    ai_max_tokens: int = 1200
+    ai_timeout_seconds: int = 90
+
     dashboard_password: str = "admin"
     dashboard_secret: str = "change-me-dashboard-secret"
     dashboard_port: int = 8080

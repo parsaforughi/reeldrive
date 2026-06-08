@@ -517,17 +517,17 @@ Coming soon: unfollowers list.""",
     "pro_upsell": {
         "fa": (
             "⭐ <b>Reeldrive Pro</b> — {stars} ستاره / ۳۰ روز\n"
-            "اولویت، تحلیل AI (به‌زودی) و امکانات ویژه.\n"
+            "تحلیل AI + Vision، اولویت و امکانات ویژه.\n"
             "دستور: /pro"
         ),
         "en": (
             "⭐ <b>Reeldrive Pro</b> — {stars} Stars / 30 days\n"
-            "Priority, AI analysis (soon), and extras.\n"
+            "AI + Vision analysis, priority, extras.\n"
             "Command: /pro"
         ),
         "ar": (
             "⭐ <b>Reeldrive Pro</b> — {stars} نجمة / 30 يوماً\n"
-            "أولوية وتحليل AI (قريباً).\n"
+            "تحليل AI + Vision.\n"
             "الأمر: /pro"
         ),
     },
@@ -719,6 +719,36 @@ Coming soon: unfollowers list.""",
         "fa": "به‌زودی — تحلیل هوش مصنوعی",
         "en": "Coming soon — AI analysis",
         "ar": "قريباً — تحليل بالذكاء الاصطناعي",
+    },
+    "ai_analyzing": {
+        "fa": "⏳ در حال تحلیل (Vision + AI)…",
+        "en": "⏳ Analyzing (Vision + AI)…",
+        "ar": "⏳ جاري التحليل…",
+    },
+    "ai_report_header": {
+        "fa": "🤖 <b>تحلیل هوشمند پست</b>",
+        "en": "🤖 <b>AI post analysis</b>",
+        "ar": "🤖 <b>تحليل المنشور بالذكاء الاصطناعي</b>",
+    },
+    "ai_not_configured": {
+        "fa": "❌ تحلیل AI فعلاً غیرفعال است (OPENAI_API_KEY).",
+        "en": "❌ AI analysis is disabled (OPENAI_API_KEY).",
+        "ar": "❌ تحليل AI معطّل (OPENAI_API_KEY).",
+    },
+    "ai_pro_required": {
+        "fa": "⭐ تحلیل AI فقط برای <b>Pro</b> است.\n/pro",
+        "en": "⭐ AI analysis is <b>Pro</b> only.\n/pro",
+        "ar": "⭐ تحليل AI لـ <b>Pro</b> فقط.\n/pro",
+    },
+    "ai_limit_reached": {
+        "fa": "❌ سقف تحلیل ماهانه تمام شد. /pro",
+        "en": "❌ Monthly analysis limit reached. /pro",
+        "ar": "❌ تم الوصول لحد التحليل الشهري. /pro",
+    },
+    "ai_failed": {
+        "fa": "❌ تحلیل ناموفق بود. دوباره امتحان کن.",
+        "en": "❌ Analysis failed. Try again.",
+        "ar": "❌ فشل التحليل. حاول مجدداً.",
     },
     "coming_soon_subs": {
         "fa": "به‌زودی — زیرنویس ویدیو",

@@ -79,6 +79,18 @@ async def main() -> None:
     else:
         logger.warning("APIFY_TOKEN not set — link download will need instagrapi fallback")
 
+    from bot.services.ai_client import ai_client
+
+    if ai_client.ready:
+        logger.info(
+            "AI post analysis enabled (model=%s, vision=%s, pro_only=%s)",
+            settings.ai_model,
+            settings.ai_vision_enabled,
+            settings.ai_analysis_requires_pro,
+        )
+    else:
+        logger.warning("OPENAI_API_KEY not set — AI analysis disabled")
+
     bridge_ok = False
     if settings.instagram_bridge_enabled:
         logger.info("Connecting Instagram bridge account…")
