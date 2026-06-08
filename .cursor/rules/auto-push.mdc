@@ -1,0 +1,28 @@
+---
+description: Automatically commit and push changes after completing work
+alwaysApply: true
+---
+
+# Auto Push
+
+After finishing a task that changes code, automatically commit and push to `origin` without waiting for the user to ask.
+
+## When to push
+
+- Push after completing requested implementation, fixes, or updates
+- Do not push unrelated untracked files (e.g. scratch folders, local experiments)
+- Do not push files that likely contain secrets (`.env`, credentials)
+
+## Workflow
+
+1. Run `git status` and `git diff` to review changes
+2. Stage only files related to the completed work
+3. Write a concise commit message focused on why
+4. Commit, then `git push origin` on the current branch
+5. Confirm push succeeded and share the commit hash briefly
+
+## Exceptions
+
+- Skip push if there are no changes to commit
+- Skip push if the user explicitly says not to commit/push in that message
+- Never force-push to `main`/`master`
