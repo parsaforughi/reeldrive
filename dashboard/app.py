@@ -16,13 +16,25 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import desc, func, select
 
+from aiogram import Bot
+from aiogram.types import LabeledPrice
+
 from bot.config import settings
 from bot.db.engine import async_session, db_ping, init_db
 from bot.db.migrate import maybe_migrate_sqlite_to_postgres
 from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
+from bot.handlers.payments import PRO_PAYLOAD, _payload
+from bot.i18n import require_user_lang, t
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
+from bot.services.subscription import (
+    get_bot_user,
+    is_ai_unlimited,
+    is_plan_active,
+    subscription_status_line,
+)
 from bot.time_utils import to_iso_utc
+from bot.webapp_auth import validate_init_data
 
 STATIC_DIR = Path(__file__).parent / "static"
 SESSION_COOKIE = "reeldrive_admin"
@@ -328,6 +340,93 @@ async def api_subscriptions(_: None = Depends(require_admin)):
         }
         for u in rows
     ]
+
+
+class WebAppBody(BaseModel):
+    init_data: str
+
+
+def _shop_user_from_init(body: WebAppBody) -> dict:
+    user = validate_init_data(body.init_data)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid init data")
+    return user
+
+
+@app.get("/shop")
+async def shop_page():
+    path = STATIC_DIR / "shop.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Shop not found")
+    return FileResponse(path)
+
+
+@app.post("/api/shop/info")
+async def api_shop_info(body: WebAppBody):
+    tg_user = _shop_user_from_init(body)
+    telegram_id = int(tg_user["id"])
+    username = tg_user.get("username")
+
+    lang = await require_user_lang(telegram_id)
+    user = await get_bot_user(telegram_id)
+    vip = await is_ai_unlimited(telegram_id, username)
+    status = await subscription_status_line(
+        user, vip, lang, telegram_id=telegram_id, username=username
+    )
+    pro_active = bool(
+        is_plan_active(user) and user and user.subscription_plan in ("download", "pro", "premium")
+    )
+    support = settings.payment_support_username.lstrip("@")
+
+    return {
+        "telegram_id": telegram_id,
+        "bot_name": settings.bot_name,
+        "pro_stars": settings.pro_stars_price,
+        "pro_days": settings.pro_subscription_days,
+        "pro_active": pro_active,
+        "status_html": f"<strong>وضعیت:</strong> {status}",
+        "card_url": f"https://t.me/{support}",
+        "stars_enabled": settings.stars_payment_enabled,
+    }
+
+
+@app.post("/api/shop/invoice")
+async def api_shop_invoice(body: WebAppBody):
+    if not settings.stars_payment_enabled:
+        raise HTTPException(status_code=403, detail="پرداخت Stars غیرفعال است.")
+
+    tg_user = _shop_user_from_init(body)
+    telegram_id = int(tg_user["id"])
+    lang = await require_user_lang(telegram_id)
+
+    user = await get_bot_user(telegram_id)
+    if is_plan_active(user) and user and user.subscription_plan in ("download", "pro", "premium"):
+        raise HTTPException(status_code=409, detail="Pro قبلاً فعال است.")
+
+    bot = Bot(token=settings.telegram_bot_token)
+    try:
+        link = await bot.create_invoice_link(
+            title=t("pro_invoice_title", lang),
+            description=t(
+                "pro_invoice_desc",
+                lang,
+                days=settings.pro_subscription_days,
+                name=settings.bot_name,
+            ),
+            payload=_payload(PRO_PAYLOAD, telegram_id),
+            provider_token="",
+            currency="XTR",
+            prices=[
+                LabeledPrice(
+                    label=t("pro_price_label", lang, days=settings.pro_subscription_days),
+                    amount=settings.pro_stars_price,
+                )
+            ],
+        )
+    finally:
+        await bot.session.close()
+
+    return {"invoice_link": link}
 
 
 @app.get("/")

@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.config import settings
@@ -31,24 +31,11 @@ async def connect_cancel_kb(telegram_id: int) -> InlineKeyboardMarkup:
 
 
 def subscription_shop_kb(lang: str) -> InlineKeyboardMarkup:
-    support = settings.payment_support_username.lstrip("@")
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text=t("btn_buy_pro", lang, stars=settings.pro_stars_price),
-            callback_data="pay:pro",
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text=t("btn_card_to_card", lang),
-            url=f"https://t.me/{support}",
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text=t("btn_shop_refresh", lang),
-            callback_data="shop:open",
+            text=t("btn_open_shop", lang),
+            web_app=WebAppInfo(url=settings.shop_webapp_url),
         )
     )
     return builder.as_markup()

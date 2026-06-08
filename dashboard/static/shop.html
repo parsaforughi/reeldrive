@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Reeldrive Pro</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #17212b;
+      --card: #1e2c3a;
+      --card2: #232e3c;
+      --line: #2b3947;
+      --text: #ffffff;
+      --muted: #8b9bab;
+      --accent: #40a7e3;
+      --accent-dim: #2d8bc7;
+      --star: #f5c518;
+      --purple: #7b5cff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 88px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #40a7e3, #7b5cff);
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+    }
+
+    .status-bar {
+      margin: 12px 14px 0;
+      padding: 10px 12px;
+      background: var(--card);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status-bar strong { color: var(--text); }
+
+    .section {
+      margin: 14px;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .option:last-child { border-bottom: none; }
+    .option:active { background: var(--card2); }
+    .option.selected { background: rgba(64, 167, 227, 0.08); }
+
+    .radio {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--muted);
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .option.selected .radio {
+      border-color: var(--accent);
+    }
+
+    .radio-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0;
+      transform: scale(0.5);
+      transition: 0.15s;
+    }
+
+    .option.selected .radio-dot {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .option-body { flex: 1; min-width: 0; }
+
+    .option-label {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .option-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .option-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .icon-stars { background: rgba(245, 197, 24, 0.2); }
+    .icon-card { background: rgba(123, 92, 255, 0.25); }
+
+    .plan-price {
+      font-size: 14px;
+      color: var(--star);
+      font-weight: 600;
+    }
+
+    .invoice-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    .invoice-row:last-child { border-bottom: none; }
+    .invoice-row .label { color: var(--muted); }
+    .invoice-row .value { font-weight: 500; }
+
+    .notes {
+      margin: 0 14px 14px;
+      padding: 12px 14px;
+      background: var(--card2);
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .notes li { margin-right: 16px; }
+
+    .footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+      background: var(--bg);
+      border-top: 1px solid var(--line);
+    }
+
+    .btn-primary {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:active { background: var(--accent-dim); }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .error {
+      margin: 14px;
+      padding: 12px;
+      background: rgba(255, 80, 80, 0.12);
+      border-radius: 10px;
+      color: #ff8a8a;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <span id="botName">Reeldrive</span>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">در حال بارگذاری…</div>
+  <div id="error" class="error hidden"></div>
+
+  <div id="content" class="hidden">
+    <div class="status-bar" id="statusBar"></div>
+
+    <div class="section">
+      <div class="section-title">⏱ مدت زمان:</div>
+      <div class="option selected" data-group="plan">
+        <div class="radio"><div class="radio-dot"></div></div>
+        <div class="option-body">
+          <div class="option-label">Pro — ماهانه</div>
+          <div class="option-sub plan-price" id="planPrice">۲۰ ⭐ / ماه</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">💳 روش پرداخت:</div>
+      <div class="option selected" data-group="pay" data-value="stars" onclick="selectPay('stars')">
+        <div class="radio"><div class="radio-dot"></div></div>
+        <div class="option-body">
+          <div class="option-label">Telegram Stars</div>
+        </div>
+        <div class="option-icon icon-stars">⭐</div>
+      </div>
+      <div class="option" data-group="pay" data-value="card" onclick="selectPay('card')">
+        <div class="radio"><div class="radio-dot"></div></div>
+        <div class="option-body">
+          <div class="option-label">کارت به کارت</div>
+        </div>
+        <div class="option-icon icon-card">💳</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📄 فاکتور:</div>
+      <div class="invoice-row">
+        <span class="label">مبلغ</span>
+        <span class="value" id="invAmount">۲۰ ⭐</span>
+      </div>
+      <div class="invoice-row">
+        <span class="label">مدت</span>
+        <span class="value" id="invDuration">۳۰ روز (۱ ماه)</span>
+      </div>
+      <div class="invoice-row">
+        <span class="label">شناسه شما</span>
+        <span class="value" id="invUserId">—</span>
+      </div>
+      <div class="invoice-row">
+        <span class="label">روش پرداخت</span>
+        <span class="value" id="invMethod">Telegram Stars</span>
+      </div>
+    </div>
+
+    <ul class="notes">
+      <li>هر نفر <strong>۳ بار</strong> می‌تواند با لینک مستقیم دانلود کند؛ بعدش Pro لازم است.</li>
+      <li><strong>دایرکت دانلود</strong> (اتصال به اینستاگرام) فقط با Pro فعال می‌شود.</li>
+    </ul>
+  </div>
+
+  <div class="footer hidden" id="footer">
+    <button class="btn-primary" id="ctaBtn" onclick="submit()">ایجاد فاکتور</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    let shop = null;
+    let payMethod = "stars";
+
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      if (tg.themeParams?.bg_color) {
+        document.body.style.background = tg.themeParams.bg_color;
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("content").classList.add("hidden");
+      document.getElementById("footer").classList.add("hidden");
+      const el = document.getElementById("error");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+    }
+
+    function selectPay(method) {
+      payMethod = method;
+      document.querySelectorAll('[data-group="pay"]').forEach((el) => {
+        el.classList.toggle("selected", el.dataset.value === method);
+      });
+      document.getElementById("invMethod").textContent =
+        method === "stars" ? "Telegram Stars" : "کارت به کارت";
+      document.getElementById("ctaBtn").textContent =
+        method === "stars" ? "ایجاد فاکتور" : "ارتباط با پشتیبانی";
+    }
+
+    async function loadShop() {
+      const initData = tg?.initData || "";
+      if (!initData) {
+        showError("فقط از داخل تلگرام قابل استفاده است.");
+        return;
+      }
+
+      const res = await fetch("/api/shop/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ init_data: initData }),
+      });
+
+      if (!res.ok) {
+        showError("خطا در بارگذاری. دوباره تلاش کن.");
+        return;
+      }
+
+      shop = await res.json();
+      document.getElementById("botName").textContent = shop.bot_name;
+      document.getElementById("statusBar").innerHTML = shop.status_html;
+      document.getElementById("planPrice").textContent = `${shop.pro_stars} ⭐ / ماه`;
+      document.getElementById("invAmount").textContent =
+        payMethod === "stars" ? `${shop.pro_stars} ⭐` : "تماس با پشتیبانی";
+      document.getElementById("invDuration").textContent = `${shop.pro_days} روز (۱ ماه)`;
+      document.getElementById("invUserId").textContent = String(shop.telegram_id);
+
+      if (shop.pro_active) {
+        document.getElementById("ctaBtn").textContent = "Pro فعال است";
+        document.getElementById("ctaBtn").disabled = true;
+      }
+
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("content").classList.remove("hidden");
+      document.getElementById("footer").classList.remove("hidden");
+    }
+
+    async function submit() {
+      if (!shop || shop.pro_active) return;
+      const btn = document.getElementById("ctaBtn");
+      btn.disabled = true;
+
+      if (payMethod === "card") {
+        if (shop.card_url) {
+          tg?.openTelegramLink(shop.card_url);
+        }
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/shop/invoice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ init_data: tg?.initData }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.invoice_link) {
+          showError(data.detail || "خطا در ایجاد فاکتور.");
+          btn.disabled = false;
+          return;
+        }
+        if (tg?.openInvoice) {
+          tg.openInvoice(data.invoice_link, (status) => {
+            if (status === "paid") tg?.close();
+            btn.disabled = false;
+          });
+        } else {
+          window.open(data.invoice_link, "_blank");
+          btn.disabled = false;
+        }
+      } catch {
+        showError("خطا در ارتباط با سرور.");
+        btn.disabled = false;
+      }
+    }
+
+    loadShop();
+  </script>
+</body>
+</html>

@@ -192,8 +192,24 @@ class Settings(BaseSettings):
     free_direct_downloads: int = 3
     download_requires_subscription: bool = True
     payment_support_username: str = "Ah084"
+    webapp_base_url: str = ""  # optional override; default = same host as dashboard
     pro_stars_price: int = 20
     pro_subscription_days: int = 30
+
+    @property
+    def shop_webapp_url(self) -> str:
+        """Mini App lives on the dashboard at /shop — same public URL."""
+        base = (self.webapp_base_url or "").strip()
+        if not base:
+            base = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
+        if not base and os.environ.get("RAILWAY_ENVIRONMENT"):
+            base = "reeldrive.up.railway.app"
+        if not base:
+            base = f"localhost:{self.dashboard_port}"
+        if not base.startswith("http"):
+            scheme = "http" if base.startswith("localhost") else "https"
+            base = f"{scheme}://{base}"
+        return f"{base.rstrip('/')}/shop"
 
     openai_api_key: str = ""
     ai_api_base: str = "https://api.gapgpt.app/v1"

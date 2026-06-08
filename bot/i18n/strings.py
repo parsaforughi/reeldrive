@@ -513,41 +513,41 @@ Coming soon: unfollowers list.""",
         "ar": "{plan} حتى {date}",
     },
     "status_plan_vip": {
-        "fa": "VIP ♾️ — تحلیل AI نامحدود",
-        "en": "VIP ♾️ — unlimited AI analysis",
-        "ar": "VIP ♾️ — تحليل AI غير محدود",
+        "fa": "VIP ♾️ — دسترسی کامل",
+        "en": "VIP ♾️ — full access",
+        "ar": "VIP ♾️ — وصول كامل",
     },
     "pro_upsell": {
         "fa": (
-            "⭐ <b>Pro</b> — {stars} ستاره / ۳۰ روز\n"
-            "دانلود نامحدود + تحلیل AI.\n"
+            "⭐ <b>Pro</b> — {stars} ستاره / ماه\n"
+            "دانلود نامحدود + دایرکت دانلود.\n"
             "دستور: /subscribe"
         ),
         "en": (
-            "⭐ <b>Reeldrive Pro</b> — {stars} Stars / 30 days\n"
-            "AI + Vision analysis, priority, extras.\n"
-            "Command: /pro"
+            "⭐ <b>Pro</b> — {stars} Stars / month\n"
+            "Unlimited downloads + direct download.\n"
+            "Command: /subscribe"
         ),
         "ar": (
-            "⭐ <b>Reeldrive Pro</b> — {stars} نجمة / 30 يوماً\n"
-            "تحليل AI + Vision.\n"
-            "الأمر: /pro"
+            "⭐ <b>Pro</b> — {stars} نجمة / شهر\n"
+            "تحميل غير محدود + تحميل مباشر.\n"
+            "الأمر: /subscribe"
         ),
     },
     "pro_invoice_title": {
-        "fa": "Reeldrive Pro — ۳۰ روز",
-        "en": "Reeldrive Pro — 30 days",
-        "ar": "Reeldrive Pro — 30 يوماً",
+        "fa": "Reeldrive Pro — ماهانه",
+        "en": "Reeldrive Pro — monthly",
+        "ar": "Reeldrive Pro — شهري",
     },
     "pro_invoice_desc": {
-        "fa": "اشتراک Pro {name} — دانلود نامحدود + AI — {days} روز. پرداخت با Stars.",
-        "en": "{name} Pro — unlimited download + AI — {days} days. Pay with Stars.",
-        "ar": "Pro {name} — تحميل غير محدود + AI — {days} يوماً. الدفع بـ Stars.",
+        "fa": "اشتراک Pro {name} — دانلود نامحدود + دایرکت — {days} روز. پرداخت با Stars.",
+        "en": "{name} Pro — unlimited + direct download — {days} days. Pay with Stars.",
+        "ar": "Pro {name} — تحميل غير محدود + مباشر — {days} يوماً. الدفع بـ Stars.",
     },
     "pro_price_label": {
-        "fa": "Pro ({days} روز)",
-        "en": "Pro ({days} days)",
-        "ar": "Pro ({days} يوماً)",
+        "fa": "Pro ماهانه ({days} روز)",
+        "en": "Pro monthly ({days} days)",
+        "ar": "Pro شهري ({days} يوماً)",
     },
     "pro_already_active": {
         "fa": "✅ Pro فعال است تا {date}.\nمی‌توانی تمدید کنی:",
@@ -600,40 +600,28 @@ Coming soon: unfollowers list.""",
     },
     "shop_body": {
         "fa": (
-            "🛒 <b>فروشگاه {name}</b>\n\n"
-            "📌 وضعیت: {status}\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "🎁 <b>رایگان:</b> {free_total} دانلود با لینک مستقیم\n\n"
-            "⭐ <b>Pro</b> — {pro_stars} ⭐ / {days} روز\n"
-            "   • دانلود نامحدود (لینک + دایرکت)\n"
-            "   • تحلیل AI + Vision\n\n"
-            "💳 کارت به کارت از دکمه زیر\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            "یکی از دکمه‌های زیر را بزن 👇"
+            "🛒 <b>فروشگاه Pro — {name}</b>\n\n"
+            "📌 {status}\n\n"
+            "🎁 <b>رایگان:</b> {free_total} دانلود با لینک مستقیم\n"
+            "⭐ <b>Pro:</b> {pro_stars} ⭐ / ماه\n"
+            "⚡ دایرکت دانلود فقط با Pro\n\n"
+            "روش پرداخت: Stars یا کارت به کارت 👇"
         ),
         "en": (
-            "🛒 <b>{name} Shop</b>\n\n"
-            "📌 Status: {status}\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "🎁 <b>Free:</b> {free_total} direct-link downloads\n\n"
-            "⭐ <b>Pro</b> — {pro_stars} ⭐ / {days} days\n"
-            "   • Unlimited download (link + DM)\n"
-            "   • AI + Vision analysis\n\n"
-            "💳 Bank transfer via button below\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            "Tap a button below 👇"
+            "🛒 <b>Pro Shop — {name}</b>\n\n"
+            "📌 {status}\n\n"
+            "🎁 <b>Free:</b> {free_total} direct-link downloads\n"
+            "⭐ <b>Pro:</b> {pro_stars} ⭐ / month\n"
+            "⚡ Direct download requires Pro\n\n"
+            "Pay with Stars or bank transfer 👇"
         ),
         "ar": (
-            "🛒 <b>متجر {name}</b>\n\n"
-            "📌 الحالة: {status}\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "🎁 <b>مجاني:</b> {free_total} تحميل برابط مباشر\n\n"
-            "⭐ <b>Pro</b> — {pro_stars} ⭐ / {days} يوماً\n"
-            "   • تحميل غير محدود\n"
-            "   • تحليل AI + Vision\n\n"
-            "💳 تحويل بنكي من الزر أدناه\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            "اضغط أحد الأزرار 👇"
+            "🛒 <b>متجر Pro — {name}</b>\n\n"
+            "📌 {status}\n\n"
+            "🎁 <b>مجاني:</b> {free_total} تحميل برابط مباشر\n"
+            "⭐ <b>Pro:</b> {pro_stars} ⭐ / شهر\n"
+            "⚡ التحميل المباشر يتطلب Pro\n\n"
+            "الدفع: Stars أو تحويل بنكي 👇"
         ),
     },
     "shop_status_vip": {
@@ -664,42 +652,35 @@ Coming soon: unfollowers list.""",
     "download_paywall": {
         "fa": (
             "🔒 <b>۳ دانلود رایگان تمام شد!</b>\n\n"
-            "فقط لینک مستقیم رایگان بود.\n"
-            "برای ادامه: <b>Pro</b> — {pro_stars} ⭐ / ماه\n"
-            "• دانلود نامحدود + AI\n\n"
-            "از دکمه‌های زیر خرید کن 👇"
+            "هر نفر ۳ بار لینک مستقیم رایگان دارد.\n"
+            "برای ادامه: <b>Pro</b> — {pro_stars} ⭐ / ماه 👇"
         ),
         "en": (
             "🔒 <b>3 free downloads used!</b>\n\n"
-            "Only direct links were free.\n"
-            "To continue: <b>Pro</b> — {pro_stars} ⭐ / month\n"
-            "• Unlimited download + AI\n\n"
-            "Use the buttons below 👇"
+            "You get 3 free direct-link downloads.\n"
+            "To continue: <b>Pro</b> — {pro_stars} ⭐ / month 👇"
         ),
         "ar": (
             "🔒 <b>انتهت التحميلات المجانية!</b>\n\n"
-            "الروابط المباشرة فقط كانت مجانية.\n"
-            "<b>Pro</b> — {pro_stars} ⭐ / شهر\n\n"
-            "استخدم الأزرار 👇"
+            "٣ تحميلات مجانية لكل مستخدم.\n"
+            "<b>Pro</b> — {pro_stars} ⭐ / شهر 👇"
         ),
     },
     "pro_paywall": {
         "fa": (
-            "🔒 این امکان نیاز به <b>Pro</b> دارد.\n\n"
-            "⭐ {pro_stars} ستاره / ماه\n"
-            "• دانلود نامحدود + AI\n\n"
-            "از دکمه‌های زیر خرید کن 👇"
+            "🔒 <b>دایرکت دانلود</b> نیاز به Pro دارد.\n\n"
+            "اتصال به اینستاگرام + دانلود نامحدود\n"
+            "⭐ {pro_stars} ستاره / ماه 👇"
         ),
         "en": (
-            "🔒 This feature requires <b>Pro</b>.\n\n"
-            "⭐ {pro_stars} Stars / month\n"
-            "• Unlimited download + AI\n\n"
-            "Use the buttons below 👇"
+            "🔒 <b>Direct download</b> requires Pro.\n\n"
+            "Instagram connect + unlimited downloads\n"
+            "⭐ {pro_stars} Stars / month 👇"
         ),
         "ar": (
-            "🔒 هذه الميزة تتطلب <b>Pro</b>.\n\n"
-            "⭐ {pro_stars} نجمة / شهر\n\n"
-            "استخدم الأزرار 👇"
+            "🔒 <b>التحميل المباشر</b> يتطلب Pro.\n\n"
+            "ربط إنستغرام + تحميل غير محدود\n"
+            "⭐ {pro_stars} نجمة / شهر 👇"
         ),
     },
     "download_invoice_title": {
@@ -750,6 +731,11 @@ Coming soon: unfollowers list.""",
         "fa": "⭐ خرید Pro ({stars} ⭐)",
         "en": "⭐ Buy Pro ({stars} ⭐)",
         "ar": "⭐ شراء Pro ({stars} ⭐)",
+    },
+    "btn_open_shop": {
+        "fa": "🛒 خرید Pro",
+        "en": "🛒 Buy Pro",
+        "ar": "🛒 شراء Pro",
     },
     "btn_card_to_card": {
         "fa": "💳 کارت به کارت",
