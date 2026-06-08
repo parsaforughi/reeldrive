@@ -11,7 +11,7 @@ from bot.keyboards import paywall_kb, qualities_kb
 from bot.post_display import PostMeta, format_post_caption
 from bot.services.direct_download import download_media_url
 from bot.services.post_cache import get_post
-from bot.services.subscription import has_download_access
+from bot.services.subscription import has_pro_access
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -20,17 +20,11 @@ TMP = "/tmp/reeldrive"
 
 async def _require_download_access(callback: CallbackQuery, lang: str) -> bool:
     uid = callback.from_user.id
-    if await has_download_access(uid, callback.from_user.username):
+    if await has_pro_access(uid, callback.from_user.username):
         return True
     await callback.answer()
     await callback.message.answer(
-        t(
-            "download_paywall",
-            lang,
-            download_stars=settings.download_stars_price,
-            pro_stars=settings.pro_stars_price,
-            support=f"@{settings.payment_support_username.lstrip('@')}",
-        ),
+        t("pro_paywall", lang, pro_stars=settings.pro_stars_price),
         reply_markup=paywall_kb(lang),
     )
     return False

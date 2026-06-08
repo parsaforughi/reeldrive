@@ -1,4 +1,4 @@
-"""Subscription plans (download, Pro, VIP)."""
+"""Subscription plans (Pro, VIP) + free direct-link trial."""
 
 from datetime import datetime, timedelta
 
@@ -6,8 +6,7 @@ from bot.db.engine import async_session
 from bot.db.models import BotUser
 from bot.time_utils import utc_now
 
-DOWNLOAD_PLANS = frozenset({"download", "pro", "premium"})
-PRO_PLANS = frozenset({"pro", "premium"})
+PRO_PLANS = frozenset({"download", "pro", "premium"})
 
 
 def is_plan_active(user: BotUser | None) -> bool:
@@ -15,7 +14,7 @@ def is_plan_active(user: BotUser | None) -> bool:
         return False
     exp = user.subscription_expires_at
     if exp is None:
-        return user.subscription_plan in DOWNLOAD_PLANS
+        return user.subscription_plan in PRO_PLANS
     return exp > utc_now()
 
 
@@ -52,24 +51,36 @@ async def is_ai_unlimited(telegram_id: int, username: str | None = None) -> bool
     return False
 
 
-async def has_download_access(telegram_id: int, username: str | None = None) -> bool:
-    from bot.config import settings
-
-    if not settings.download_requires_subscription:
-        return True
-    if await is_ai_unlimited(telegram_id, username):
-        return True
-    user = await get_bot_user(telegram_id)
-    return bool(
-        is_plan_active(user) and user and user.subscription_plan in DOWNLOAD_PLANS
-    )
-
-
 async def has_pro_access(telegram_id: int, username: str | None = None) -> bool:
     if await is_ai_unlimited(telegram_id, username):
         return True
     user = await get_bot_user(telegram_id)
     return bool(is_plan_active(user) and user and user.subscription_plan in PRO_PLANS)
+
+
+async def direct_link_downloads_remaining(
+    telegram_id: int, username: str | None = None
+) -> int:
+    from bot.config import settings
+
+    if await is_ai_unlimited(telegram_id, username):
+        return settings.free_direct_downloads
+    if await has_pro_access(telegram_id, username):
+        return settings.free_direct_downloads
+    user = await get_bot_user(telegram_id)
+    used = (user.download_count or 0) if user else 0
+    return max(0, settings.free_direct_downloads - used)
+
+
+async def has_direct_link_download_access(
+    telegram_id: int, username: str | None = None
+) -> bool:
+    """Paste post/reel link in chat — 3 free tries, then Pro."""
+    from bot.config import settings
+
+    if not settings.download_requires_subscription:
+        return True
+    return (await direct_link_downloads_remaining(telegram_id, username)) > 0
 
 
 async def get_bot_user(telegram_id: int) -> BotUser | None:
@@ -86,48 +97,6 @@ def _extend_from(user: BotUser, now: datetime, plans: frozenset[str]) -> datetim
     ):
         base = user.subscription_expires_at
     return base
-
-
-async def grant_download(
-    telegram_id: int,
-    *,
-    days: int,
-    username: str | None = None,
-    first_name: str | None = None,
-    last_name: str | None = None,
-) -> datetime:
-    now = utc_now()
-    async with async_session() as session:
-        user = await session.get(BotUser, telegram_id)
-        if not user:
-            user = BotUser(
-                telegram_id=telegram_id,
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
-                language="",
-            )
-            session.add(user)
-        else:
-            if username is not None:
-                user.username = username
-            if first_name is not None:
-                user.first_name = first_name
-            if last_name is not None:
-                user.last_name = last_name
-
-        if user.subscription_plan in PRO_PLANS and is_plan_active(user):
-            base = _extend_from(user, now, PRO_PLANS)
-            expires = base + timedelta(days=days)
-            user.subscription_plan = "pro"
-        else:
-            base = _extend_from(user, now, DOWNLOAD_PLANS)
-            expires = base + timedelta(days=days)
-            user.subscription_plan = "download"
-
-        user.subscription_expires_at = expires
-        await session.commit()
-        return expires
 
 
 async def grant_pro(
@@ -158,7 +127,7 @@ async def grant_pro(
             if last_name is not None:
                 user.last_name = last_name
 
-        base = _extend_from(user, now, PRO_PLANS | DOWNLOAD_PLANS)
+        base = _extend_from(user, now, PRO_PLANS)
         expires = base + timedelta(days=days)
         user.subscription_plan = "pro"
         user.subscription_expires_at = expires
@@ -167,17 +136,29 @@ async def grant_pro(
 
 
 async def subscription_status_line(
-    user: BotUser | None, vip: bool, lang: str
+    user: BotUser | None,
+    vip: bool,
+    lang: str,
+    *,
+    telegram_id: int | None = None,
+    username: str | None = None,
 ) -> str:
+    from bot.config import settings
     from bot.i18n import t
 
     if vip:
         return t("shop_status_vip", lang)
-    if is_plan_active(user) and user:
+    if is_plan_active(user) and user and user.subscription_plan in PRO_PLANS:
         exp = user.subscription_expires_at
         exp_text = exp.strftime("%Y-%m-%d") if exp else "—"
-        if user.subscription_plan == "download":
-            return t("shop_status_download", lang, date=exp_text)
-        if user.subscription_plan in PRO_PLANS:
-            return t("shop_status_pro", lang, date=exp_text)
+        return t("shop_status_pro", lang, date=exp_text)
+    if telegram_id is not None:
+        left = await direct_link_downloads_remaining(telegram_id, username)
+        if left > 0:
+            return t(
+                "shop_status_free_trials",
+                lang,
+                left=left,
+                total=settings.free_direct_downloads,
+            )
     return t("shop_status_free", lang)

@@ -7,7 +7,13 @@ from bot.keyboards import subscription_shop_kb
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.services.direct_download import direct_download_ready
-from bot.services.subscription import get_bot_user, is_ai_unlimited, is_plan_active
+from bot.services.subscription import (
+    direct_link_downloads_remaining,
+    get_bot_user,
+    has_pro_access,
+    is_ai_unlimited,
+    is_plan_active,
+)
 from bot.services.verification import get_connection
 from sqlalchemy import select
 
@@ -23,20 +29,21 @@ async def build_status_text(telegram_id: int, username: str | None = None) -> st
 
     if await is_ai_unlimited(telegram_id, username):
         sub_line = t("status_plan_vip", lang)
-    elif is_plan_active(user) and user:
+    elif is_plan_active(user) and user and user.subscription_plan in (
+        "download",
+        "pro",
+        "premium",
+    ):
         exp = user.subscription_expires_at
         exp_text = exp.strftime("%Y-%m-%d") if exp else "—"
-        if user.subscription_plan == "download":
-            sub_line = t("status_plan_download", lang, date=exp_text)
-        elif user.subscription_plan in ("pro", "premium"):
-            sub_line = t("status_plan_pro", lang, plan="PRO", date=exp_text)
-        else:
-            sub_line = t("status_plan_pro", lang, plan=user.subscription_plan.upper(), date=exp_text)
+        sub_line = t("status_plan_pro", lang, plan="PRO", date=exp_text)
     else:
+        left = await direct_link_downloads_remaining(telegram_id, username)
         sub_line = t(
             "status_plan_free",
             lang,
-            download_stars=settings.download_stars_price,
+            left=left,
+            total=settings.free_direct_downloads,
             pro_stars=settings.pro_stars_price,
         )
 
@@ -66,20 +73,19 @@ async def build_settings_message(
 ) -> tuple[str, object | None]:
     lang = await require_user_lang(telegram_id)
     status = await build_status_text(telegram_id, username)
-    user = await get_bot_user(telegram_id)
     kb = None
     vip = await is_ai_unlimited(telegram_id, username)
     if settings.stars_payment_enabled and not vip:
         kb = subscription_shop_kb(lang)
     text = await tu(telegram_id, "settings") + "\n\n" + status
-    if settings.stars_payment_enabled and not vip and not (
-        is_plan_active(user) and user and user.subscription_plan in ("download", "pro", "premium")
+    if settings.stars_payment_enabled and not vip and not await has_pro_access(
+        telegram_id, username
     ):
         text += "\n\n" + t(
             "shop_upsell_short",
             lang,
-            download_stars=settings.download_stars_price,
             pro_stars=settings.pro_stars_price,
+            free_total=settings.free_direct_downloads,
         )
     return text, kb
 

@@ -11,7 +11,7 @@ from bot.handlers.status_helpers import (
 )
 from bot.i18n import get_user_lang, t, tu
 from bot.keyboards import language_kb
-from bot.services.subscription import has_download_access
+from bot.services.subscription import has_direct_link_download_access
 from bot.services.verification import get_connection
 from bot.states import SearchStates
 
@@ -43,7 +43,7 @@ async def cmd_help(message: Message) -> None:
 @router.message(Command("directdownload"))
 async def cmd_directdownload(message: Message) -> None:
     uid = message.from_user.id
-    if await has_download_access(uid, message.from_user.username):
+    if await has_direct_link_download_access(uid, message.from_user.username):
         await message.answer(await tu(uid, "help_direct"))
         return
     from bot.handlers.payments import send_subscription_shop

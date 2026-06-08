@@ -35,19 +35,13 @@ def subscription_shop_kb(lang: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text=t("btn_buy_download", lang, stars=settings.download_stars_price),
-            callback_data="pay:download",
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
             text=t("btn_buy_pro", lang, stars=settings.pro_stars_price),
             callback_data="pay:pro",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text=t("btn_card_to_card", lang, support=f"@{support}"),
+            text=t("btn_card_to_card", lang),
             url=f"https://t.me/{support}",
         )
     )

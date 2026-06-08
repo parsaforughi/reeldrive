@@ -189,11 +189,10 @@ class Settings(BaseSettings):
     max_zip_posts: int = 100
 
     stars_payment_enabled: bool = True
-    download_stars_price: int = 20
-    download_subscription_days: int = 30
+    free_direct_downloads: int = 3
     download_requires_subscription: bool = True
     payment_support_username: str = "Ah084"
-    pro_stars_price: int = 250
+    pro_stars_price: int = 20
     pro_subscription_days: int = 30
 
     openai_api_key: str = ""

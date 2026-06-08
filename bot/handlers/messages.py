@@ -16,7 +16,7 @@ from bot.handlers.download_helpers import (
 )
 from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb
-from bot.services.subscription import has_download_access
+from bot.services.subscription import has_direct_link_download_access
 from bot.services.analytics import record_download
 from bot.services.client_pool import client_pool
 from bot.time_utils import user_display_label
@@ -34,9 +34,8 @@ def _paywall_text(lang: str) -> str:
     return t(
         "download_paywall",
         lang,
-        download_stars=settings.download_stars_price,
+        free_total=settings.free_direct_downloads,
         pro_stars=settings.pro_stars_price,
-        support=f"@{settings.payment_support_username.lstrip('@')}",
     )
 
 
@@ -51,7 +50,7 @@ async def download_from_text(message: Message, text: str) -> None:
     if not direct_download_ready():
         await message.answer(await tu(uid, "error_direct_not_ready"))
         return
-    if not await has_download_access(uid, message.from_user.username):
+    if not await has_direct_link_download_access(uid, message.from_user.username):
         await message.answer(
             _paywall_text(lang),
             reply_markup=paywall_kb(lang),
@@ -102,7 +101,7 @@ async def handle_text(message: Message, state: FSMContext) -> None:
     if parsed.kind == "media_url" and not direct_download_ready():
         await message.answer(await tu(uid, "error_direct_not_ready"))
         return
-    if parsed.kind == "media_url" and not await has_download_access(
+    if parsed.kind == "media_url" and not await has_direct_link_download_access(
         uid, message.from_user.username
     ):
         await message.answer(
