@@ -52,11 +52,9 @@
     .brand-icon {
       width: 28px;
       height: 28px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #40a7e3, #7b5cff);
-      display: grid;
-      place-items: center;
-      font-size: 14px;
+      border-radius: 8px;
+      object-fit: contain;
+      flex-shrink: 0;
     }
 
     .status-bar {
@@ -240,7 +238,7 @@
 <body>
   <div class="header">
     <div class="brand">
-      <div class="brand-icon">⚡</div>
+      <img class="brand-icon" src="/static/shop-icon.png" alt="Reeldrive" />
       <span id="botName">Reeldrive</span>
     </div>
   </div>
