@@ -13,6 +13,7 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("unfollowers", "🚶‍♂️ آنفالویاب"),
     ("feed", "🗄️ فید"),
     ("settings", "⚙️ تنظیمات ربات"),
+    ("pro", "⭐ اشتراک Pro"),
     ("help", "💬 امکانات ربات"),
     ("privacy", "Privacy policy"),
 ]

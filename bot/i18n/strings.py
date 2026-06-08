@@ -481,6 +481,7 @@ Coming soon: unfollowers list.""",
     "status_body": {
         "fa": (
             "<b>{name}</b>\n\n"
+            "⭐ اشتراک: {plan}\n"
             "⚡ دایرکت دانلود (Apify): {apify}\n"
             "📥 دانلود لینک: {svc}{ig_extra}\n"
             "💬 پل اتصال {bridge}: {brg}\n"
@@ -488,6 +489,7 @@ Coming soon: unfollowers list.""",
         ),
         "en": (
             "<b>{name}</b>\n\n"
+            "⭐ Plan: {plan}\n"
             "⚡ Direct download (Apify): {apify}\n"
             "📥 Link download: {svc}{ig_extra}\n"
             "💬 Bridge {bridge}: {brg}\n"
@@ -495,11 +497,103 @@ Coming soon: unfollowers list.""",
         ),
         "ar": (
             "<b>{name}</b>\n\n"
+            "⭐ الاشتراك: {plan}\n"
             "⚡ تحميل مباشر (Apify): {apify}\n"
             "📥 تحميل الروابط: {svc}{ig_extra}\n"
             "💬 جسر {bridge}: {brg}\n"
             "🔗 حسابك: {page}"
         ),
+    },
+    "status_plan_free": {
+        "fa": "رایگان — /pro برای Pro ({stars} ⭐)",
+        "en": "Free — /pro for Pro ({stars} ⭐)",
+        "ar": "مجاني — /pro للـ Pro ({stars} ⭐)",
+    },
+    "status_plan_pro": {
+        "fa": "{plan} تا {date}",
+        "en": "{plan} until {date}",
+        "ar": "{plan} حتى {date}",
+    },
+    "pro_upsell": {
+        "fa": (
+            "⭐ <b>Reeldrive Pro</b> — {stars} ستاره / ۳۰ روز\n"
+            "اولویت، تحلیل AI (به‌زودی) و امکانات ویژه.\n"
+            "دستور: /pro"
+        ),
+        "en": (
+            "⭐ <b>Reeldrive Pro</b> — {stars} Stars / 30 days\n"
+            "Priority, AI analysis (soon), and extras.\n"
+            "Command: /pro"
+        ),
+        "ar": (
+            "⭐ <b>Reeldrive Pro</b> — {stars} نجمة / 30 يوماً\n"
+            "أولوية وتحليل AI (قريباً).\n"
+            "الأمر: /pro"
+        ),
+    },
+    "pro_invoice_title": {
+        "fa": "Reeldrive Pro — ۳۰ روز",
+        "en": "Reeldrive Pro — 30 days",
+        "ar": "Reeldrive Pro — 30 يوماً",
+    },
+    "pro_invoice_desc": {
+        "fa": "اشتراک Pro ربات {name} — {days} روز. پرداخت با Telegram Stars.",
+        "en": "{name} Pro subscription — {days} days. Pay with Telegram Stars.",
+        "ar": "اشتراك Pro في {name} — {days} يوماً. الدفع بـ Telegram Stars.",
+    },
+    "pro_price_label": {
+        "fa": "Pro ({days} روز)",
+        "en": "Pro ({days} days)",
+        "ar": "Pro ({days} يوماً)",
+    },
+    "pro_already_active": {
+        "fa": "✅ Pro فعال است تا {date}.\nمی‌توانی تمدید کنی:",
+        "en": "✅ Pro active until {date}.\nYou can renew:",
+        "ar": "✅ Pro نشط حتى {date}.\nيمكنك التجديد:",
+    },
+    "pro_payment_ok": {
+        "fa": (
+            "🎉 <b>Pro فعال شد!</b>\n\n"
+            "⭐ پرداخت: {stars} ستاره\n"
+            "📅 اعتبار: {days} روز (تا {date})\n\n"
+            "ممنون از حمایتت!"
+        ),
+        "en": (
+            "🎉 <b>Pro activated!</b>\n\n"
+            "⭐ Paid: {stars} Stars\n"
+            "📅 Valid: {days} days (until {date})\n\n"
+            "Thank you!"
+        ),
+        "ar": (
+            "🎉 <b>تم تفعيل Pro!</b>\n\n"
+            "⭐ الدفع: {stars} نجمة\n"
+            "📅 الصلاحية: {days} يوماً (حتى {date})"
+        ),
+    },
+    "pro_payment_failed": {
+        "fa": "❌ پرداخت تأیید نشد. دوباره /pro را بزن.",
+        "en": "❌ Payment could not be verified. Try /pro again.",
+        "ar": "❌ تعذر التحقق من الدفع. جرّب /pro.",
+    },
+    "pro_checkout_failed": {
+        "fa": "پرداخت نامعتبر است.",
+        "en": "Invalid payment.",
+        "ar": "دفع غير صالح.",
+    },
+    "pro_disabled": {
+        "fa": "پرداخت Stars فعلاً غیرفعال است.",
+        "en": "Stars payments are disabled.",
+        "ar": "مدفوعات Stars معطّلة.",
+    },
+    "btn_pro_buy": {
+        "fa": "⭐ خرید Pro ({stars} ⭐)",
+        "en": "⭐ Buy Pro ({stars} ⭐)",
+        "ar": "⭐ شراء Pro ({stars} ⭐)",
+    },
+    "btn_pro_renew": {
+        "fa": "🔄 تمدید Pro ({stars} ⭐)",
+        "en": "🔄 Renew Pro ({stars} ⭐)",
+        "ar": "🔄 تجديد Pro ({stars} ⭐)",
     },
     "status_pending": {
         "fa": "⏳ منتظر کد — @{username}",

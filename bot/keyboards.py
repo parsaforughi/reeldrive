@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.config import settings
 from bot.i18n import require_user_lang, t
 from bot.media_variants import MediaVariant
 
@@ -24,6 +25,20 @@ async def connect_cancel_kb(telegram_id: int) -> InlineKeyboardMarkup:
         InlineKeyboardButton(
             text=t("btn_cancel", lang),
             callback_data="connect:cancel",
+        )
+    )
+    return builder.as_markup()
+
+
+def pro_pay_kb(lang: str, *, renew: bool = False) -> InlineKeyboardMarkup | None:
+    if not settings.stars_payment_enabled:
+        return None
+    builder = InlineKeyboardBuilder()
+    key = "btn_pro_renew" if renew else "btn_pro_buy"
+    builder.row(
+        InlineKeyboardButton(
+            text=t(key, lang, stars=settings.pro_stars_price),
+            callback_data="pay:pro",
         )
     )
     return builder.as_markup()

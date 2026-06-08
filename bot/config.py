@@ -188,6 +188,10 @@ class Settings(BaseSettings):
     bridge_poll_idle_seconds: float = 10.0
     max_zip_posts: int = 100
 
+    stars_payment_enabled: bool = True
+    pro_stars_price: int = 250
+    pro_subscription_days: int = 30
+
     dashboard_password: str = "admin"
     dashboard_secret: str = "change-me-dashboard-secret"
     dashboard_port: int = 8080

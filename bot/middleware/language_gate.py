@@ -33,8 +33,11 @@ class LanguageGateMiddleware(BaseMiddleware):
 
             if isinstance(event, Message) and event.text:
                 cmd = event.text.split()[0].split("@")[0].lower()
-                if cmd in ("/start", "/language"):
+                if cmd in ("/start", "/language", "/pro", "/subscribe"):
                     return await handler(event, data)
+
+            if isinstance(event, Message) and event.successful_payment:
+                return await handler(event, data)
 
             if isinstance(event, Message):
                 await event.answer(

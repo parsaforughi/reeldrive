@@ -6,6 +6,7 @@ from aiogram.types import Message, ReplyKeyboardRemove
 from bot.handlers.status_helpers import (
     build_feed_text,
     build_myinstagram_text,
+    build_settings_message,
     build_status_text,
 )
 from bot.i18n import get_user_lang, t, tu
@@ -96,8 +97,15 @@ async def cmd_help_unfollowers_legacy(message: Message) -> None:
 @router.message(Command("settings"))
 async def cmd_settings(message: Message) -> None:
     uid = message.from_user.id
-    status = await build_status_text(uid)
-    await message.answer(await tu(uid, "settings") + "\n\n" + status)
+    text, kb = await build_settings_message(uid)
+    await message.answer(text, reply_markup=kb)
+
+
+@router.message(Command("subscribe"))
+async def cmd_subscribe(message: Message) -> None:
+    from bot.handlers.payments import send_pro_invoice
+
+    await send_pro_invoice(message.bot, message.chat.id, message.from_user.id)
 
 
 @router.message(Command("privacy"))

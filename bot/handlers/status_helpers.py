@@ -3,9 +3,11 @@ from bot.handlers.connect_hints import connected_usage_hint
 from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
 from bot.i18n import require_user_lang, t, tu
+from bot.keyboards import pro_pay_kb
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.services.direct_download import direct_download_ready
+from bot.services.subscription import get_bot_user, is_plan_active
 from bot.services.verification import get_connection
 from sqlalchemy import select
 
@@ -17,6 +19,15 @@ async def build_status_text(telegram_id: int) -> str:
     ig_extra = " (instagrapi)" if client_pool.service_ready else ""
     brg = "✅" if client_pool.bridge_ready else "❌"
     conn = await get_connection(telegram_id)
+    user = await get_bot_user(telegram_id)
+
+    if is_plan_active(user) and user:
+        plan = user.subscription_plan.upper()
+        exp = user.subscription_expires_at
+        exp_text = exp.strftime("%Y-%m-%d") if exp else "—"
+        sub_line = t("status_plan_pro", lang, plan=plan, date=exp_text)
+    else:
+        sub_line = t("status_plan_free", lang, stars=settings.pro_stars_price)
 
     if conn and conn.status == "connected":
         page = f"✅ @{conn.instagram_username}"
@@ -35,7 +46,22 @@ async def build_status_text(telegram_id: int) -> str:
         bridge=settings.bridge_ig_handle,
         brg=brg,
         page=page,
+        plan=sub_line,
     )
+
+
+async def build_settings_message(telegram_id: int) -> tuple[str, object | None]:
+    lang = await require_user_lang(telegram_id)
+    status = await build_status_text(telegram_id)
+    user = await get_bot_user(telegram_id)
+    kb = None
+    if settings.stars_payment_enabled:
+        renew = bool(is_plan_active(user) and user and user.subscription_plan == "pro")
+        kb = pro_pay_kb(lang, renew=renew)
+    text = await tu(telegram_id, "settings") + "\n\n" + status
+    if settings.stars_payment_enabled and not is_plan_active(user):
+        text += "\n\n" + t("pro_upsell", lang, stars=settings.pro_stars_price)
+    return text, kb
 
 
 async def build_myinstagram_text(telegram_id: int) -> str:
