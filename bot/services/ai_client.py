@@ -1,4 +1,4 @@
-"""OpenAI chat + vision via REST (no extra SDK)."""
+"""OpenAI-compatible chat + vision API (GapGPT, OpenAI, etc.)."""
 
 import logging
 from typing import Any
@@ -110,17 +110,14 @@ class AIClient:
             "Authorization": f"Bearer {settings.openai_api_key}",
             "Content-Type": "application/json",
         }
+        url = settings.ai_chat_completions_url
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=payload,
-            ) as resp:
+            async with session.post(url, headers=headers, json=payload) as resp:
                 body = await resp.json()
                 if resp.status != 200:
                     err = body.get("error", {})
                     msg = err.get("message") if isinstance(err, dict) else str(body)
-                    logger.error("OpenAI HTTP %s: %s", resp.status, msg)
+                    logger.error("AI API HTTP %s (%s): %s", resp.status, url, msg)
                     raise ValueError(f"AI error ({resp.status})")
                 choices = body.get("choices") or []
                 if not choices:

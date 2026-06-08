@@ -83,11 +83,11 @@ async def main() -> None:
 
     if ai_client.ready:
         logger.info(
-            "AI post analysis enabled (model=%s, video_frames=%s, ffmpeg=%s, pro_only=%s)",
+            "AI post analysis enabled (provider=%s, model=%s, video_frames=%s, ffmpeg=%s)",
+            settings.ai_api_base,
             settings.ai_model,
             settings.ai_video_frames_enabled,
             ffmpeg_ready(),
-            settings.ai_analysis_requires_pro,
         )
     else:
         logger.warning("OPENAI_API_KEY not set — AI analysis disabled")

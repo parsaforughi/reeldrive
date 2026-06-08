@@ -193,7 +193,8 @@ class Settings(BaseSettings):
     pro_subscription_days: int = 30
 
     openai_api_key: str = ""
-    ai_model: str = "gpt-4o-mini"
+    ai_api_base: str = "https://api.gapgpt.app/v1"
+    ai_model: str = "gpt-5.2"
     ai_vision_enabled: bool = True
     ai_video_frames_enabled: bool = True
     ai_video_frame_count: int = 5
@@ -210,6 +211,10 @@ class Settings(BaseSettings):
     dashboard_password: str = "admin"
     dashboard_secret: str = "change-me-dashboard-secret"
     dashboard_port: int = 8080
+
+    @property
+    def ai_chat_completions_url(self) -> str:
+        return f"{self.ai_api_base.rstrip('/')}/chat/completions"
 
     @property
     def service_session_file(self) -> Path:

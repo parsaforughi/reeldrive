@@ -731,9 +731,9 @@ Coming soon: unfollowers list.""",
         "ar": "🤖 <b>تحليل المنشور بالذكاء الاصطناعي</b>",
     },
     "ai_not_configured": {
-        "fa": "❌ تحلیل AI فعلاً غیرفعال است (OPENAI_API_KEY).",
-        "en": "❌ AI analysis is disabled (OPENAI_API_KEY).",
-        "ar": "❌ تحليل AI معطّل (OPENAI_API_KEY).",
+        "fa": "❌ تحلیل AI غیرفعال است — OPENAI_API_KEY را در Railway بگذار.",
+        "en": "❌ AI analysis disabled — set OPENAI_API_KEY in Railway.",
+        "ar": "❌ تحليل AI معطّل — عيّن OPENAI_API_KEY.",
     },
     "ai_pro_required": {
         "fa": "⭐ تحلیل AI فقط برای <b>Pro</b> است.\n/pro",
