@@ -10,6 +10,7 @@ from bot.config import settings
 from bot.i18n import require_user_lang, t, tu
 from bot.keyboards import subscription_shop_kb
 from bot.services.analytics import log_activity
+from bot.services.pricing import is_allowed_plan_days, plan_stars
 from bot.services.subscription import (
     get_bot_user,
     grant_pro,
@@ -25,12 +26,29 @@ router = Router()
 PRO_PAYLOAD = "reeldrive_pro"
 
 
-def _payload(kind: str, telegram_id: int) -> str:
-    return f"{kind}:{telegram_id}"
+def _payload(kind: str, telegram_id: int, days: int | None = None) -> str:
+    if days is None:
+        days = settings.pro_subscription_days
+    return f"{kind}:{telegram_id}:{days}"
+
+
+def _parse_payload(payload: str, kind: str, telegram_id: int) -> int | None:
+    if payload == kind:
+        return settings.pro_subscription_days
+    prefix = f"{kind}:{telegram_id}"
+    if payload == prefix:
+        return settings.pro_subscription_days
+    if payload.startswith(f"{prefix}:"):
+        try:
+            days = int(payload.rsplit(":", 1)[-1])
+        except ValueError:
+            return None
+        return days if is_allowed_plan_days(days) else None
+    return None
 
 
 def _valid_payload(payload: str, kind: str, telegram_id: int) -> bool:
-    return payload in (kind, f"{kind}:{telegram_id}")
+    return _parse_payload(payload, kind, telegram_id) is not None
 
 
 async def send_subscription_shop(
@@ -145,11 +163,12 @@ async def pre_checkout(query: PreCheckoutQuery) -> None:
     payload = query.invoice_payload or ""
     lang = await require_user_lang(uid)
 
+    days = _parse_payload(payload, PRO_PAYLOAD, uid)
     ok = (
         settings.stars_payment_enabled
         and query.currency == "XTR"
-        and _valid_payload(payload, PRO_PAYLOAD, uid)
-        and query.total_amount == settings.pro_stars_price
+        and days is not None
+        and query.total_amount == plan_stars(days)
     )
     if not ok:
         await query.answer(ok=False, error_message=t("checkout_failed", lang))
@@ -173,23 +192,25 @@ async def successful_payment(message: Message) -> None:
         last_name=message.from_user.last_name,
     )
 
-    if _valid_payload(payload, PRO_PAYLOAD, uid):
-        if sp.total_amount != settings.pro_stars_price:
+    days = _parse_payload(payload, PRO_PAYLOAD, uid)
+    if days is not None:
+        expected = plan_stars(days)
+        if sp.total_amount != expected:
             await message.answer(t("payment_failed", lang))
             return
-        expires = await grant_pro(uid, days=settings.pro_subscription_days, **user_kw)
+        expires = await grant_pro(uid, days=days, **user_kw)
         await log_activity(
             uid,
             "payment_stars",
-            detail=f"pro {settings.pro_stars_price} XTR",
-            meta={"plan": "pro", "stars": sp.total_amount, "days": settings.pro_subscription_days},
+            detail=f"pro {expected} XTR / {days}d",
+            meta={"plan": "pro", "stars": sp.total_amount, "days": days},
         )
         await message.answer(
             t(
                 "pro_payment_ok",
                 lang,
-                stars=settings.pro_stars_price,
-                days=settings.pro_subscription_days,
+                stars=sp.total_amount,
+                days=days,
                 date=expires.strftime("%Y-%m-%d %H:%M"),
             ),
             reply_markup=subscription_shop_kb(lang),

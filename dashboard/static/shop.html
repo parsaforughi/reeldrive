@@ -155,10 +155,34 @@
     .icon-stars { background: rgba(245, 197, 24, 0.2); }
     .icon-card { background: rgba(123, 92, 255, 0.25); }
 
-    .plan-price {
+    .duration-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .duration-option:last-child { border-bottom: none; }
+    .duration-option:active { background: var(--card2); }
+    .duration-option.selected { background: rgba(64, 167, 227, 0.08); }
+
+    .duration-label {
+      flex: 1;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    .duration-price {
       font-size: 14px;
-      color: var(--star);
-      font-weight: 600;
+      font-weight: 500;
+      white-space: nowrap;
+      min-width: 96px;
+      text-align: left;
     }
 
     .invoice-row {
@@ -251,13 +275,7 @@
 
     <div class="section">
       <div class="section-title">⏱ مدت زمان:</div>
-      <div class="option selected" data-group="plan">
-        <div class="radio"><div class="radio-dot"></div></div>
-        <div class="option-body">
-          <div class="option-label">Pro — ماهانه</div>
-          <div class="option-sub plan-price" id="planPrice">۲۰ ⭐ / ماه</div>
-        </div>
-      </div>
+      <div id="plansList"></div>
     </div>
 
     <div class="section">
@@ -312,6 +330,7 @@
     const tg = window.Telegram?.WebApp;
     let shop = null;
     let payMethod = "stars";
+    let selectedDays = 30;
 
     if (tg) {
       tg.ready();
@@ -319,6 +338,14 @@
       if (tg.themeParams?.bg_color) {
         document.body.style.background = tg.themeParams.bg_color;
       }
+    }
+
+    function fmtToman(n) {
+      return n.toLocaleString("fa-IR") + " تومان";
+    }
+
+    function currentPlan() {
+      return shop?.plans?.find((p) => p.days === selectedDays) || shop?.plans?.[0];
     }
 
     function showError(msg) {
@@ -330,6 +357,34 @@
       el.classList.remove("hidden");
     }
 
+    function renderPlans() {
+      const list = document.getElementById("plansList");
+      list.innerHTML = shop.plans.map((plan) => `
+        <div class="duration-option ${plan.days === selectedDays ? "selected" : ""}"
+             data-days="${plan.days}" onclick="selectPlan(${plan.days})">
+          <div class="radio"><div class="radio-dot"></div></div>
+          <div class="duration-label">${plan.label}</div>
+          <div class="duration-price">${fmtToman(plan.tomans)}</div>
+        </div>
+      `).join("");
+    }
+
+    function updateInvoice() {
+      const plan = currentPlan();
+      if (!plan) return;
+      document.getElementById("invAmount").textContent =
+        payMethod === "stars" ? `${plan.stars} ⭐` : fmtToman(plan.tomans);
+      document.getElementById("invDuration").textContent = plan.label;
+    }
+
+    function selectPlan(days) {
+      selectedDays = days;
+      document.querySelectorAll(".duration-option").forEach((el) => {
+        el.classList.toggle("selected", Number(el.dataset.days) === days);
+      });
+      updateInvoice();
+    }
+
     function selectPay(method) {
       payMethod = method;
       document.querySelectorAll('[data-group="pay"]').forEach((el) => {
@@ -339,6 +394,7 @@
         method === "stars" ? "Telegram Stars" : "کارت به کارت";
       document.getElementById("ctaBtn").textContent =
         method === "stars" ? "ایجاد فاکتور" : "ارتباط با پشتیبانی";
+      updateInvoice();
     }
 
     async function loadShop() {
@@ -360,13 +416,12 @@
       }
 
       shop = await res.json();
+      selectedDays = shop.plans?.[0]?.days || 30;
       document.getElementById("botName").textContent = shop.bot_name;
       document.getElementById("statusBar").innerHTML = shop.status_html;
-      document.getElementById("planPrice").textContent = `${shop.pro_stars} ⭐ / ماه`;
-      document.getElementById("invAmount").textContent =
-        payMethod === "stars" ? `${shop.pro_stars} ⭐` : "تماس با پشتیبانی";
-      document.getElementById("invDuration").textContent = `${shop.pro_days} روز (۱ ماه)`;
       document.getElementById("invUserId").textContent = String(shop.telegram_id);
+      renderPlans();
+      updateInvoice();
 
       if (shop.pro_active) {
         document.getElementById("ctaBtn").textContent = "Pro فعال است";
@@ -381,12 +436,15 @@
     async function submit() {
       if (!shop || shop.pro_active) return;
       const btn = document.getElementById("ctaBtn");
+      const plan = currentPlan();
       btn.disabled = true;
 
       if (payMethod === "card") {
-        if (shop.card_url) {
-          tg?.openTelegramLink(shop.card_url);
-        }
+        const msg = encodeURIComponent(
+          `سلام، درخواست Pro\nمدت: ${plan.label}\nمبلغ: ${fmtToman(plan.tomans)}\nشناسه: ${shop.telegram_id}`
+        );
+        const url = `${shop.card_url}?text=${msg}`;
+        tg?.openTelegramLink(url);
         btn.disabled = false;
         return;
       }
@@ -395,7 +453,7 @@
         const res = await fetch("/api/shop/invoice", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ init_data: tg?.initData }),
+          body: JSON.stringify({ init_data: tg?.initData, days: selectedDays }),
         });
         const data = await res.json();
         if (!res.ok || !data.invoice_link) {

@@ -26,6 +26,7 @@ from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.handlers.payments import PRO_PAYLOAD, _payload
 from bot.i18n import require_user_lang, t
 from bot.services.apify import apify_downloader
+from bot.services.pricing import is_allowed_plan_days, plan_by_days, plan_stars, shop_plans_payload
 from bot.services.client_pool import client_pool
 from bot.services.subscription import (
     get_bot_user,
@@ -346,6 +347,11 @@ class WebAppBody(BaseModel):
     init_data: str
 
 
+class WebAppInvoiceBody(BaseModel):
+    init_data: str
+    days: int = 30
+
+
 def _shop_user_from_init(body: WebAppBody) -> dict:
     user = validate_init_data(body.init_data)
     if not user:
@@ -381,8 +387,9 @@ async def api_shop_info(body: WebAppBody):
     return {
         "telegram_id": telegram_id,
         "bot_name": settings.bot_name,
-        "pro_stars": settings.pro_stars_price,
-        "pro_days": settings.pro_subscription_days,
+        "pro_stars_monthly": settings.pro_stars_price,
+        "pro_toman_monthly": settings.pro_toman_monthly,
+        "plans": shop_plans_payload(),
         "pro_active": pro_active,
         "status_html": f"<strong>وضعیت:</strong> {status}",
         "card_url": f"https://t.me/{support}",
@@ -391,13 +398,18 @@ async def api_shop_info(body: WebAppBody):
 
 
 @app.post("/api/shop/invoice")
-async def api_shop_invoice(body: WebAppBody):
+async def api_shop_invoice(body: WebAppInvoiceBody):
     if not settings.stars_payment_enabled:
         raise HTTPException(status_code=403, detail="پرداخت Stars غیرفعال است.")
+
+    if not is_allowed_plan_days(body.days):
+        raise HTTPException(status_code=400, detail="مدت زمان نامعتبر است.")
 
     tg_user = _shop_user_from_init(body)
     telegram_id = int(tg_user["id"])
     lang = await require_user_lang(telegram_id)
+    plan = plan_by_days(body.days)
+    stars = plan_stars(body.days)
 
     user = await get_bot_user(telegram_id)
     if is_plan_active(user) and user and user.subscription_plan in ("download", "pro", "premium"):
@@ -410,23 +422,23 @@ async def api_shop_invoice(body: WebAppBody):
             description=t(
                 "pro_invoice_desc",
                 lang,
-                days=settings.pro_subscription_days,
+                days=body.days,
                 name=settings.bot_name,
             ),
-            payload=_payload(PRO_PAYLOAD, telegram_id),
+            payload=_payload(PRO_PAYLOAD, telegram_id, body.days),
             provider_token="",
             currency="XTR",
             prices=[
                 LabeledPrice(
-                    label=t("pro_price_label", lang, days=settings.pro_subscription_days),
-                    amount=settings.pro_stars_price,
+                    label=t("pro_price_label", lang, days=body.days),
+                    amount=stars,
                 )
             ],
         )
     finally:
         await bot.session.close()
 
-    return {"invoice_link": link}
+    return {"invoice_link": link, "stars": stars, "days": body.days, "label": plan["label"] if plan else ""}
 
 
 @app.get("/")

@@ -194,6 +194,7 @@ class Settings(BaseSettings):
     payment_support_username: str = "Ah084"
     webapp_base_url: str = ""  # optional override; default = same host as dashboard
     pro_stars_price: int = 20
+    pro_toman_monthly: int = 98000
     pro_subscription_days: int = 30
 
     @property

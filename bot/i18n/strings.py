@@ -603,7 +603,7 @@ Coming soon: unfollowers list.""",
             "🛒 <b>فروشگاه Pro — {name}</b>\n\n"
             "📌 {status}\n\n"
             "🎁 <b>رایگان:</b> {free_total} دانلود با لینک مستقیم\n"
-            "⭐ <b>Pro:</b> {pro_stars} ⭐ / ماه\n"
+            "⭐ <b>Pro:</b> {pro_stars} ⭐ یا ۹۸,۰۰۰ تومان / ماه\n"
             "⚡ دایرکت دانلود فقط با Pro\n\n"
             "روش پرداخت: Stars یا کارت به کارت 👇"
         ),
