@@ -3,7 +3,7 @@ from bot.handlers.connect_hints import connected_usage_hint
 from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
 from bot.i18n import require_user_lang, t, tu
-from bot.keyboards import pro_pay_kb
+from bot.keyboards import subscription_shop_kb
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.services.direct_download import direct_download_ready
@@ -24,12 +24,21 @@ async def build_status_text(telegram_id: int, username: str | None = None) -> st
     if await is_ai_unlimited(telegram_id, username):
         sub_line = t("status_plan_vip", lang)
     elif is_plan_active(user) and user:
-        plan = user.subscription_plan.upper()
         exp = user.subscription_expires_at
         exp_text = exp.strftime("%Y-%m-%d") if exp else "—"
-        sub_line = t("status_plan_pro", lang, plan=plan, date=exp_text)
+        if user.subscription_plan == "download":
+            sub_line = t("status_plan_download", lang, date=exp_text)
+        elif user.subscription_plan in ("pro", "premium"):
+            sub_line = t("status_plan_pro", lang, plan="PRO", date=exp_text)
+        else:
+            sub_line = t("status_plan_pro", lang, plan=user.subscription_plan.upper(), date=exp_text)
     else:
-        sub_line = t("status_plan_free", lang, stars=settings.pro_stars_price)
+        sub_line = t(
+            "status_plan_free",
+            lang,
+            download_stars=settings.download_stars_price,
+            pro_stars=settings.pro_stars_price,
+        )
 
     if conn and conn.status == "connected":
         page = f"✅ @{conn.instagram_username}"
@@ -61,11 +70,17 @@ async def build_settings_message(
     kb = None
     vip = await is_ai_unlimited(telegram_id, username)
     if settings.stars_payment_enabled and not vip:
-        renew = bool(is_plan_active(user) and user and user.subscription_plan == "pro")
-        kb = pro_pay_kb(lang, renew=renew)
+        kb = subscription_shop_kb(lang)
     text = await tu(telegram_id, "settings") + "\n\n" + status
-    if settings.stars_payment_enabled and not vip and not is_plan_active(user):
-        text += "\n\n" + t("pro_upsell", lang, stars=settings.pro_stars_price)
+    if settings.stars_payment_enabled and not vip and not (
+        is_plan_active(user) and user and user.subscription_plan in ("download", "pro", "premium")
+    ):
+        text += "\n\n" + t(
+            "shop_upsell_short",
+            lang,
+            download_stars=settings.download_stars_price,
+            pro_stars=settings.pro_stars_price,
+        )
     return text, kb
 
 

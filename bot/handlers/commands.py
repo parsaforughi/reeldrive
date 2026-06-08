@@ -11,6 +11,7 @@ from bot.handlers.status_helpers import (
 )
 from bot.i18n import get_user_lang, t, tu
 from bot.keyboards import language_kb
+from bot.services.subscription import has_download_access
 from bot.services.verification import get_connection
 from bot.states import SearchStates
 
@@ -41,7 +42,16 @@ async def cmd_help(message: Message) -> None:
 
 @router.message(Command("directdownload"))
 async def cmd_directdownload(message: Message) -> None:
-    await message.answer(await tu(message.from_user.id, "help_direct"))
+    uid = message.from_user.id
+    if await has_download_access(uid, message.from_user.username):
+        await message.answer(await tu(uid, "help_direct"))
+        return
+    from bot.handlers.payments import send_subscription_shop
+
+    await message.answer(await tu(uid, "help_direct"))
+    await send_subscription_shop(
+        message.bot, message.chat.id, uid, message.from_user.username
+    )
 
 
 @router.message(Command("help_directdownload"))
@@ -100,12 +110,6 @@ async def cmd_settings(message: Message) -> None:
     text, kb = await build_settings_message(uid, message.from_user.username)
     await message.answer(text, reply_markup=kb)
 
-
-@router.message(Command("subscribe"))
-async def cmd_subscribe(message: Message) -> None:
-    from bot.handlers.payments import send_pro_invoice
-
-    await send_pro_invoice(message.bot, message.chat.id, message.from_user.id)
 
 
 @router.message(Command("privacy"))

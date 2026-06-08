@@ -4,8 +4,13 @@ set -e
 cd "$(dirname "$0")/.."
 sh scripts/ensure_data_dirs.sh
 
+PYTHON=python
+if [ -x /opt/venv/bin/python ]; then
+  PYTHON=/opt/venv/bin/python
+fi
+
 echo "[start] Telegram bot (background)..."
-python -m bot.main &
+"$PYTHON" -m bot.main &
 BOT_PID=$!
 
 cleanup() {
@@ -16,4 +21,4 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "[start] Dashboard on port ${PORT:-8080}..."
-exec python -m dashboard
+exec "$PYTHON" -m dashboard

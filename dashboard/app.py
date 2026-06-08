@@ -1,8 +1,10 @@
 """FastAPI admin dashboard for Reeldrive."""
 
+import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -25,6 +27,8 @@ from bot.time_utils import to_iso_utc
 STATIC_DIR = Path(__file__).parent / "static"
 SESSION_COOKIE = "reeldrive_admin"
 SESSION_DAYS = 7
+logger = logging.getLogger(__name__)
+_db_ready = False
 
 
 def _sign_token(raw: str) -> str:
@@ -82,10 +86,21 @@ def _log_user_label(
     return None
 
 
+async def _setup_database() -> None:
+    global _db_ready
+    try:
+        await init_db()
+        await maybe_migrate_sqlite_to_postgres()
+        _db_ready = True
+        logger.info("Dashboard database ready")
+    except Exception:
+        logger.exception("Dashboard database setup failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
-    await maybe_migrate_sqlite_to_postgres()
+    # Do not block HTTP /health while Postgres connects (Railway healthcheck).
+    app.state.db_task = asyncio.create_task(_setup_database())
     yield
 
 
@@ -94,12 +109,13 @@ app = FastAPI(title="Reeldrive Dashboard", lifespan=lifespan)
 
 @app.get("/health")
 async def health():
-    db_ok = await db_ping()
+    db_ok = await db_ping() if _db_ready else False
     return {
-        "ok": db_ok,
+        "ok": True,
         "service": "reeldrive-dashboard",
         "database": "postgres" if settings.database_is_postgres else "sqlite",
         "database_ok": db_ok,
+        "db_setup_complete": _db_ready,
         "data_dir": str(settings.persistent_data_dir),
     }
 

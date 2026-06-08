@@ -80,6 +80,7 @@ async def main() -> None:
         logger.warning("APIFY_TOKEN not set — link download will need instagrapi fallback")
 
     from bot.services.ai_client import ai_client
+    from bot.services.video_frames import ffmpeg_ready
 
     if ai_client.ready:
         logger.info(

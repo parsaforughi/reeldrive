@@ -35,42 +35,38 @@ MESSAGES: dict[str, dict[str, str]] = {
     "start": {
         "fa": f"""سلام! 👋 به <b>{NAME}</b> خوش اومدی.
 
-⚡ <b>دایرکت دانلود (فعال):</b> لینک پست / ریل اینستاگرام را <b>همین‌جا</b> بفرست — خودکار دانلود می‌شود.
-مثال: <code>instagram.com/reel/...</code>
+⚡ <b>دایرکت دانلود:</b> لینک پست / ریل را بفرست — با اشتراک ماهانه فعال می‌شود.
+🛒 فروشگاه: /subscribe
 
 🔐 اتصال پیج (اختیاری): /connect
-
-همه امکانات فعلاً <b>رایگان</b> است.
 
 از دکمه آبی <b>Menu</b> کنار چت استفاده کن 👇""",
         "en": f"""Hi! 👋 Welcome to <b>{NAME}</b>.
 
-⚡ <b>Direct download (active):</b> send a post/reel link <b>here</b> — auto download.
-Example: <code>instagram.com/reel/...</code>
+⚡ <b>Direct download:</b> send a post/reel link — requires a monthly subscription.
+🛒 Shop: /subscribe
 
 🔐 Connect page (optional): /connect
-
-Everything is <b>free</b> for now.
 
 Use the blue <b>Menu</b> button next to the chat 👇""",
         "ar": f"""مرحباً! 👋 أهلاً بك في <b>{NAME}</b>.
 
-⚡ <b>تحميل مباشر</b> — أرسل رابط أو اسم مستخدم إنستغرام.
+⚡ <b>تحميل مباشر</b> — أرسل رابط المنشور / الريل (يتطلب اشتراكاً شهرياً).
+🛒 المتجر: /subscribe
 
-🔐 ربط حسابك: /connect
-
-كل الميزات <b>مجانية</b> حالياً.
+🔐 ربط الحساب: /connect
 
 استخدم زر <b>Menu</b> الأزرق بجانب المحادثة 👇""",
     },
     "features": {
         "fa": f"""💬 <b>امکانات {NAME}</b>
 
-همه امکانات فعلاً <b>رایگان</b> هستند.
-
-<b>⚡ دایرکت دانلود:</b>
+<b>⚡ دایرکت دانلود</b> (اشتراک ماهانه):
 • لینک پست / ریل / کاروسel
 • استوری، هایلایت، پروفایل HD
+🛒 /subscribe
+
+<b>🤖 Pro:</b> تحلیل AI + Vision — /pro
 
 <b>🔐 اتصال پیج:</b> /connect → کد → دایرکت {BRIDGE}
 
@@ -78,11 +74,12 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <code>highlights user</code> | <code>zip stories user</code> | <code>#tag</code>""",
         "en": f"""💬 <b>{NAME} features</b>
 
-All features are <b>free</b> for now.
-
-<b>⚡ Direct download:</b>
+<b>⚡ Direct download</b> (monthly subscription):
 • Post / Reel / carousel links
 • Stories, highlights, HD profile
+🛒 /subscribe
+
+<b>🤖 Pro:</b> AI + Vision analysis — /pro
 
 <b>🔐 Connect page:</b> /connect → code → DM {BRIDGE}
 
@@ -90,11 +87,12 @@ All features are <b>free</b> for now.
 <code>highlights user</code> | <code>zip stories user</code> | <code>#tag</code>""",
         "ar": f"""💬 <b>ميزات {NAME}</b>
 
-كل الميزات <b>مجانية</b> حالياً.
-
-<b>⚡ تحميل مباشر:</b>
+<b>⚡ تحميل مباشر</b> (اشتراك شهري):
 • روابط المنشور / الريل / الكاروسel
 • القصص، الهايلايت، الملف الشخصي
+🛒 /subscribe
+
+<b>🤖 Pro:</b> تحليل AI + Vision — /pro
 
 <b>🔐 ربط الحساب:</b> /connect → رمز → رسالة {BRIDGE}
 
@@ -104,7 +102,8 @@ All features are <b>free</b> for now.
     "help_direct": {
         "fa": f"""⚡ <b>دایرکت دانلود</b>
 
-<b>لینک</b> پست / ریل را بفرست.
+<b>لینک</b> پست / ریل را بفرست (نیاز به اشتراک ماهانه دارد).
+🛒 خرید: /subscribe
 
 پروفایل/استوری (اختیاری):
 • یوزرنیم — <code>instagram</code>
@@ -113,7 +112,8 @@ All features are <b>free</b> for now.
 <b>اتصال پیج:</b> /connect → کد را به {BRIDGE} بفرست.""",
         "en": f"""⚡ <b>Direct download</b>
 
-Send a <b>post / Reel link</b>.
+Send a <b>post / Reel link</b> (monthly subscription required).
+🛒 Shop: /subscribe
 
 Profile/stories (optional):
 • Username — <code>instagram</code>
@@ -122,7 +122,8 @@ Profile/stories (optional):
 <b>Connect:</b> /connect → send code to {BRIDGE}.""",
         "ar": f"""⚡ <b>تحميل مباشر</b>
 
-أرسل <b>رابط منشور / ريل</b>.
+أرسل <b>رابط منشور / ريل</b> (يتطلب اشتراكاً شهرياً).
+🛒 المتجر: /subscribe
 
 الملف/القصص (اختياري):
 • اسم المستخدم — <code>instagram</code>
@@ -505,9 +506,14 @@ Coming soon: unfollowers list.""",
         ),
     },
     "status_plan_free": {
-        "fa": "رایگان — /pro برای Pro ({stars} ⭐)",
-        "en": "Free — /pro for Pro ({stars} ⭐)",
-        "ar": "مجاني — /pro للـ Pro ({stars} ⭐)",
+        "fa": "بدون اشتراک — دانلود {download_stars}⭐ | Pro {pro_stars}⭐ — /subscribe",
+        "en": "No plan — Download {download_stars}⭐ | Pro {pro_stars}⭐ — /subscribe",
+        "ar": "بدون اشتراك — تحميل {download_stars}⭐ | Pro {pro_stars}⭐ — /subscribe",
+    },
+    "status_plan_download": {
+        "fa": "دانلود 📥 تا {date}",
+        "en": "Download 📥 until {date}",
+        "ar": "تحميل 📥 حتى {date}",
     },
     "status_plan_pro": {
         "fa": "{plan} تا {date}",
@@ -599,6 +605,181 @@ Coming soon: unfollowers list.""",
         "fa": "🔄 تمدید Pro ({stars} ⭐)",
         "en": "🔄 Renew Pro ({stars} ⭐)",
         "ar": "🔄 تجديد Pro ({stars} ⭐)",
+    },
+    "shop_body": {
+        "fa": (
+            "🛒 <b>فروشگاه {name}</b>\n\n"
+            "📌 وضعیت: {status}\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📥 <b>اشتراک دانلود</b>\n"
+            "   {download_stars} ⭐ / {days} روز\n"
+            "   • لینک پست و ریل\n"
+            "   • دانلود از دایرکت {name}\n\n"
+            "🤖 <b>Pro</b>\n"
+            "   {pro_stars} ⭐ / {days} روز\n"
+            "   • همه امکانات دانلود\n"
+            "   • تحلیل AI + Vision\n\n"
+            "💳 <b>کارت به کارت</b>\n"
+            "   پیام به پشتیبانی {support}\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "یکی از دکمه‌های زیر را بزن 👇"
+        ),
+        "en": (
+            "🛒 <b>{name} Shop</b>\n\n"
+            "📌 Status: {status}\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📥 <b>Download plan</b>\n"
+            "   {download_stars} ⭐ / {days} days\n"
+            "   • Post & Reel links\n"
+            "   • Bridge DM download\n\n"
+            "🤖 <b>Pro</b>\n"
+            "   {pro_stars} ⭐ / {days} days\n"
+            "   • All download features\n"
+            "   • AI + Vision analysis\n\n"
+            "💳 <b>Bank transfer</b>\n"
+            "   Message support {support}\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "Tap a button below 👇"
+        ),
+        "ar": (
+            "🛒 <b>متجر {name}</b>\n\n"
+            "📌 الحالة: {status}\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📥 <b>اشتراك التحميل</b>\n"
+            "   {download_stars} ⭐ / {days} يوماً\n"
+            "   • روابط المنشور والريل\n"
+            "   • التحميل عبر الرسائل\n\n"
+            "🤖 <b>Pro</b>\n"
+            "   {pro_stars} ⭐ / {days} يوماً\n"
+            "   • كل ميزات التحميل\n"
+            "   • تحليل AI + Vision\n\n"
+            "💳 <b>تحويل بنكي</b>\n"
+            "   راسل الدعم {support}\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "اضغط أحد الأزرار 👇"
+        ),
+    },
+    "shop_status_vip": {
+        "fa": "VIP ♾️ — دسترسی کامل",
+        "en": "VIP ♾️ — full access",
+        "ar": "VIP ♾️ — وصول كامل",
+    },
+    "shop_status_download": {
+        "fa": "📥 دانلود فعال تا {date}",
+        "en": "📥 Download active until {date}",
+        "ar": "📥 التحميل نشط حتى {date}",
+    },
+    "shop_status_pro": {
+        "fa": "🤖 Pro فعال تا {date}",
+        "en": "🤖 Pro active until {date}",
+        "ar": "🤖 Pro نشط حتى {date}",
+    },
+    "shop_status_free": {
+        "fa": "بدون اشتراک فعال",
+        "en": "No active subscription",
+        "ar": "لا يوجد اشتراك نشط",
+    },
+    "shop_upsell_short": {
+        "fa": "🛒 دانلود {download_stars}⭐ | Pro {pro_stars}⭐ — /subscribe",
+        "en": "🛒 Download {download_stars}⭐ | Pro {pro_stars}⭐ — /subscribe",
+        "ar": "🛒 تحميل {download_stars}⭐ | Pro {pro_stars}⭐ — /subscribe",
+    },
+    "download_paywall": {
+        "fa": (
+            "🔒 <b>دایرکت دانلود</b> نیاز به اشتراک دارد.\n\n"
+            "📥 <b>اشتراک دانلود:</b> {download_stars} ⭐ / ماه\n"
+            "🤖 <b>Pro:</b> {pro_stars} ⭐ / ماه (دانلود + AI)\n"
+            "💳 <b>کارت به کارت:</b> پیام به {support}\n\n"
+            "از دکمه‌های زیر خرید کن 👇"
+        ),
+        "en": (
+            "🔒 <b>Direct download</b> requires a subscription.\n\n"
+            "📥 <b>Download:</b> {download_stars} ⭐ / month\n"
+            "🤖 <b>Pro:</b> {pro_stars} ⭐ / month (download + AI)\n"
+            "💳 <b>Bank transfer:</b> message {support}\n\n"
+            "Use the buttons below 👇"
+        ),
+        "ar": (
+            "🔒 <b>التحميل المباشر</b> يتطلب اشتراكاً.\n\n"
+            "📥 <b>التحميل:</b> {download_stars} ⭐ / شهر\n"
+            "🤖 <b>Pro:</b> {pro_stars} ⭐ / شهر\n"
+            "💳 <b>تحويل بنكي:</b> {support}\n\n"
+            "استخدم الأزرار 👇"
+        ),
+    },
+    "download_invoice_title": {
+        "fa": "اشتراک دانلود — ۳۰ روز",
+        "en": "Download subscription — 30 days",
+        "ar": "اشتراك التحميل — 30 يوماً",
+    },
+    "download_invoice_desc": {
+        "fa": "دانلود مستقیم در {name} — {days} روز. پرداخت با Telegram Stars.",
+        "en": "{name} direct download — {days} days. Pay with Telegram Stars.",
+        "ar": "تحميل مباشر في {name} — {days} يوماً. الدفع بـ Telegram Stars.",
+    },
+    "download_price_label": {
+        "fa": "دانلود ({days} روز)",
+        "en": "Download ({days} days)",
+        "ar": "تحميل ({days} يوماً)",
+    },
+    "download_already_active": {
+        "fa": "✅ اشتراک دانلود فعال است تا {date}.\nمی‌توانی تمدید کنی:",
+        "en": "✅ Download active until {date}.\nYou can renew:",
+        "ar": "✅ التحميل نشط حتى {date}.\nيمكنك التجديد:",
+    },
+    "download_payment_ok": {
+        "fa": (
+            "🎉 <b>اشتراک دانلود فعال شد!</b>\n\n"
+            "⭐ پرداخت: {stars} ستاره\n"
+            "📅 اعتبار: {days} روز (تا {date})\n\n"
+            "الان لینک بفرست و دانلود کن 🚀"
+        ),
+        "en": (
+            "🎉 <b>Download activated!</b>\n\n"
+            "⭐ Paid: {stars} Stars\n"
+            "📅 Valid: {days} days (until {date})\n\n"
+            "Send a link and download 🚀"
+        ),
+        "ar": (
+            "🎉 <b>تم تفعيل التحميل!</b>\n\n"
+            "⭐ الدفع: {stars} نجمة\n"
+            "📅 الصلاحية: {days} يوماً (حتى {date})"
+        ),
+    },
+    "btn_buy_download": {
+        "fa": "📥 خرید دانلود ({stars} ⭐)",
+        "en": "📥 Buy download ({stars} ⭐)",
+        "ar": "📥 شراء التحميل ({stars} ⭐)",
+    },
+    "btn_buy_pro": {
+        "fa": "🤖 خرید Pro ({stars} ⭐)",
+        "en": "🤖 Buy Pro ({stars} ⭐)",
+        "ar": "🤖 شراء Pro ({stars} ⭐)",
+    },
+    "btn_card_to_card": {
+        "fa": "💳 کارت به کارت — {support}",
+        "en": "💳 Bank transfer — {support}",
+        "ar": "💳 تحويل بنكي — {support}",
+    },
+    "btn_shop_refresh": {
+        "fa": "🔄 بروزرسانی فروشگاه",
+        "en": "🔄 Refresh shop",
+        "ar": "🔄 تحديث المتجر",
+    },
+    "payments_disabled": {
+        "fa": "پرداخت Stars فعلاً غیرفعال است.",
+        "en": "Stars payments are disabled.",
+        "ar": "مدفوعات Stars معطّلة.",
+    },
+    "checkout_failed": {
+        "fa": "پرداخت نامعتبر است.",
+        "en": "Invalid payment.",
+        "ar": "دفع غير صالح.",
+    },
+    "payment_failed": {
+        "fa": "❌ پرداخت تأیید نشد. دوباره تلاش کن.",
+        "en": "❌ Payment could not be verified. Try again.",
+        "ar": "❌ تعذر التحقق من الدفع. حاول مجدداً.",
     },
     "status_pending": {
         "fa": "⏳ منتظر کد — @{username}",

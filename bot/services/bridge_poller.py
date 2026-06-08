@@ -7,11 +7,13 @@ from aiogram import Bot
 from bot.config import settings
 from bot.handlers.download_helpers import deliver_media_result
 from bot.i18n import require_user_lang, t
+from bot.keyboards import paywall_kb
 from bot.post_display import post_meta_from_url
 from bot.services.apify import apify_downloader
 from bot.services.cdn_download import download_cdn_files
 from bot.services.client_pool import client_pool
 from bot.services.instagram import MediaResult
+from bot.services.subscription import has_download_access
 from bot.services.verification import (
     confirm_connection,
     extract_verification_code,
@@ -225,6 +227,20 @@ class BridgePoller:
         # Same pipeline as pasting a link in Telegram chat (Apify + caption + buttons).
         ig_url = item.media_url or parse_media_url(text)
         if ig_url or item.media_files:
+            if not await has_download_access(chat_id):
+                lang = await require_user_lang(chat_id)
+                await self._bot.send_message(
+                    chat_id,
+                    t(
+                        "download_paywall",
+                        lang,
+                        download_stars=settings.download_stars_price,
+                        pro_stars=settings.pro_stars_price,
+                        support=f"@{settings.payment_support_username.lstrip('@')}",
+                    ),
+                    reply_markup=paywall_kb(lang),
+                )
+                return
             await self._download_and_send(chat_id, ig_url, item.media_files)
             return
 

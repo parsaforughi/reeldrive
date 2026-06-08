@@ -18,7 +18,7 @@ from bot.services.analytics import log_activity
 from bot.services.apify import apify_downloader
 from bot.services.cdn_download import IG_CDN_HEADERS
 from bot.services.post_cache import CachedPost
-from bot.services.subscription import get_bot_user, is_ai_unlimited, is_plan_active
+from bot.services.subscription import has_pro_access, is_ai_unlimited
 from bot.services.video_frames import _is_video_item, extract_vision_frames, ffmpeg_ready
 from bot.time_utils import utc_now
 
@@ -106,11 +106,9 @@ async def check_ai_access(
     if await is_ai_unlimited(telegram_id, username):
         return True, ""
 
-    user = await get_bot_user(telegram_id)
-    pro = is_plan_active(user) and user and user.subscription_plan in ("pro", "premium")
-    if settings.ai_analysis_requires_pro and not pro:
+    if not await has_pro_access(telegram_id, username):
         return False, "ai_pro_required"
-    limit = settings.ai_pro_monthly_limit if pro else settings.ai_free_monthly_limit
+    limit = settings.ai_pro_monthly_limit if await has_pro_access(telegram_id, username) else settings.ai_free_monthly_limit
     if limit > 0:
         used = await _count_ai_usage(telegram_id)
         if used >= limit:

@@ -4,16 +4,36 @@ import aiohttp
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, FSInputFile
 
+from bot.config import settings
 from bot.handlers.download_helpers import send_media_result
-from bot.i18n import friendly_error, require_user_lang, tu
-from bot.keyboards import qualities_kb
+from bot.i18n import friendly_error, require_user_lang, t, tu
+from bot.keyboards import paywall_kb, qualities_kb
 from bot.post_display import PostMeta, format_post_caption
 from bot.services.direct_download import download_media_url
 from bot.services.post_cache import get_post
+from bot.services.subscription import has_download_access
 
 router = Router()
 logger = logging.getLogger(__name__)
 TMP = "/tmp/reeldrive"
+
+
+async def _require_download_access(callback: CallbackQuery, lang: str) -> bool:
+    uid = callback.from_user.id
+    if await has_download_access(uid, callback.from_user.username):
+        return True
+    await callback.answer()
+    await callback.message.answer(
+        t(
+            "download_paywall",
+            lang,
+            download_stars=settings.download_stars_price,
+            pro_stars=settings.pro_stars_price,
+            support=f"@{settings.payment_support_username.lstrip('@')}",
+        ),
+        reply_markup=paywall_kb(lang),
+    )
+    return False
 
 
 @router.callback_query(F.data.startswith("post:"))
@@ -26,6 +46,8 @@ async def post_action(callback: CallbackQuery) -> None:
     code = parts[2] if len(parts) > 2 else None
 
     if action == "dl" and len(parts) >= 4:
+        if not await _require_download_access(callback, lang):
+            return
         code = parts[2]
         try:
             index = int(parts[3])
@@ -92,6 +114,8 @@ async def post_action(callback: CallbackQuery) -> None:
         return
 
     if action == "links":
+        if not await _require_download_access(callback, lang):
+            return
         variants = cached.variants
         if not variants:
             urls = cached.direct_urls or []
@@ -111,6 +135,8 @@ async def post_action(callback: CallbackQuery) -> None:
         return
 
     if action == "qualities":
+        if not await _require_download_access(callback, lang):
+            return
         variants = cached.variants
         if not variants:
             await callback.answer(await tu(uid, "no_quality"), show_alert=True)
@@ -130,6 +156,8 @@ async def post_action(callback: CallbackQuery) -> None:
         return
 
     if action == "refresh":
+        if not await _require_download_access(callback, lang):
+            return
         await callback.answer(await tu(uid, "refreshing"))
         try:
             result = await download_media_url(cached.source_url)

@@ -30,18 +30,42 @@ async def connect_cancel_kb(telegram_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def pro_pay_kb(lang: str, *, renew: bool = False) -> InlineKeyboardMarkup | None:
-    if not settings.stars_payment_enabled:
-        return None
+def subscription_shop_kb(lang: str) -> InlineKeyboardMarkup:
+    support = settings.payment_support_username.lstrip("@")
     builder = InlineKeyboardBuilder()
-    key = "btn_pro_renew" if renew else "btn_pro_buy"
     builder.row(
         InlineKeyboardButton(
-            text=t(key, lang, stars=settings.pro_stars_price),
+            text=t("btn_buy_download", lang, stars=settings.download_stars_price),
+            callback_data="pay:download",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=t("btn_buy_pro", lang, stars=settings.pro_stars_price),
             callback_data="pay:pro",
         )
     )
+    builder.row(
+        InlineKeyboardButton(
+            text=t("btn_card_to_card", lang, support=f"@{support}"),
+            url=f"https://t.me/{support}",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=t("btn_shop_refresh", lang),
+            callback_data="shop:open",
+        )
+    )
     return builder.as_markup()
+
+
+def paywall_kb(lang: str) -> InlineKeyboardMarkup:
+    return subscription_shop_kb(lang)
+
+
+def pro_pay_kb(lang: str, *, renew: bool = False) -> InlineKeyboardMarkup | None:
+    return subscription_shop_kb(lang)
 
 
 def post_actions_kb(post_url: str, short_code: str) -> InlineKeyboardMarkup:
