@@ -213,8 +213,8 @@ class Settings(BaseSettings):
         return f"{base.rstrip('/')}/shop"
 
     openai_api_key: str = ""
-    ai_api_base: str = "https://api.gapgpt.app/v1"
-    ai_model: str = "gpt-5.2"
+    ai_api_base: str = "https://api.openai.com/v1"
+    ai_model: str = "gpt-4o"
     ai_vision_enabled: bool = True
     ai_video_frames_enabled: bool = True
     ai_video_frame_count: int = 8
@@ -233,6 +233,22 @@ class Settings(BaseSettings):
     dashboard_password: str = "admin"
     dashboard_secret: str = "change-me-dashboard-secret"
     dashboard_port: int = 8080
+
+    @field_validator("ai_api_base", mode="before")
+    @classmethod
+    def normalize_ai_api_base(cls, value: str) -> str:
+        url = (value or "").strip()
+        if "gapgpt" in url.lower():
+            return "https://api.openai.com/v1"
+        return url or "https://api.openai.com/v1"
+
+    @model_validator(mode="after")
+    def normalize_ai_model_for_openai(self) -> "Settings":
+        base = self.ai_api_base.lower()
+        legacy_models = {"gpt-5.2", "gpt-5", "gpt5.2"}
+        if "api.openai.com" in base and self.ai_model.strip().lower() in legacy_models:
+            self.ai_model = "gpt-4o"
+        return self
 
     @property
     def ai_chat_completions_url(self) -> str:

@@ -898,8 +898,8 @@ Coming soon: unfollowers list.""",
         "ar": "🤖 <b>تحليل المنشور بالذكاء الاصطناعي</b>",
     },
     "ai_not_configured": {
-        "fa": "❌ تحلیل AI غیرفعال است — OPENAI_API_KEY را در Railway بگذار.",
-        "en": "❌ AI analysis disabled — set OPENAI_API_KEY in Railway.",
+        "fa": "❌ تحلیل AI غیرفعال است — OPENAI_API_KEY را در Railway بگذار (کلید از platform.openai.com).",
+        "en": "❌ AI analysis disabled — set OPENAI_API_KEY in Railway (from platform.openai.com).",
         "ar": "❌ تحليل AI معطّل — عيّن OPENAI_API_KEY.",
     },
     "ai_pro_required": {
@@ -963,9 +963,9 @@ Coming soon: unfollowers list.""",
         "ar": "❌ حزم تحليل الصوت غير مثبتة. pip install librosa numpy",
     },
     "ai_auth_failed": {
-        "fa": "❌ کلید API هوش مصنوعی نامعتبر است.\nOPENAI_API_KEY را در Railway بررسی کن.",
-        "en": "❌ Invalid AI API key.\nCheck OPENAI_API_KEY in Railway.",
-        "ar": "❌ مفتاح API للذكاء الاصطناعي غير صالح.\nتحقق من OPENAI_API_KEY.",
+        "fa": "❌ کلید API OpenAI نامعتبر است.\nOPENAI_API_KEY را در Railway بررسی کن (از platform.openai.com).",
+        "en": "❌ Invalid OpenAI API key.\nCheck OPENAI_API_KEY in Railway (platform.openai.com).",
+        "ar": "❌ مفتاح OpenAI API غير صالح.\nتحقق من OPENAI_API_KEY.",
     },
     "ai_api_error": {
         "fa": "❌ سرویس هوش مصنوعی موقتاً در دسترس نیست. چند دقیقه بعد دوباره امتحان کن.",
