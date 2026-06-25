@@ -92,9 +92,9 @@ def detect_cuts(filepath: str, threshold: float = 0.15) -> list[float]:
     ]
     result = subprocess.run(
         cmd,
-        capture_output=True,
-        text=True,
+        stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        text=True,
         timeout=120,
         check=False,
     )

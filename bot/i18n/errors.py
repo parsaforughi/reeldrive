@@ -57,7 +57,7 @@ def friendly_error(exc: Exception, lang: Lang) -> str:
         if any(x in raw for x in ("rate", "limit", "429", "too many", "زیاد")):
             return t("error_rate_limit", lang)
         logger.warning("Unhandled ValueError for user: %s", exc)
-        return t("error_not_found", lang)
+        return t("error_generic", lang)
 
     if isinstance(exc, (TimeoutError,)):
         return t("error_rate_limit", lang)
