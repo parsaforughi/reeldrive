@@ -6,6 +6,7 @@ from typing import Any
 import aiohttp
 
 from bot.config import settings
+from bot.services.analysis_progress import ai_error_key
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ class AIClient:
                     err = body.get("error", {})
                     msg = err.get("message") if isinstance(err, dict) else str(body)
                     logger.error("AI API HTTP %s (%s): %s", resp.status, url, msg)
-                    raise ValueError(f"AI error ({resp.status})")
+                    raise ValueError(ai_error_key(resp.status))
                 choices = body.get("choices") or []
                 if not choices:
                     raise ValueError("Empty AI response")

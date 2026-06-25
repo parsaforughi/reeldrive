@@ -917,6 +917,76 @@ Coming soon: unfollowers list.""",
         "en": "❌ Analysis failed. Try again.",
         "ar": "❌ فشل التحليل. حاول مجدداً.",
     },
+    "ai_status_download": {
+        "fa": "⏳ در حال دانلود و تحلیل ویدیو...",
+        "en": "⏳ Downloading and analyzing video...",
+        "ar": "⏳ جاري تحميل وتحليل الفيديو...",
+    },
+    "ai_status_technical": {
+        "fa": "🎬 استخراج اطلاعات فنی...",
+        "en": "🎬 Extracting technical info...",
+        "ar": "🎬 استخراج المعلومات التقنية...",
+    },
+    "ai_status_audio": {
+        "fa": "🎵 تحلیل موزیک و صدا...",
+        "en": "🎵 Analyzing audio...",
+        "ar": "🎵 تحليل الصوت...",
+    },
+    "ai_status_frames": {
+        "fa": "🖼 استخراج فریم‌های کلیدی...",
+        "en": "🖼 Extracting key frames...",
+        "ar": "🖼 استخراج الإطارات...",
+    },
+    "ai_status_visual": {
+        "fa": "🤖 تحلیل بصری با AI...",
+        "en": "🤖 Visual AI analysis...",
+        "ar": "🤖 تحليل بصري بالذكاء الاصطناعي...",
+    },
+    "ai_video_too_large": {
+        "fa": "❌ حجم ویدیو بیش از حد مجاز است (حداکثر ۲۰ مگابایت).",
+        "en": "❌ Video is too large (max 20 MB).",
+        "ar": "❌ حجم الفيديو كبير جداً (الحد 20 ميجابايت).",
+    },
+    "ai_no_video": {
+        "fa": "❌ ویدیویی برای تحلیل پیدا نشد.",
+        "en": "❌ No video found to analyze.",
+        "ar": "❌ لم يُعثر على فيديو للتحليل.",
+    },
+    "ai_already_running": {
+        "fa": "⏳ تحلیل قبلی هنوز در حال اجراست. چند ثانیه صبر کن.",
+        "en": "⏳ Analysis already running. Wait a moment.",
+        "ar": "⏳ التحليل قيد التشغيل. انتظر قليلاً.",
+    },
+    "ai_deps_missing": {
+        "fa": "❌ پکیج‌های تحلیل صدا نصب نیستند (librosa). pip install librosa numpy",
+        "en": "❌ Audio analysis deps missing. pip install librosa numpy",
+        "ar": "❌ حزم تحليل الصوت غير مثبتة. pip install librosa numpy",
+    },
+    "ai_auth_failed": {
+        "fa": "❌ کلید API هوش مصنوعی نامعتبر است.\nOPENAI_API_KEY را در Railway بررسی کن.",
+        "en": "❌ Invalid AI API key.\nCheck OPENAI_API_KEY in Railway.",
+        "ar": "❌ مفتاح API للذكاء الاصطناعي غير صالح.\nتحقق من OPENAI_API_KEY.",
+    },
+    "ai_api_error": {
+        "fa": "❌ سرویس هوش مصنوعی موقتاً در دسترس نیست. چند دقیقه بعد دوباره امتحان کن.",
+        "en": "❌ AI service temporarily unavailable. Try again in a few minutes.",
+        "ar": "❌ خدمة الذكاء الاصطناعي غير متاحة مؤقتاً. حاول لاحقاً.",
+    },
+    "ai_rate_limit": {
+        "fa": "❌ سقف درخواست AI پر شده. چند دقیقه صبر کن.",
+        "en": "❌ AI rate limit reached. Wait a few minutes.",
+        "ar": "❌ تم تجاوز حد طلبات AI. انتظر قليلاً.",
+    },
+    "ai_progress_eta": {
+        "fa": "⏱ حدود {eta} ثانیه باقی‌مانده",
+        "en": "⏱ ~{eta}s remaining",
+        "ar": "⏱ ~{eta} ثانية متبقية",
+    },
+    "video_upload_hint": {
+        "fa": "🎬 ویدیو دریافت شد. برای تحلیل کامل روی دکمه زیر بزن:",
+        "en": "🎬 Video received. Tap below to run full analysis:",
+        "ar": "🎬 تم استلام الفيديو. اضغط الزر للتحليل:",
+    },
     "coming_soon_subs": {
         "fa": "به‌زودی — زیرنویس ویدیو",
         "en": "Coming soon — video subtitles",

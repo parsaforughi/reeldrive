@@ -5,6 +5,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, FSInputFile
 
 from bot.config import settings
+from bot.handlers.ai_analysis import run_ai_analysis_callback
 from bot.handlers.download_helpers import send_media_result
 from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb, qualities_kb
@@ -61,27 +62,7 @@ async def post_action(callback: CallbackQuery) -> None:
         if not cached:
             await callback.answer(await tu(uid, "post_expired"), show_alert=True)
             return
-        await callback.answer(await tu(uid, "ai_analyzing"))
-        try:
-            from bot.services.post_analysis import analyze_cached_post
-
-            report = await analyze_cached_post(
-                cached,
-                telegram_id=uid,
-                lang=lang,
-                username=callback.from_user.username,
-            )
-            header = await tu(uid, "ai_report_header")
-            await callback.message.answer(f"{header}\n\n{report}")
-        except ValueError as exc:
-            key = str(exc)
-            if key in ("ai_not_configured", "ai_pro_required", "ai_limit_reached"):
-                await callback.message.answer(await tu(uid, key))
-            else:
-                await callback.message.answer(friendly_error(exc, lang))
-        except Exception:
-            logger.exception("AI analysis failed")
-            await callback.message.answer(await tu(uid, "ai_failed"))
+        await run_ai_analysis_callback(callback, cached=cached)
         return
 
     if action in ("subs", "audio"):

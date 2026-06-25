@@ -9,14 +9,37 @@ from bot.i18n.core import Lang, t
 logger = logging.getLogger(__name__)
 
 
+_KNOWN_VALUE_KEYS = frozenset(
+    {
+        "ai_not_configured",
+        "ai_pro_required",
+        "ai_limit_reached",
+        "ai_video_too_large",
+        "ai_no_video",
+        "ai_already_running",
+        "ai_deps_missing",
+        "ai_auth_failed",
+        "ai_api_error",
+        "ai_rate_limit",
+    }
+)
+
+
 def friendly_error(exc: Exception, lang: Lang) -> str:
     if isinstance(exc, LoginRequired):
         return t("error_login_required", lang)
 
     if isinstance(exc, ValueError):
-        raw = str(exc).lower()
-        if any(x in raw for x in ("apify", "توکن", "token", "اعتبار", "402", "401", "403")):
+        key = str(exc)
+        if key in _KNOWN_VALUE_KEYS:
+            return t(key, lang)
+        raw = key.lower()
+        if raw.startswith("ai error"):
+            return t("ai_api_error", lang)
+        if any(x in raw for x in ("apify", "402")):
             return t("error_apify", lang)
+        if any(x in raw for x in ("invalid token", "incorrect api key", "authentication")):
+            return t("ai_auth_failed", lang)
         if any(
             x in raw
             for x in (

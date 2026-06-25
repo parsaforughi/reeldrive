@@ -217,7 +217,7 @@ class Settings(BaseSettings):
     ai_model: str = "gpt-5.2"
     ai_vision_enabled: bool = True
     ai_video_frames_enabled: bool = True
-    ai_video_frame_count: int = 5
+    ai_video_frame_count: int = 8
     ai_video_max_mb: int = 25
     ai_video_max_duration: int = 90
     ai_analysis_requires_pro: bool = True

@@ -49,6 +49,17 @@ def pro_pay_kb(lang: str, *, renew: bool = False) -> InlineKeyboardMarkup | None
     return subscription_shop_kb(lang)
 
 
+def video_analyze_kb(file_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="🤖 تحلیل پست با هوش مصنوعی 📝",
+            callback_data=f"analyze:file:{file_id}",
+        )
+    )
+    return builder.as_markup()
+
+
 def post_actions_kb(post_url: str, short_code: str) -> InlineKeyboardMarkup:
     code = short_code or "x"
     builder = InlineKeyboardBuilder()
