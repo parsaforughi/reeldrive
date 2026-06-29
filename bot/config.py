@@ -191,7 +191,7 @@ class Settings(BaseSettings):
     stars_payment_enabled: bool = True
     free_direct_downloads: int = 3
     download_requires_subscription: bool = True
-    payment_support_username: str = "Ah084"
+    payment_support_username: str = "reeldrive"
     webapp_base_url: str = ""  # optional override; default = same host as dashboard
     pro_stars_price: int = 20
     pro_toman_monthly: int = 98000

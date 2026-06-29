@@ -131,7 +131,13 @@ async def cmd_subscribe(message: Message) -> None:
 
 @router.message(Command("pro"))
 async def cmd_pro(message: Message) -> None:
-    await send_pro_invoice(message.bot, message.chat.id, message.from_user.id)
+    """Legacy alias — same flow as /subscribe (shop Mini App)."""
+    await send_subscription_shop(
+        message.bot,
+        message.chat.id,
+        message.from_user.id,
+        message.from_user.username,
+    )
 
 
 @router.callback_query(F.data == "shop:open")
@@ -154,7 +160,12 @@ async def cb_pay_pro(callback: CallbackQuery) -> None:
         await callback.answer()
         return
     await callback.answer()
-    await send_pro_invoice(callback.bot, callback.message.chat.id, callback.from_user.id)
+    await send_subscription_shop(
+        callback.bot,
+        callback.message.chat.id,
+        callback.from_user.id,
+        callback.from_user.username,
+    )
 
 
 @router.pre_checkout_query()
