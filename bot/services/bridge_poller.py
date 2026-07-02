@@ -9,11 +9,15 @@ from bot.handlers.download_helpers import deliver_media_result
 from bot.i18n import require_user_lang, t
 from bot.keyboards import paywall_kb
 from bot.post_display import post_meta_from_url
+from bot.services.analytics import record_download
 from bot.services.apify import apify_downloader
 from bot.services.cdn_download import download_cdn_files
 from bot.services.client_pool import client_pool
 from bot.services.instagram import MediaResult
-from bot.services.subscription import has_pro_access
+from bot.services.subscription import (
+    get_bot_user,
+    has_direct_link_download_access,
+)
 from bot.services.verification import (
     confirm_connection,
     extract_verification_code,
@@ -146,9 +150,18 @@ class BridgePoller:
 
         if not self._bootstrapped:
             self._bootstrapped = True
+            skipped = sum(
+                1
+                for thread in threads
+                for item in thread.items
+                if not item.is_sent_by_viewer
+                and not extract_verification_code((item.text or "").strip())
+                and (item.media_url or item.media_files)
+            )
             logger.info(
-                "Bridge DM bootstrap done (%s threads, only new messages processed)",
+                "Bridge DM bootstrap done (%s threads, only new messages processed%s)",
                 len(threads),
+                f", {skipped} old shares skipped" if skipped else "",
             )
 
         if out:
@@ -220,26 +233,52 @@ class BridgePoller:
 
         conn = await get_connected_by_ig_user_id(item.user_id)
         if not conn:
+            ig_url = item.media_url or parse_media_url(text)
+            if ig_url or item.media_files:
+                logger.info(
+                    "Bridge share from ig=%s @%s — no connected Telegram account "
+                    "(user must /connect + /verify first)",
+                    item.user_id,
+                    item.username or "?",
+                )
             return
 
         chat_id = conn.telegram_id
+        user = await get_bot_user(chat_id)
+        tg_username = user.username if user else None
 
         # Same pipeline as pasting a link in Telegram chat (Apify + caption + buttons).
         ig_url = item.media_url or parse_media_url(text)
         if ig_url or item.media_files:
-            if not await has_pro_access(chat_id):
+            if not await has_direct_link_download_access(chat_id, tg_username):
                 lang = await require_user_lang(chat_id)
                 await self._bot.send_message(
                     chat_id,
                     t(
-                        "pro_paywall",
+                        "download_paywall",
                         lang,
                         pro_stars=settings.pro_stars_price,
                     ),
                     reply_markup=paywall_kb(lang),
                 )
+                logger.info(
+                    "Bridge share paywall — telegram %s (@%s) free quota used",
+                    chat_id,
+                    conn.instagram_username,
+                )
                 return
-            await self._download_and_send(chat_id, ig_url, item.media_files)
+            logger.info(
+                "Bridge share from @%s → telegram %s url=%s",
+                conn.instagram_username,
+                chat_id,
+                ig_url or "(cdn payload)",
+            )
+            await self._download_and_send(
+                chat_id,
+                ig_url,
+                item.media_files,
+                conn.instagram_username,
+            )
             return
 
         await self._forward_plain_text(chat_id, text)
@@ -256,6 +295,7 @@ class BridgePoller:
         chat_id: int,
         url: str,
         media_files: list[tuple[str, bool]] | None = None,
+        ig_username: str | None = None,
     ) -> None:
         apify_item: dict | None = None
         normalized = url
@@ -300,4 +340,7 @@ class BridgePoller:
                 source_url=url,
             )
 
+        if url:
+            label = f"@{ig_username}" if ig_username else str(chat_id)
+            await record_download(chat_id, url, user_label=label)
         await deliver_media_result(self._bot, chat_id, result)

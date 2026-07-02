@@ -9,12 +9,14 @@ from bot.media_variants import MediaVariant
 AI_ANALYZE_BUTTON_STYLE = "primary"
 
 
-def _ai_analyze_button(callback_data: str) -> InlineKeyboardButton:
-    return InlineKeyboardButton(
-        text="🤖 تحلیل پست با هوش مصنوعی 📝",
-        callback_data=callback_data,
-        style=AI_ANALYZE_BUTTON_STYLE,
-    )
+def _ai_analyze_button(callback_data: str, *, styled: bool = True) -> InlineKeyboardButton:
+    kwargs: dict = {
+        "text": "🤖 تحلیل پست با هوش مصنوعی 📝",
+        "callback_data": callback_data,
+    }
+    if styled:
+        kwargs["style"] = AI_ANALYZE_BUTTON_STYLE
+    return InlineKeyboardButton(**kwargs)
 
 
 def language_kb() -> InlineKeyboardMarkup:
@@ -60,16 +62,18 @@ def pro_pay_kb(lang: str, *, renew: bool = False) -> InlineKeyboardMarkup | None
     return subscription_shop_kb(lang)
 
 
-def video_analyze_kb(file_id: str) -> InlineKeyboardMarkup:
+def video_analyze_kb(file_id: str, *, styled: bool = True) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(_ai_analyze_button(f"analyze:file:{file_id}"))
+    builder.row(_ai_analyze_button(f"analyze:file:{file_id}", styled=styled))
     return builder.as_markup()
 
 
-def post_actions_kb(post_url: str, short_code: str) -> InlineKeyboardMarkup:
+def post_actions_kb(
+    post_url: str, short_code: str, *, styled: bool = True
+) -> InlineKeyboardMarkup:
     code = short_code or "x"
     builder = InlineKeyboardBuilder()
-    builder.row(_ai_analyze_button(f"post:ai:{code}"))
+    builder.row(_ai_analyze_button(f"post:ai:{code}", styled=styled))
     builder.row(
         InlineKeyboardButton(
             text="• مشاهده در اینستاگرام ↗️",

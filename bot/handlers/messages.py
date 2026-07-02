@@ -130,6 +130,11 @@ async def _dispatch(
 ) -> None:
     uid = message.from_user.id
     if cmd.kind == "media_url" and cmd.url:
+        logger.info(
+            "Direct download telegram=%s url=%s",
+            uid,
+            cmd.url,
+        )
         result = await download_media_url(cmd.url)
         await record_download(
             uid,

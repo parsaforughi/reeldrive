@@ -1,8 +1,10 @@
 import asyncio
+import logging
 from pathlib import Path
 
 from aiogram import Bot
-from aiogram.types import FSInputFile, Message
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import FSInputFile, InlineKeyboardMarkup, Message
 
 from bot.i18n import tu
 from bot.keyboards import post_actions_kb
@@ -13,6 +15,8 @@ from bot.services.instagram import (
     StoryItem,
     instagram_downloader,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def run_sync(func, *args):
@@ -78,6 +82,22 @@ async def send_stories(message: Message, username: str) -> None:
         cleanup(item.path)
 
 
+async def _send_media_with_markup(
+    bot: Bot,
+    chat_id: int,
+    path: Path,
+    *,
+    is_video: bool,
+    caption: str | None,
+    keyboard: InlineKeyboardMarkup | None,
+) -> None:
+    kwargs = {"caption": caption, "reply_markup": keyboard}
+    if is_video:
+        await bot.send_video(chat_id, FSInputFile(path), **kwargs)
+    else:
+        await bot.send_photo(chat_id, FSInputFile(path), **kwargs)
+
+
 async def deliver_media_result(
     bot: Bot, chat_id: int, result: MediaResult
 ) -> None:
@@ -88,8 +108,10 @@ async def deliver_media_result(
         format_post_caption(meta) if meta else (result.caption or "")[:1024]
     )
     keyboard = None
+    plain_keyboard = None
     if meta and meta.post_url:
-        keyboard = post_actions_kb(meta.post_url, meta.short_code)
+        keyboard = post_actions_kb(meta.post_url, meta.short_code, styled=True)
+        plain_keyboard = post_actions_kb(meta.post_url, meta.short_code, styled=False)
 
     paths = [p for p in result.paths if p.exists()]
     if not paths:
@@ -99,19 +121,36 @@ async def deliver_media_result(
     first = paths[0]
     is_video = first.suffix.lower() in {".mp4", ".mov"}
 
-    if is_video:
-        await bot.send_video(
-            chat_id,
-            FSInputFile(first),
-            caption=caption_html or None,
-            reply_markup=keyboard,
-        )
+    if keyboard and plain_keyboard:
+        try:
+            await _send_media_with_markup(
+                bot,
+                chat_id,
+                first,
+                is_video=is_video,
+                caption=caption_html or None,
+                keyboard=keyboard,
+            )
+        except TelegramBadRequest as exc:
+            logger.warning(
+                "Styled keyboard rejected (%s) — retrying without style", exc
+            )
+            await _send_media_with_markup(
+                bot,
+                chat_id,
+                first,
+                is_video=is_video,
+                caption=caption_html or None,
+                keyboard=plain_keyboard,
+            )
     else:
-        await bot.send_photo(
+        await _send_media_with_markup(
+            bot,
             chat_id,
-            FSInputFile(first),
+            first,
+            is_video=is_video,
             caption=caption_html or None,
-            reply_markup=keyboard,
+            keyboard=keyboard,
         )
     cleanup(first)
 
