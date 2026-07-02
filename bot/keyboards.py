@@ -5,13 +5,14 @@ from bot.config import settings
 from bot.i18n import require_user_lang, t
 from bot.media_variants import MediaVariant
 
-# Telegram Bot API 9.4+ — blue button, distinct from default inline keys
-AI_ANALYZE_BUTTON_STYLE = "primary"
+# Telegram Bot API 9.4+ — only primary/success/danger (no custom hex).
+# "danger" ≈ warm pink/red-orange, closest to ReelDrive logo gradient.
+AI_ANALYZE_BUTTON_STYLE = "danger"
 
 
 def _ai_analyze_button(callback_data: str, *, styled: bool = True) -> InlineKeyboardButton:
     kwargs: dict = {
-        "text": "🤖 تحلیل پست با هوش مصنوعی 📝",
+        "text": "✨ 🤖 تحلیل پست با هوش مصنوعی 📝",
         "callback_data": callback_data,
     }
     if styled:
