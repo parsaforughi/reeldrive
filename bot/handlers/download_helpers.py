@@ -1,9 +1,7 @@
 import asyncio
-import logging
 from pathlib import Path
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import FSInputFile, InlineKeyboardMarkup, Message
 
 from bot.i18n import tu
@@ -15,8 +13,6 @@ from bot.services.instagram import (
     StoryItem,
     instagram_downloader,
 )
-
-logger = logging.getLogger(__name__)
 
 
 async def run_sync(func, *args):
@@ -108,10 +104,8 @@ async def deliver_media_result(
         format_post_caption(meta) if meta else (result.caption or "")[:1024]
     )
     keyboard = None
-    plain_keyboard = None
     if meta and meta.post_url:
-        keyboard = post_actions_kb(meta.post_url, meta.short_code, styled=True)
-        plain_keyboard = post_actions_kb(meta.post_url, meta.short_code, styled=False)
+        keyboard = post_actions_kb(meta.post_url, meta.short_code)
 
     paths = [p for p in result.paths if p.exists()]
     if not paths:
@@ -121,37 +115,14 @@ async def deliver_media_result(
     first = paths[0]
     is_video = first.suffix.lower() in {".mp4", ".mov"}
 
-    if keyboard and plain_keyboard:
-        try:
-            await _send_media_with_markup(
-                bot,
-                chat_id,
-                first,
-                is_video=is_video,
-                caption=caption_html or None,
-                keyboard=keyboard,
-            )
-        except TelegramBadRequest as exc:
-            logger.warning(
-                "Styled keyboard rejected (%s) — retrying without style", exc
-            )
-            await _send_media_with_markup(
-                bot,
-                chat_id,
-                first,
-                is_video=is_video,
-                caption=caption_html or None,
-                keyboard=plain_keyboard,
-            )
-    else:
-        await _send_media_with_markup(
-            bot,
-            chat_id,
-            first,
-            is_video=is_video,
-            caption=caption_html or None,
-            keyboard=keyboard,
-        )
+    await _send_media_with_markup(
+        bot,
+        chat_id,
+        first,
+        is_video=is_video,
+        caption=caption_html or None,
+        keyboard=keyboard,
+    )
     cleanup(first)
 
     for extra in paths[1:]:

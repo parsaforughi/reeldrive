@@ -1,3 +1,4 @@
+from aiogram.enums import ButtonStyle
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -5,18 +6,13 @@ from bot.config import settings
 from bot.i18n import require_user_lang, t
 from bot.media_variants import MediaVariant
 
-# Telegram Bot API 9.4+ — blue button, distinct from default inline keys
-AI_ANALYZE_BUTTON_STYLE = "primary"
 
-
-def _ai_analyze_button(callback_data: str, *, styled: bool = True) -> InlineKeyboardButton:
-    kwargs: dict = {
-        "text": "🤖 تحلیل پست با هوش مصنوعی 📝",
-        "callback_data": callback_data,
-    }
-    if styled:
-        kwargs["style"] = AI_ANALYZE_BUTTON_STYLE
-    return InlineKeyboardButton(**kwargs)
+def _ai_analyze_button(callback_data: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text="🤖 تحلیل پست با هوش مصنوعی 📝",
+        callback_data=callback_data,
+        style=ButtonStyle.PRIMARY,
+    )
 
 
 def language_kb() -> InlineKeyboardMarkup:
@@ -62,18 +58,16 @@ def pro_pay_kb(lang: str, *, renew: bool = False) -> InlineKeyboardMarkup | None
     return subscription_shop_kb(lang)
 
 
-def video_analyze_kb(file_id: str, *, styled: bool = True) -> InlineKeyboardMarkup:
+def video_analyze_kb(file_id: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(_ai_analyze_button(f"analyze:file:{file_id}", styled=styled))
+    builder.row(_ai_analyze_button(f"analyze:file:{file_id}"))
     return builder.as_markup()
 
 
-def post_actions_kb(
-    post_url: str, short_code: str, *, styled: bool = True
-) -> InlineKeyboardMarkup:
+def post_actions_kb(post_url: str, short_code: str) -> InlineKeyboardMarkup:
     code = short_code or "x"
     builder = InlineKeyboardBuilder()
-    builder.row(_ai_analyze_button(f"post:ai:{code}", styled=styled))
+    builder.row(_ai_analyze_button(f"post:ai:{code}"))
     builder.row(
         InlineKeyboardButton(
             text="• مشاهده در اینستاگرام ↗️",
