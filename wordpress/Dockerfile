@@ -35,13 +35,15 @@ RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
     && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:8080>/' \
         /etc/apache2/sites-available/000-default.conf
 
-# The php8.3-apache base image ships with both mpm_event and mpm_prefork
-# enabled, but Apache requires exactly one active MPM or it refuses to start
-# with "AH00534: More than one MPM loaded." Disable the extras and ensure
-# mpm_prefork (required by mod_php) is the sole active MPM.
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
-          /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
-    && ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load \
-    && ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
+# Force exactly one MPM enabled. Something in this Railway environment
+# (leftover from an earlier manual fix, or the persistent volume) ends up
+# with both mpm_prefork and mpm_event loaded, which Apache refuses to start
+# with ("AH00534: More than one MPM loaded"). mod_php requires prefork, so
+# explicitly disable the others and enable prefork at build time — this is
+# baked into the image layer, independent of anything on the volume.
+RUN a2dismod mpm_event 2>/dev/null; \
+    a2dismod mpm_worker 2>/dev/null; \
+    a2enmod mpm_prefork; \
+    apache2ctl -M 2>&1 | grep -i mpm
 
 EXPOSE 8080
