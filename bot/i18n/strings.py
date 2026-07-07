@@ -598,6 +598,25 @@ Coming soon: unfollowers list.""",
             "📅 الصلاحية: {days} يوماً (حتى {date})"
         ),
     },
+    "pro_payment_ok_balepay": {
+        "fa": (
+            "🎉 <b>Pro فعال شد!</b>\n\n"
+            "💳 پرداخت: بله‌پی\n"
+            "📅 اعتبار: {days} روز (تا {date})\n\n"
+            "ممنون از حمایتت!"
+        ),
+        "en": (
+            "🎉 <b>Pro activated!</b>\n\n"
+            "💳 Paid via BalePay\n"
+            "📅 Valid: {days} days (until {date})\n\n"
+            "Thank you!"
+        ),
+        "ar": (
+            "🎉 <b>تم تفعيل Pro!</b>\n\n"
+            "💳 الدفع عبر BalePay\n"
+            "📅 الصلاحية: {days} يوماً (حتى {date})"
+        ),
+    },
     "pro_payment_failed": {
         "fa": "❌ پرداخت تأیید نشد. دوباره /subscribe را بزن.",
         "en": "❌ Payment could not be verified. Try /subscribe again.",

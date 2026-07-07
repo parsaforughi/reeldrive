@@ -32,6 +32,10 @@ Variables **فقط Web:** `DASHBOARD_PASSWORD`, `DASHBOARD_SECRET`
 
 Volume: `sessions/` و `data/` (روی Worker؛ Web فقط DB مشترک لازم دارد)
 
+## پرداخت آنلاین Pro (بله‌پی)
+
+اشتراک Pro علاوه بر Telegram Stars و کارت‌به‌کارت دستی، می‌تواند از طریق یک فروشگاه WooCommerce با افزونه بله‌پی به‌صورت خودکار فعال شود — [راهنمای کامل راه‌اندازی](docs/BALEPAY_SETUP_FA.md).
+
 ## داشبورد ادمین
 
 UI با تم Telegram × Instagram: کاربران، لاگ زنده، اشتراک‌ها (free/pro/premium)، وضعیت Apify/IG.

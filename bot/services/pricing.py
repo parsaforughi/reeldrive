@@ -49,3 +49,32 @@ def shop_plans_payload() -> list[dict]:
 
 def is_allowed_plan_days(days: int) -> bool:
     return days in _ALLOWED_DAYS
+
+
+def _woocommerce_product_ids() -> dict[int, str]:
+    out: dict[int, str] = {}
+    for part in (settings.woocommerce_product_ids or "").split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        raw_days, pid = part.split(":", 1)
+        try:
+            out[int(raw_days.strip())] = pid.strip()
+        except ValueError:
+            continue
+    return out
+
+
+def woocommerce_checkout_url(days: int, telegram_id: int) -> str | None:
+    """Direct-to-checkout WooCommerce link with telegram_id/days in the query
+    string (the WooCommerce snippet copies them into order meta)."""
+    if not settings.balepay_enabled:
+        return None
+    base = settings.woocommerce_base_url.strip().rstrip("/")
+    product_id = _woocommerce_product_ids().get(days)
+    if not base or not product_id:
+        return None
+    return (
+        f"{base}/checkout/?add-to-cart={product_id}&quantity=1"
+        f"&telegram_id={telegram_id}&days={days}"
+    )

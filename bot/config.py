@@ -199,6 +199,16 @@ class Settings(BaseSettings):
     pro_toman_monthly: int = 98000
     pro_subscription_days: int = 30
 
+    # BalePay via WooCommerce (card-to-card / Bale wallet online checkout)
+    woocommerce_base_url: str = ""
+    woocommerce_webhook_secret: str = ""
+    woocommerce_product_ids: str = ""  # "30:12,60:13,90:14,180:15,365:16"
+    woocommerce_paid_statuses: str = "completed,processing"
+
+    @property
+    def balepay_enabled(self) -> bool:
+        return bool(self.woocommerce_base_url and self.woocommerce_webhook_secret)
+
     @property
     def shop_webapp_url(self) -> str:
         """Mini App lives on the dashboard at /shop — same public URL."""

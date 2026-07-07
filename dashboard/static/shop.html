@@ -300,10 +300,18 @@
       <div class="option" data-group="pay" data-value="card">
         <div class="radio"><div class="radio-dot"></div></div>
         <div class="option-body">
-          <div class="option-label">کارت به کارت</div>
-          <div class="option-sub">واریز به حساب بانکی</div>
+          <div class="option-label">کارت به کارت (دستی)</div>
+          <div class="option-sub">واریز به حساب بانکی + تأیید پشتیبانی</div>
         </div>
         <div class="option-icon icon-card">💳</div>
+      </div>
+      <div class="option hidden" data-group="pay" data-value="balepay" id="balepayOption">
+        <div class="radio"><div class="radio-dot"></div></div>
+        <div class="option-body">
+          <div class="option-label">پرداخت آنلاین (بله‌پی)</div>
+          <div class="option-sub">کارت‌به‌کارت / کیف پول بله — فعال‌سازی آنی</div>
+        </div>
+        <div class="option-icon icon-card">⚡</div>
       </div>
     </div>
 
@@ -374,6 +382,18 @@
         : fmtToman(plan.tomans);
     }
 
+    const PAY_METHOD_LABELS = {
+      stars: "Telegram Stars",
+      card: "کارت به کارت (دستی)",
+      balepay: "پرداخت آنلاین (بله‌پی)",
+    };
+
+    const PAY_CTA_LABELS = {
+      stars: "ایجاد فاکتور",
+      card: "ارتباط با پشتیبانی",
+      balepay: "پرداخت با بله‌پی",
+    };
+
     function renderPlans() {
       const list = document.getElementById("plansList");
       list.innerHTML = shop.plans.map((plan) => `
@@ -423,9 +443,9 @@
         el.classList.toggle("selected", el.dataset.value === method);
       });
       document.getElementById("invMethod").textContent =
-        method === "stars" ? "Telegram Stars" : "کارت به کارت";
+        PAY_METHOD_LABELS[method] || method;
       document.getElementById("ctaBtn").textContent =
-        method === "stars" ? "ایجاد فاکتور" : "ارتباط با پشتیبانی";
+        PAY_CTA_LABELS[method] || "ادامه";
       renderPlans();
       updateInvoice();
       if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
@@ -454,6 +474,9 @@
       document.getElementById("botName").textContent = shop.bot_name;
       document.getElementById("statusBar").innerHTML = shop.status_html;
       document.getElementById("invUserId").textContent = String(shop.telegram_id);
+      if (shop.balepay_enabled) {
+        document.getElementById("balepayOption").classList.remove("hidden");
+      }
       renderPlans();
       updateInvoice();
 
@@ -479,6 +502,21 @@
         );
         const url = `${shop.card_url}?text=${msg}`;
         tg?.openTelegramLink(url);
+        btn.disabled = false;
+        return;
+      }
+
+      if (payMethod === "balepay") {
+        if (!plan.balepay_url) {
+          showError("پرداخت آنلاین برای این مدت در دسترس نیست.");
+          btn.disabled = false;
+          return;
+        }
+        if (tg?.openLink) {
+          tg.openLink(plan.balepay_url);
+        } else {
+          window.open(plan.balepay_url, "_blank");
+        }
         btn.disabled = false;
         return;
       }
