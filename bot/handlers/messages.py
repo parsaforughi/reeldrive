@@ -19,9 +19,11 @@ from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.analytics import record_download
+from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.time_utils import user_display_label
 from bot.services.direct_download import direct_download_ready, download_media_url
+from bot.services.following import fetch_following
 from bot.services.instagram import instagram_downloader
 from bot.services.verification import get_connection
 from bot.states import ConnectStates, SearchStates
@@ -96,6 +98,8 @@ async def handle_text(message: Message, state: FSMContext) -> None:
         await state.clear()
 
     needs_ig = parsed.kind != "media_url"
+    if needs_ig and parsed.kind == "following" and apify_downloader.ready:
+        needs_ig = False
     if needs_ig and not client_pool.service_ready:
         await message.answer(await tu(uid, "error_service_ig"))
         return
@@ -174,7 +178,7 @@ async def _dispatch(
         return
 
     if cmd.kind == "following":
-        users = await run_sync(instagram_downloader.get_following, user)
+        users = await fetch_following(user)
         await status.delete()
         if not users:
             await message.answer(await tu(uid, "no_following"))

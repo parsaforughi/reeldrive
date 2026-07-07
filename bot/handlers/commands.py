@@ -5,7 +5,7 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
-from bot.handlers.download_helpers import run_sync, send_following
+from bot.handlers.download_helpers import send_following
 from bot.handlers.status_helpers import (
     build_feed_text,
     build_myinstagram_text,
@@ -14,8 +14,9 @@ from bot.handlers.status_helpers import (
 )
 from bot.i18n import friendly_error, get_user_lang, require_user_lang, t, tu
 from bot.keyboards import following_cancel_kb, language_kb
+from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
-from bot.services.instagram import instagram_downloader
+from bot.services.following import fetch_following
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.verification import get_connection
 from bot.states import FollowingStates, SearchStates
@@ -122,13 +123,13 @@ async def receive_following_username(message: Message, state: FSMContext) -> Non
 
     await state.clear()
 
-    if not client_pool.service_ready:
+    if not apify_downloader.ready and not client_pool.service_ready:
         await message.answer(await tu(uid, "error_service_ig"))
         return
 
     status = await message.answer(await tu(uid, "processing"))
     try:
-        users = await run_sync(instagram_downloader.get_following, username)
+        users = await fetch_following(username)
     except ValueError as exc:
         await status.edit_text(friendly_error(exc, lang))
         return

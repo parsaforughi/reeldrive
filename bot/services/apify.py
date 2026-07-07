@@ -31,7 +31,11 @@ class ApifyDownloader:
 
     @property
     def _run_url(self) -> str:
-        actor = settings.apify_actor.strip("/")
+        return self._run_url_for(settings.apify_actor)
+
+    @staticmethod
+    def _run_url_for(actor: str) -> str:
+        actor = actor.strip("/")
         return (
             f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
         )
@@ -145,6 +149,23 @@ class ApifyDownloader:
             source_url=normalized,
         )
 
+    async def fetch_following(self, username: str, limit: int = 200) -> list[dict]:
+        """Following list via Apify (no IG login/session needed).
+
+        Uses scraping_solutions/instagram-scraper-followers-following-no-cookies
+        (or whatever APIFY_FOLLOWING_ACTOR is set to). Public accounts only.
+        """
+        if not self.ready:
+            raise ValueError("Apify not configured")
+
+        handle = username.strip().lstrip("@").lower()
+        payload = {
+            "Account": [handle],
+            "resultsLimit": max(25, min(int(limit or 200), 500000)),
+            "dataToScrape": "Followings",
+        }
+        return await self._run_actor(payload, actor=settings.apify_following_actor)
+
     async def download_media_url(self, url: str) -> MediaResult:
         normalized, results_type, item, variants = await self.scrape_media_url(url)
         paths = await self.download_variants(variants)
@@ -152,11 +173,12 @@ class ApifyDownloader:
             raise ValueError("دانلود فایل ناموفق / File download failed")
         return self.build_media_result(item, normalized, results_type, paths, variants)
 
-    async def _run_actor(self, payload: dict) -> list[dict]:
+    async def _run_actor(self, payload: dict, *, actor: str | None = None) -> list[dict]:
+        url = self._run_url_for(actor) if actor else self._run_url
         timeout = aiohttp.ClientTimeout(total=settings.apify_timeout_seconds)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(
-                self._run_url,
+                url,
                 params={"token": settings.apify_token},
                 json=payload,
             ) as resp:
