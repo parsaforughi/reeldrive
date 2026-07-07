@@ -9,7 +9,13 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# No startCommand — defer to the Dockerfile ENTRYPOINT/CMD.
+# Explicitly empty startCommand — overrides any value set in the Railway
+# dashboard and defers to the Dockerfile ENTRYPOINT/CMD
+# (docker-entrypoint.sh + apache2-foreground).
+# The port fix (Listen 80 → Listen 8080) is already baked into the image
+# by the RUN sed in the Dockerfile; running it again at startup would
+# corrupt ports.conf ("Listen 80808080").
+startCommand = ""
 healthcheckPath = "/"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
