@@ -1,21 +1,28 @@
-from aiogram import Router
-from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, ReplyKeyboardRemove
+import logging
 
+from aiogram import F, Router
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
+
+from bot.handlers.download_helpers import run_sync, send_following
 from bot.handlers.status_helpers import (
     build_feed_text,
     build_myinstagram_text,
     build_settings_message,
     build_status_text,
 )
-from bot.i18n import get_user_lang, t, tu
-from bot.keyboards import language_kb
+from bot.i18n import friendly_error, get_user_lang, require_user_lang, t, tu
+from bot.keyboards import following_cancel_kb, language_kb
+from bot.services.client_pool import client_pool
+from bot.services.instagram import instagram_downloader
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.verification import get_connection
-from bot.states import SearchStates
+from bot.states import FollowingStates, SearchStates
+from bot.utils import parse_username
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 @router.message(Command("start"))
@@ -82,6 +89,59 @@ async def cmd_unfollowers(message: Message) -> None:
     if not conn or conn.status != "connected":
         extra = await tu(uid, "unfollowers_need_connect")
     await message.answer(await tu(uid, "help_unfollowers") + extra)
+
+
+@router.message(Command("following"))
+async def cmd_following(message: Message, state: FSMContext) -> None:
+    uid = message.from_user.id
+    await state.set_state(FollowingStates.waiting_username)
+    await message.answer(
+        await tu(uid, "following_ask_username"),
+        reply_markup=await following_cancel_kb(uid),
+    )
+
+
+@router.callback_query(F.data == "following:cancel")
+async def cancel_following(callback: CallbackQuery, state: FSMContext) -> None:
+    uid = callback.from_user.id
+    await state.clear()
+    await callback.message.edit_text(await tu(uid, "following_cancelled"))
+    await callback.answer()
+
+
+@router.message(StateFilter(FollowingStates.waiting_username))
+async def receive_following_username(message: Message, state: FSMContext) -> None:
+    uid = message.from_user.id
+    lang = await require_user_lang(uid)
+    text = (message.text or "").strip()
+    username = parse_username(text) or text.lstrip("@").lower()
+
+    if not username or " " in username or len(username) > 30:
+        await message.answer(await tu(uid, "following_invalid_username"))
+        return
+
+    await state.clear()
+
+    if not client_pool.service_ready:
+        await message.answer(await tu(uid, "error_service_ig"))
+        return
+
+    status = await message.answer(await tu(uid, "processing"))
+    try:
+        users = await run_sync(instagram_downloader.get_following, username)
+    except ValueError as exc:
+        await status.edit_text(friendly_error(exc, lang))
+        return
+    except Exception:
+        logger.exception("Following fetch error")
+        await status.edit_text(await tu(uid, "error_generic"))
+        return
+
+    await status.delete()
+    if not users:
+        await message.answer(await tu(uid, "no_following"))
+        return
+    await send_following(message, username, users)
 
 
 @router.message(Command("feed"))

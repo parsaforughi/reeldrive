@@ -7,3 +7,7 @@ class ConnectStates(StatesGroup):
 
 class SearchStates(StatesGroup):
     waiting_query = State()
+
+
+class FollowingStates(StatesGroup):
+    waiting_username = State()

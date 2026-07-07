@@ -53,7 +53,7 @@ python -m dashboard  # ترمینال ۲
 
 ## منوی تلگرام (مثل Regrambot)
 
-دکمه **Menu** کنار چت: `/start`, `/connect`, `/directdownload`, `/myinstagram`, `/search`, `/unfollowers`, `/feed`, `/settings`, `/help`, `/privacy`
+دکمه **Menu** کنار چت: `/start`, `/connect`, `/directdownload`, `/myinstagram`, `/search`, `/following`, `/unfollowers`, `/feed`, `/settings`, `/help`, `/privacy`
 
 | دستور | کار |
 |--------|-----|
@@ -62,6 +62,7 @@ python -m dashboard  # ترمینال ۲
 | `/directdownload` | ⚡ دایرکت دانلود |
 | `/myinstagram` | 📩 پیج متصل |
 | `/search` | 🔍 جستجو |
+| `/following` | ➡️ بفرست آیدی، لیست فالووینگ‌هاش رو بده |
 | `/disconnect` | قطع اتصال |
 
 ## امنیت

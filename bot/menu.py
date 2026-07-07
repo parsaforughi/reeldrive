@@ -11,6 +11,7 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("subscribe", "⭐ اشتراک Pro"),
     ("myinstagram", "📩 اینستاگرام من"),
     ("search", "🔍 جستجو در اینستاگرام"),
+    ("following", "➡️ فالووینگ‌های آیدی"),
     ("unfollowers", "🚶‍♂️ آنفالویاب"),
     ("feed", "🗄️ فید"),
     ("settings", "⚙️ تنظیمات ربات"),

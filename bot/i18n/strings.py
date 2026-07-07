@@ -476,6 +476,21 @@ Coming soon: unfollowers list.""",
         "en": "➡️ {count} following of @{username}",
         "ar": "➡️ {count} متابَع لـ @{username}",
     },
+    "following_ask_username": {
+        "fa": "یوزرنیم یا آیدی اینستاگرام رو بفرست تا لیست فالووینگ‌هاش رو برات بیارم:",
+        "en": "Send the Instagram username / ID and I'll fetch their following list:",
+        "ar": "أرسل اسم مستخدم إنستغرام وسأجلب قائمة من يتابعهم:",
+    },
+    "following_cancelled": {
+        "fa": "لغو شد.",
+        "en": "Cancelled.",
+        "ar": "تم الإلغاء.",
+    },
+    "following_invalid_username": {
+        "fa": "یوزرنیم نامعتبر است.",
+        "en": "Invalid username.",
+        "ar": "اسم المستخدم غير صالح.",
+    },
     "stories_count": {
         "fa": "📖 {count} استوری",
         "en": "📖 {count} stories",

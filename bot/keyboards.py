@@ -39,6 +39,18 @@ async def connect_cancel_kb(telegram_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+async def following_cancel_kb(telegram_id: int) -> InlineKeyboardMarkup:
+    lang = await require_user_lang(telegram_id)
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=t("btn_cancel", lang),
+            callback_data="following:cancel",
+        )
+    )
+    return builder.as_markup()
+
+
 def subscription_shop_kb(lang: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
