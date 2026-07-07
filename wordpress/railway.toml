@@ -1,0 +1,16 @@
+# Railway config for the WordPress service.
+# Root Directory for this service is set to "wordpress" in Railway settings.
+# The Dockerfile in this directory handles everything — no custom start command
+# is needed; the image's default entrypoint (docker-entrypoint.sh + apache2-foreground)
+# is used as-is.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# No startCommand — defer to the Dockerfile ENTRYPOINT/CMD.
+healthcheckPath = "/"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
