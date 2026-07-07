@@ -26,3 +26,13 @@ RUN set -eux; \
         echo "zend_extension=$PHP_EXT_DIR/ioncube_loader_lin_8.3.so"; \
     } > /usr/local/etc/php/conf.d/00-ioncube.ini; \
     rm -rf /tmp/ioncube*
+
+# Your Railway service's Public Networking target port is 8080 (Railway's
+# own port-mismatch fix on the stock image), but Apache defaults to 80.
+# Bake the same fix into the image itself so it doesn't depend on a custom
+# Railway "start command" that could reset when the source changes.
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:8080>/' \
+        /etc/apache2/sites-available/000-default.conf
+
+EXPOSE 8080
