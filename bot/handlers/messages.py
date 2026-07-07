@@ -9,6 +9,7 @@ from bot.config import settings
 from bot.handlers.download_helpers import (
     cleanup,
     run_sync,
+    send_following,
     send_media_result,
     send_profile,
     send_stories,
@@ -170,6 +171,15 @@ async def _dispatch(
     if cmd.kind == "stories":
         await status.delete()
         await send_stories(message, user)
+        return
+
+    if cmd.kind == "following":
+        users = await run_sync(instagram_downloader.get_following, user)
+        await status.delete()
+        if not users:
+            await message.answer(await tu(uid, "no_following"))
+            return
+        await send_following(message, user, users)
         return
 
     if cmd.kind == "highlights_list":

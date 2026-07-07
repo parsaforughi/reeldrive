@@ -187,6 +187,7 @@ class Settings(BaseSettings):
     bridge_poll_interval_seconds: float = 2.0
     bridge_poll_idle_seconds: float = 10.0
     max_zip_posts: int = 100
+    max_following_list: int = 200
 
     stars_payment_enabled: bool = True
     free_direct_downloads: int = 3

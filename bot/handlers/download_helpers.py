@@ -1,4 +1,5 @@
 import asyncio
+from html import escape
 from pathlib import Path
 
 from aiogram import Bot
@@ -8,11 +9,14 @@ from bot.i18n import tu
 from bot.keyboards import post_actions_kb
 from bot.post_display import PostMeta, format_post_caption
 from bot.services.instagram import (
+    FollowUser,
     MediaResult,
     ProfileResult,
     StoryItem,
     instagram_downloader,
 )
+
+_CHUNK_LIMIT = 3500
 
 
 async def run_sync(func, *args):
@@ -76,6 +80,39 @@ async def send_stories(message: Message, username: str) -> None:
         else:
             await message.answer_photo(FSInputFile(item.path), caption=cap)
         cleanup(item.path)
+
+
+def _chunk_lines(lines: list[str], limit: int = _CHUNK_LIMIT) -> list[str]:
+    chunks: list[str] = []
+    current: list[str] = []
+    size = 0
+    for line in lines:
+        line_len = len(line) + 1
+        if current and size + line_len > limit:
+            chunks.append("\n".join(current))
+            current, size = [], 0
+        current.append(line)
+        size += line_len
+    if current:
+        chunks.append("\n".join(current))
+    return chunks
+
+
+async def send_following(message: Message, username: str, users: list[FollowUser]) -> None:
+    uid = message.from_user.id
+    header = await tu(
+        uid, "following_count", count=len(users), username=escape(username)
+    )
+    lines = []
+    for u in users:
+        badge = " ✓" if u.is_verified else ""
+        lock = " 🔒" if u.is_private else ""
+        name = f" — {escape(u.full_name)}" if u.full_name else ""
+        lines.append(f"• @{escape(u.username)}{badge}{lock}{name}")
+
+    await message.answer(header)
+    for chunk in _chunk_lines(lines):
+        await message.answer(chunk)
 
 
 async def _send_media_with_markup(

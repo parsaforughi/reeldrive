@@ -98,6 +98,7 @@ def parse_command(text: str) -> ParsedCommand | None:
         (r"^(?:zip\s+posts?|زیپ\s+پست)\s+@?(\w+)$", "zip_posts"),
         (r"^(?:profile|پروفایل)\s+@?(\w+)$", "profile"),
         (r"^(?:stories?|استوری)\s+@?(\w+)$", "stories"),
+        (r"^(?:following|فالووینگ|فالوینگ|فالوئینگ)\s+@?(\w+)$", "following"),
     ]
     for pattern, kind in patterns:
         m = re.match(pattern, lower if "هایلایت" not in pattern else text, re.IGNORECASE)
@@ -122,6 +123,8 @@ def parse_command(text: str) -> ParsedCommand | None:
             return ParsedCommand(kind="stories", username=user, raw=raw)
         if cmd in ("profile", "پروفایل"):
             return ParsedCommand(kind="profile", username=user, raw=raw)
+        if cmd in ("following", "فالووینگ", "فالوینگ", "فالوئینگ"):
+            return ParsedCommand(kind="following", username=user, raw=raw)
     if len(parts) == 3:
         cmd, user, num = parts[0].lower(), parts[1].lstrip("@").lower(), parts[2]
         if cmd in ("highlight", "هایلایت") and num.isdigit():

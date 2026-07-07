@@ -53,6 +53,14 @@ class HighlightInfo:
     item_count: int
 
 
+@dataclass
+class FollowUser:
+    username: str
+    full_name: str
+    is_private: bool
+    is_verified: bool
+
+
 class InstagramDownloader:
     def _client(self) -> Client:
         return client_pool.get_download_client()
@@ -233,6 +241,31 @@ class InstagramDownloader:
             raise ValueError("پستی دانلود نشد / No posts downloaded")
         return self._zip_paths(paths, f"{username}_posts.zip")
 
+    def get_following(self, username: str, limit: int | None = None) -> list[FollowUser]:
+        client = self._client()
+        limit = limit or settings.max_following_list
+        try:
+            user_id = client.user_id_from_username(username)
+            following = client.user_following(user_id, amount=limit)
+        except UserNotFound as exc:
+            raise ValueError("کاربر پیدا نشد / User not found") from exc
+        except PrivateError as exc:
+            raise ValueError(
+                "اکانت پرایوت — برای دسترسی پیجت را متصل کن / Private account"
+            ) from exc
+
+        users = [
+            FollowUser(
+                username=u.username,
+                full_name=u.full_name or "",
+                is_private=bool(u.is_private),
+                is_verified=bool(u.is_verified),
+            )
+            for u in (following or {}).values()
+        ]
+        users.sort(key=lambda u: u.username.lower())
+        return users
+
     def search_hashtag(self, tag: str, amount: int = 12) -> list[str]:
         client = self._client()
         name = tag.lstrip("#")
@@ -296,6 +329,9 @@ class InstagramServiceFacade:
 
     def download_media_url(self, url: str) -> MediaResult:
         return instagram_downloader.download_media_url(url)
+
+    def get_following(self, username: str) -> list[FollowUser]:
+        return instagram_downloader.get_following(username)
 
 
 instagram_service = InstagramServiceFacade()

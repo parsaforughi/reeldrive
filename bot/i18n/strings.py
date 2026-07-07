@@ -70,7 +70,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <b>🔐 اتصال پیج:</b> /connect → کد → دایرکت {BRIDGE}
 
 <b>دستورات:</b>
-<code>highlights user</code> | <code>zip stories user</code> | <code>#tag</code>""",
+<code>highlights user</code> | <code>zip stories user</code> | <code>following user</code> | <code>#tag</code>""",
         "en": f"""💬 <b>{NAME} features</b>
 
 <b>⚡ Direct download:</b> 3 free links, then Pro
@@ -82,7 +82,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <b>🔐 Connect page:</b> /connect → code → DM {BRIDGE}
 
 <b>Commands:</b>
-<code>highlights user</code> | <code>zip stories user</code> | <code>#tag</code>""",
+<code>highlights user</code> | <code>zip stories user</code> | <code>following user</code> | <code>#tag</code>""",
         "ar": f"""💬 <b>ميزات {NAME}</b>
 
 <b>⚡ تحميل مباشر:</b> ٣ روابط مجاناً ثم Pro
@@ -94,7 +94,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <b>🔐 ربط الحساب:</b> /connect → رمز → رسالة {BRIDGE}
 
 <b>أوامر:</b>
-<code>highlights user</code> | <code>zip stories user</code> | <code>#tag</code>""",
+<code>highlights user</code> | <code>zip stories user</code> | <code>following user</code> | <code>#tag</code>""",
     },
     "help_direct": {
         "fa": f"""⚡ <b>دایرکت دانلود</b>
@@ -465,6 +465,16 @@ Coming soon: unfollowers list.""",
         "fa": "استوری فعالی نیست.",
         "en": "No active stories.",
         "ar": "لا توجد قصص نشطة.",
+    },
+    "no_following": {
+        "fa": "کسی فالو نشده یا لیست خصوصی است.",
+        "en": "No following found (or the list is private).",
+        "ar": "لا توجد متابَعون (أو القائمة خاصة).",
+    },
+    "following_count": {
+        "fa": "➡️ {count} فالووینگ @{username}",
+        "en": "➡️ {count} following of @{username}",
+        "ar": "➡️ {count} متابَع لـ @{username}",
     },
     "stories_count": {
         "fa": "📖 {count} استوری",
