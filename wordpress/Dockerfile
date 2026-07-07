@@ -35,4 +35,10 @@ RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
     && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:8080>/' \
         /etc/apache2/sites-available/000-default.conf
 
+# The php8.3-apache base image ships with both mpm_event and mpm_prefork
+# enabled, but Apache requires exactly one active MPM or it refuses to start
+# with "AH00534: More than one MPM loaded." Disable the extras and ensure
+# mpm_prefork (required by mod_php) is the sole active MPM.
+RUN a2dismod mpm_event mpm_worker 2>/dev/null; a2enmod mpm_prefork
+
 EXPOSE 8080
