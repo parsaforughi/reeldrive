@@ -1,7 +1,15 @@
 #!/bin/bash
 # Production entrypoint for the Reeldrive Pro shop (WordPress + WooCommerce +
-# BalePay) on Railway. Three fixes are applied on every container start,
-# then Apache runs in the foreground as PID 1.
+# BalePay) on Railway. Our fixes are applied on every container start, then
+# control hands off to the official wordpress:php8.3-apache image's own
+# docker-entrypoint.sh (with "apache2-foreground" as its argument) --
+# that's the script responsible for downloading WordPress core and
+# generating wp-config.php from WORDPRESS_DB_* on a fresh/empty volume. We
+# used to call apache2-foreground directly here, which skipped all of that
+# (docker-entrypoint.sh only runs its setup logic when it recognizes the
+# command it's given, e.g. "apache2-foreground" -- passing it our own
+# script name instead made it a no-op), leaving WordPress never installed
+# on a brand-new volume (wp-config.php missing, 403/no DirectoryIndex).
 
 # 1) Force exactly one MPM enabled (mod_php requires mpm_prefork). The
 #    build-time image has only mpm_prefork, but mpm_event.load/.conf
@@ -37,4 +45,8 @@ cp /usr/local/bin/disable-canonical-redirect.php /var/www/html/wp-content/mu-plu
 #    nothing inside WordPress can ever break it again.
 cp /usr/local/bin/healthz.php /var/www/html/healthz.php
 
-exec apache2-foreground
+# Hand off to the official image's entrypoint -- it installs WordPress core
+# and generates wp-config.php if missing, fixes ownership, then execs
+# apache2-foreground itself. Safe to run every time: it no-ops the install
+# step once wp-config.php/core files already exist on the volume.
+exec docker-entrypoint.sh apache2-foreground
