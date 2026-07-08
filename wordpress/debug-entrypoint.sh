@@ -30,5 +30,31 @@ ls -la /etc/apache2/mods-enabled/ 2>&1 | grep -i mpm
 echo "=== apache2ctl -M after fix ==="
 apache2ctl -M 2>&1
 
-echo "=== starting apache now ==="
+echo "=== ports.conf ==="
+cat /etc/apache2/ports.conf 2>&1
+
+echo "=== VirtualHost line in 000-default.conf ==="
+grep -i "VirtualHost" /etc/apache2/sites-enabled/*.conf 2>&1
+
+# MPM conflict is fixed now (confirmed clean start), but the healthcheck to
+# "/" still times out ("service unavailable") even though Railway's target
+# port is correctly set to 8080. Start Apache in the background first so we
+# can actually probe it locally and see what a real request gets back
+# (wrong port? WordPress/DB error? nothing listening at all?) before handing
+# off to the real foreground process.
+apache2ctl start 2>&1
+sleep 3
+
+echo "=== listening sockets ==="
+(ss -ltnp 2>&1 || netstat -ltnp 2>&1 || cat /proc/net/tcp 2>&1)
+
+echo "=== local curl to 127.0.0.1:8080/ ==="
+curl -sv -o /tmp/curl-body.txt http://127.0.0.1:8080/ 2>&1
+echo "--- body (first 40 lines) ---"
+head -n 40 /tmp/curl-body.txt 2>&1
+
+apache2ctl stop 2>&1
+sleep 1
+
+echo "=== starting apache in foreground now ==="
 exec apache2-foreground
