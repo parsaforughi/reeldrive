@@ -48,16 +48,14 @@ RUN a2dismod mpm_event 2>/dev/null; \
 
 EXPOSE 8080
 
-# Confirmed via runtime debug logs: even though the build-time RUN above
-# proves the image has only mpm_prefork enabled, mpm_event.load/.conf
-# reappear in /etc/apache2/mods-enabled by the time the container actually
-# starts (cause not fully explained — likely something in Railway's own
-# platform-level container init). Rather than chase that further, this
-# entrypoint redoes the exact same fix at runtime, immediately before
-# starting Apache, so it's correct regardless of what happens in between.
-COPY debug-entrypoint.sh /usr/local/bin/debug-entrypoint.sh
+# entrypoint.sh redoes the MPM fix at runtime (the build-time RUN above
+# doesn't reliably survive to container start on Railway), pins
+# WP_HOME/WP_SITEURL, and disables WordPress's redirect_canonical() (was
+# 301-redirecting Host-header mismatches -- including Railway's healthcheck
+# -- to http://127.0.0.1/, which broke the healthcheck). See entrypoint.sh
+# for the full explanation of each fix.
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY fix-siteurl.php /usr/local/bin/fix-siteurl.php
-COPY reeldrive-debug-mu.php /usr/local/bin/reeldrive-debug-mu.php
 COPY disable-canonical-redirect.php /usr/local/bin/disable-canonical-redirect.php
-RUN chmod +x /usr/local/bin/debug-entrypoint.sh
-CMD ["/usr/local/bin/debug-entrypoint.sh"]
+RUN chmod +x /usr/local/bin/entrypoint.sh
+CMD ["/usr/local/bin/entrypoint.sh"]
