@@ -48,12 +48,11 @@ RUN a2dismod mpm_event 2>/dev/null; \
 
 EXPOSE 8080
 
-# TEMPORARY diagnostics: the build above proves the image only has
-# mpm_prefork enabled, yet the container still fails at runtime with
-# "More than one MPM loaded". This wrapper prints the *live* filesystem
-# state right before Apache actually starts, so we can see it in Railway's
-# Deploy Logs (not just Build Logs) and find out what's changing between
-# build and run. Remove this once the real cause is found.
-COPY debug-entrypoint.sh /usr/local/bin/debug-entrypoint.sh
-RUN chmod +x /usr/local/bin/debug-entrypoint.sh
-CMD ["/usr/local/bin/debug-entrypoint.sh"]
+# The build-time a2dismod above is not enough: something between image build
+# and container start (likely the persistent /var/www/html volume or a Railway
+# layer) re-enables mpm_event at runtime. This wrapper removes the conflicting
+# MPM symlinks and re-asserts mpm_prefork at the exact moment before Apache
+# starts, guaranteeing only one MPM is ever loaded.
+COPY docker-entrypoint-wrapper.sh /usr/local/bin/docker-entrypoint-wrapper.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint-wrapper.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-wrapper.sh"]
