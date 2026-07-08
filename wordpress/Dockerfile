@@ -58,5 +58,6 @@ EXPOSE 8080
 COPY debug-entrypoint.sh /usr/local/bin/debug-entrypoint.sh
 COPY fix-siteurl.php /usr/local/bin/fix-siteurl.php
 COPY reeldrive-debug-mu.php /usr/local/bin/reeldrive-debug-mu.php
+COPY disable-canonical-redirect.php /usr/local/bin/disable-canonical-redirect.php
 RUN chmod +x /usr/local/bin/debug-entrypoint.sh
 CMD ["/usr/local/bin/debug-entrypoint.sh"]

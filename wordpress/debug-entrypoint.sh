@@ -33,6 +33,14 @@ mkdir -p /var/www/html/wp-content/mu-plugins
 cp /usr/local/bin/reeldrive-debug-mu.php /var/www/html/wp-content/mu-plugins/reeldrive-debug-mu.php
 rm -f /var/www/html/reeldrive-debug.log
 
+# --- Fix 3b (the real fix): disable redirect_canonical() ----------------
+# The debug logger caught it: redirect_canonical() (WP core) is the one
+# calling wp_redirect() to http://127.0.0.1/, built from
+# $_SERVER['SERVER_NAME'] (port-less), independent of WP_HOME/WP_SITEURL.
+# This fires whenever the Host header doesn't exactly match -- including,
+# very likely, Railway's own healthcheck prober. Disable it.
+cp /usr/local/bin/disable-canonical-redirect.php /var/www/html/wp-content/mu-plugins/disable-canonical-redirect.php
+
 # --- Fix 4: strip any page/object cache serving a stale response --------
 # WP_HOME fix had zero effect AND the redirect logger never fired even
 # once -- both point to a caching plugin replaying a pre-saved response
@@ -69,13 +77,18 @@ ls -la /etc/apache2/mods-enabled/ 2>&1 | grep -i mpm
 apache2ctl start 2>&1
 sleep 3
 
-echo "=== local curl to 127.0.0.1:8080/ ==="
+echo "=== local curl to 127.0.0.1:8080/ (Host: 127.0.0.1:8080, mismatched on purpose) ==="
 curl -sv -o /tmp/curl-body.txt http://127.0.0.1:8080/ 2>&1
-echo "--- body (first 40 lines) ---"
-head -n 40 /tmp/curl-body.txt 2>&1
+echo "--- body (first 20 lines) ---"
+head -n 20 /tmp/curl-body.txt 2>&1
 
-echo "=== reeldrive-debug.log (wp_redirect calls) ==="
-cat /var/www/html/reeldrive-debug.log 2>&1 || echo "(no file -- mu-plugin filter never fired)"
+echo "=== local curl to 127.0.0.1:8080/ (Host: shopreeldrive.up.railway.app, the real domain) ==="
+curl -sv -o /tmp/curl-body2.txt -H "Host: shopreeldrive.up.railway.app" http://127.0.0.1:8080/ 2>&1
+echo "--- body (first 20 lines) ---"
+head -n 20 /tmp/curl-body2.txt 2>&1
+
+echo "=== reeldrive-debug.log (wp_redirect calls, should be empty/gone now) ==="
+cat /var/www/html/reeldrive-debug.log 2>&1 || echo "(no file -- no redirect fired, good)"
 
 apache2ctl stop 2>&1
 sleep 1
