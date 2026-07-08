@@ -36,6 +36,14 @@ cat /etc/apache2/ports.conf 2>&1
 echo "=== VirtualHost line in 000-default.conf ==="
 grep -i "VirtualHost" /etc/apache2/sites-enabled/*.conf 2>&1
 
+# Last deploy's local curl showed WordPress 301-redirecting "/" straight to
+# http://127.0.0.1/ (port stripped) — the DB's siteurl/home option is stuck
+# on a stale 127.0.0.1 value from initial setup, so nothing outside the
+# container can ever get past that redirect. Pin WP_HOME/WP_SITEURL to the
+# real public domain (constants override the DB value), idempotent.
+echo "=== fixing wp-config.php siteurl/home ==="
+php /usr/local/bin/fix-siteurl.php 2>&1
+
 # MPM conflict is fixed now (confirmed clean start), but the healthcheck to
 # "/" still times out ("service unavailable") even though Railway's target
 # port is correctly set to 8080. Start Apache in the background first so we

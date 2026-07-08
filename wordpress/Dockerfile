@@ -56,5 +56,6 @@ EXPOSE 8080
 # entrypoint redoes the exact same fix at runtime, immediately before
 # starting Apache, so it's correct regardless of what happens in between.
 COPY debug-entrypoint.sh /usr/local/bin/debug-entrypoint.sh
+COPY fix-siteurl.php /usr/local/bin/fix-siteurl.php
 RUN chmod +x /usr/local/bin/debug-entrypoint.sh
 CMD ["/usr/local/bin/debug-entrypoint.sh"]
