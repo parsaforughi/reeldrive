@@ -46,6 +46,16 @@ RUN a2dismod mpm_event 2>/dev/null; \
     a2enmod mpm_prefork; \
     apache2ctl -M 2>&1 | grep -i mpm
 
+# Raise PHP upload/post size limits -- the stock php.ini defaults (2M) are
+# too small for plugin/theme zip uploads through wp-admin (BalePay and
+# other rtl-theme.com plugins are often 10-30MB+).
+RUN { \
+        echo "upload_max_filesize = 128M"; \
+        echo "post_max_size = 128M"; \
+        echo "max_execution_time = 300"; \
+        echo "memory_limit = 256M"; \
+    } > /usr/local/etc/php/conf.d/uploads.ini
+
 EXPOSE 8080
 
 # entrypoint.sh redoes the MPM fix at runtime (the build-time RUN above
