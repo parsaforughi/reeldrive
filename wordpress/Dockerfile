@@ -57,5 +57,6 @@ EXPOSE 8080
 # starting Apache, so it's correct regardless of what happens in between.
 COPY debug-entrypoint.sh /usr/local/bin/debug-entrypoint.sh
 COPY fix-siteurl.php /usr/local/bin/fix-siteurl.php
+COPY reeldrive-debug-mu.php /usr/local/bin/reeldrive-debug-mu.php
 RUN chmod +x /usr/local/bin/debug-entrypoint.sh
 CMD ["/usr/local/bin/debug-entrypoint.sh"]

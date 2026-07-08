@@ -55,6 +55,15 @@ echo "!!!!! WPFIX: php exit code: $? !!!!!"
 echo "!!!!! WPFIX: wp-config.php AFTER patch !!!!!"
 grep -n "WP_HOME\|WP_SITEURL" /var/www/html/wp-config.php 2>&1
 
+# WP_HOME/WP_SITEURL are confirmed defined but the redirect to
+# http://127.0.0.1/ persists anyway -- something isn't building that URL
+# from home_url(). Drop a must-use plugin that logs every wp_redirect() call
+# with a backtrace, so we can see exactly what's calling it.
+echo "!!!!! WPFIX: installing debug mu-plugin !!!!!"
+mkdir -p /var/www/html/wp-content/mu-plugins
+cp /usr/local/bin/reeldrive-debug-mu.php /var/www/html/wp-content/mu-plugins/reeldrive-debug-mu.php
+ls -la /var/www/html/wp-content/mu-plugins/ 2>&1
+
 # MPM conflict is fixed now (confirmed clean start), but the healthcheck to
 # "/" still times out ("service unavailable") even though Railway's target
 # port is correctly set to 8080. Start Apache in the background first so we
