@@ -33,6 +33,21 @@ mkdir -p /var/www/html/wp-content/mu-plugins
 cp /usr/local/bin/reeldrive-debug-mu.php /var/www/html/wp-content/mu-plugins/reeldrive-debug-mu.php
 rm -f /var/www/html/reeldrive-debug.log
 
+# --- Fix 4: strip any page/object cache serving a stale response --------
+# WP_HOME fix had zero effect AND the redirect logger never fired even
+# once -- both point to a caching plugin replaying a pre-saved response
+# (headers baked in from before the real domain was configured) without
+# WordPress (or our mu-plugin) ever running for that request. Remove any
+# cache drop-ins/static cache directory and any cache-plugin rewrite block
+# in .htaccess, unconditionally, every start.
+rm -f /var/www/html/wp-content/advanced-cache.php
+rm -f /var/www/html/wp-content/object-cache.php
+rm -rf /var/www/html/wp-content/cache
+if [ -f /var/www/html/.htaccess ]; then
+    sed -i '/# BEGIN WPSuperCache/,/# END WPSuperCache/d' /var/www/html/.htaccess
+    sed -i '/# BEGIN W3TC/,/# END W3TC/d' /var/www/html/.htaccess
+fi
+
 # Let Railway's log shipper catch up before we print anything.
 sleep 2
 
@@ -42,6 +57,9 @@ grep -n "WP_HOME\|WP_SITEURL" /var/www/html/wp-config.php 2>&1
 
 echo "=== mu-plugin installed? ==="
 ls -la /var/www/html/wp-content/mu-plugins/ 2>&1
+
+echo "=== cache drop-ins remaining (should be empty) ==="
+ls -la /var/www/html/wp-content/advanced-cache.php /var/www/html/wp-content/object-cache.php 2>&1
 
 echo "=== mods-enabled (mpm) ==="
 ls -la /etc/apache2/mods-enabled/ 2>&1 | grep -i mpm
