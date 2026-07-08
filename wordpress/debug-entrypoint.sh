@@ -1,85 +1,63 @@
 #!/bin/bash
-# Runtime MPM fix — not just diagnostics anymore.
+# Runtime fixes + diagnostics for the Railway WordPress deployment.
 #
-# Proven by the last debug run: the build-time image has ONLY mpm_prefork
-# enabled (verified via `apache2ctl -M` right after the a2dismod/a2enmod RUN
-# step in the Dockerfile), but at container *start*, /etc/apache2/mods-enabled
-# has BOTH mpm_event.load/.conf AND mpm_prefork.load/.conf present again,
-# which makes Apache refuse to start with:
-#   AH00534: apache2: Configuration error: More than one MPM loaded.
-#
-# Whatever restores mpm_event between build and run (Railway's own platform
-# init, a stale cached layer being deployed, something on the /var/www/html
-# volume's init scripts, etc.) — we no longer need to know. Instead of
-# relying on the build-time fix surviving untouched, redo it here, every
-# single time, in the seconds right before Apache actually starts. This is
-# idempotent and safe to run unconditionally.
+# Everything printed in the first fraction of a second of container start
+# seems to get dropped by Railway's log shipper (confirmed across several
+# deploys: the same echo statements show up in some runs and not others,
+# always the ones right at the top). So: do all silent fixes first, THEN
+# sleep briefly to let the log pipe attach, THEN print diagnostics -- the
+# later "listening sockets"/curl section below has shown up reliably in
+# every single deploy so far, which is the pattern this follows.
 
-echo "=== mods-enabled BEFORE runtime fix ==="
-ls -la /etc/apache2/mods-enabled/ 2>&1 | grep -i mpm
-
-# Force exactly one MPM: remove any event/worker symlinks, (re)create prefork.
+# --- Fix 1: MPM conflict -----------------------------------------------
+# Build-time image has only mpm_prefork enabled, but mpm_event.load/.conf
+# reappear in /etc/apache2/mods-enabled by container start (cause unknown,
+# likely Railway platform init). Redo the fix unconditionally every start.
 rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf
 rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf
 ln -sf ../mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
 ln -sf ../mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
 
-echo "=== mods-enabled AFTER runtime fix ==="
-ls -la /etc/apache2/mods-enabled/ 2>&1 | grep -i mpm
+# --- Fix 2: siteurl/home stuck on 127.0.0.1 -----------------------------
+# WordPress redirects "/" to http://127.0.0.1/ (port stripped). Pin
+# WP_HOME/WP_SITEURL constants in wp-config.php (they override the DB
+# value), idempotent via a marker comment.
+php /usr/local/bin/fix-siteurl.php >/tmp/wpfix.log 2>&1
+WPFIX_EXIT=$?
 
-echo "=== apache2ctl -M after fix ==="
-apache2ctl -M 2>&1
-
-echo "=== ports.conf ==="
-cat /etc/apache2/ports.conf 2>&1
-
-echo "=== VirtualHost line in 000-default.conf ==="
-grep -i "VirtualHost" /etc/apache2/sites-enabled/*.conf 2>&1
-
-# Last deploy's local curl showed WordPress 301-redirecting "/" straight to
-# http://127.0.0.1/ (port stripped) — the DB's siteurl/home option is stuck
-# on a stale 127.0.0.1 value from initial setup, so nothing outside the
-# container can ever get past that redirect. Pin WP_HOME/WP_SITEURL to the
-# real public domain (constants override the DB value), idempotent.
-echo "!!!!! WPFIX: checking fix-siteurl.php is present !!!!!"
-ls -la /usr/local/bin/fix-siteurl.php 2>&1
-
-echo "!!!!! WPFIX: wp-config.php BEFORE patch !!!!!"
-ls -la /var/www/html/wp-config.php 2>&1
-grep -n "WP_HOME\|WP_SITEURL\|stop editing" /var/www/html/wp-config.php 2>&1
-
-echo "!!!!! WPFIX: running fix-siteurl.php !!!!!"
-php /usr/local/bin/fix-siteurl.php 2>&1
-echo "!!!!! WPFIX: php exit code: $? !!!!!"
-
-echo "!!!!! WPFIX: wp-config.php AFTER patch !!!!!"
-grep -n "WP_HOME\|WP_SITEURL" /var/www/html/wp-config.php 2>&1
-
-# WP_HOME/WP_SITEURL are confirmed defined but the redirect to
-# http://127.0.0.1/ persists anyway -- something isn't building that URL
-# from home_url(). Drop a must-use plugin that logs every wp_redirect() call
-# with a backtrace, so we can see exactly what's calling it.
-echo "!!!!! WPFIX: installing debug mu-plugin !!!!!"
+# --- Fix 3 (diagnostic): install debug mu-plugin ------------------------
+# WP_HOME/WP_SITEURL are confirmed defined already, yet the redirect to
+# 127.0.0.1 persists -- so something isn't using home_url() at all. This
+# must-use plugin logs every wp_redirect() call + backtrace to a file.
 mkdir -p /var/www/html/wp-content/mu-plugins
 cp /usr/local/bin/reeldrive-debug-mu.php /var/www/html/wp-content/mu-plugins/reeldrive-debug-mu.php
+rm -f /var/www/html/reeldrive-debug.log
+
+# Let Railway's log shipper catch up before we print anything.
+sleep 2
+
+echo "=== wp-config.php fix (exit $WPFIX_EXIT) ==="
+cat /tmp/wpfix.log
+grep -n "WP_HOME\|WP_SITEURL" /var/www/html/wp-config.php 2>&1
+
+echo "=== mu-plugin installed? ==="
 ls -la /var/www/html/wp-content/mu-plugins/ 2>&1
 
-# MPM conflict is fixed now (confirmed clean start), but the healthcheck to
-# "/" still times out ("service unavailable") even though Railway's target
-# port is correctly set to 8080. Start Apache in the background first so we
-# can actually probe it locally and see what a real request gets back
-# (wrong port? WordPress/DB error? nothing listening at all?) before handing
+echo "=== mods-enabled (mpm) ==="
+ls -la /etc/apache2/mods-enabled/ 2>&1 | grep -i mpm
+
+# Start Apache in the background so we can probe it locally before handing
 # off to the real foreground process.
 apache2ctl start 2>&1
 sleep 3
-
-echo "=== listening sockets ==="
-(ss -ltnp 2>&1 || netstat -ltnp 2>&1 || cat /proc/net/tcp 2>&1)
 
 echo "=== local curl to 127.0.0.1:8080/ ==="
 curl -sv -o /tmp/curl-body.txt http://127.0.0.1:8080/ 2>&1
 echo "--- body (first 40 lines) ---"
 head -n 40 /tmp/curl-body.txt 2>&1
+
+echo "=== reeldrive-debug.log (wp_redirect calls) ==="
+cat /var/www/html/reeldrive-debug.log 2>&1 || echo "(no file -- mu-plugin filter never fired)"
 
 apache2ctl stop 2>&1
 sleep 1
