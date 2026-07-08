@@ -41,8 +41,19 @@ grep -i "VirtualHost" /etc/apache2/sites-enabled/*.conf 2>&1
 # on a stale 127.0.0.1 value from initial setup, so nothing outside the
 # container can ever get past that redirect. Pin WP_HOME/WP_SITEURL to the
 # real public domain (constants override the DB value), idempotent.
-echo "=== fixing wp-config.php siteurl/home ==="
+echo "!!!!! WPFIX: checking fix-siteurl.php is present !!!!!"
+ls -la /usr/local/bin/fix-siteurl.php 2>&1
+
+echo "!!!!! WPFIX: wp-config.php BEFORE patch !!!!!"
+ls -la /var/www/html/wp-config.php 2>&1
+grep -n "WP_HOME\|WP_SITEURL\|stop editing" /var/www/html/wp-config.php 2>&1
+
+echo "!!!!! WPFIX: running fix-siteurl.php !!!!!"
 php /usr/local/bin/fix-siteurl.php 2>&1
+echo "!!!!! WPFIX: php exit code: $? !!!!!"
+
+echo "!!!!! WPFIX: wp-config.php AFTER patch !!!!!"
+grep -n "WP_HOME\|WP_SITEURL" /var/www/html/wp-config.php 2>&1
 
 # MPM conflict is fixed now (confirmed clean start), but the healthcheck to
 # "/" still times out ("service unavailable") even though Railway's target
