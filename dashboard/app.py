@@ -490,6 +490,14 @@ async def woocommerce_webhook(request: Request):
         hmac.new(secret.encode(), raw_body, hashlib.sha256).digest()
     ).decode()
     if not signature or not hmac.compare_digest(signature, expected):
+        logger.warning(
+            "WC webhook signature mismatch: header_present=%s secret_len=%d "
+            "body_len=%d all_headers=%r",
+            bool(signature),
+            len(secret),
+            len(raw_body),
+            dict(request.headers),
+        )
         raise HTTPException(status_code=401, detail="Invalid signature")
 
     try:
