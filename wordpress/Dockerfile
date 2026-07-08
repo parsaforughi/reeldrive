@@ -48,12 +48,13 @@ RUN a2dismod mpm_event 2>/dev/null; \
 
 EXPOSE 8080
 
-# TEMPORARY diagnostics: the build above proves the image only has
-# mpm_prefork enabled, yet the container still fails at runtime with
-# "More than one MPM loaded". This wrapper prints the *live* filesystem
-# state right before Apache actually starts, so we can see it in Railway's
-# Deploy Logs (not just Build Logs) and find out what's changing between
-# build and run. Remove this once the real cause is found.
+# Confirmed via runtime debug logs: even though the build-time RUN above
+# proves the image has only mpm_prefork enabled, mpm_event.load/.conf
+# reappear in /etc/apache2/mods-enabled by the time the container actually
+# starts (cause not fully explained — likely something in Railway's own
+# platform-level container init). Rather than chase that further, this
+# entrypoint redoes the exact same fix at runtime, immediately before
+# starting Apache, so it's correct regardless of what happens in between.
 COPY debug-entrypoint.sh /usr/local/bin/debug-entrypoint.sh
 RUN chmod +x /usr/local/bin/debug-entrypoint.sh
 CMD ["/usr/local/bin/debug-entrypoint.sh"]
