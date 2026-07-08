@@ -31,4 +31,10 @@ php /usr/local/bin/fix-siteurl.php || true
 mkdir -p /var/www/html/wp-content/mu-plugins
 cp /usr/local/bin/disable-canonical-redirect.php /var/www/html/wp-content/mu-plugins/disable-canonical-redirect.php
 
+# 4) Standalone healthcheck file (see healthz.php) -- exists as a real file
+#    on disk so WordPress's .htaccess rewrite never routes it through
+#    index.php. Railway's healthcheck now targets this instead of "/", so
+#    nothing inside WordPress can ever break it again.
+cp /usr/local/bin/healthz.php /var/www/html/healthz.php
+
 exec apache2-foreground

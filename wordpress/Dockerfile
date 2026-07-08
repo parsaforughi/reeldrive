@@ -57,5 +57,6 @@ EXPOSE 8080
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY fix-siteurl.php /usr/local/bin/fix-siteurl.php
 COPY disable-canonical-redirect.php /usr/local/bin/disable-canonical-redirect.php
+COPY healthz.php /usr/local/bin/healthz.php
 RUN chmod +x /usr/local/bin/entrypoint.sh
 CMD ["/usr/local/bin/entrypoint.sh"]
