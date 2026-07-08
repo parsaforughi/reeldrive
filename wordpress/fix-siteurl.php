@@ -5,17 +5,19 @@
  * over from initial setup, or from a previous Railway service/domain) that
  * makes WordPress redirect everything to a host nothing listens on.
  *
- * Self-healing: if a previous run already injected this block for a
- * DIFFERENT (now-wrong) domain -- e.g. the Railway service was deleted and
- * recreated with a new generated domain -- this removes the stale block
- * and re-injects it with the current $domain, instead of silently skipping
- * because "a block already exists". Safe to run on every container start.
+ * Self-healing: strips ANY previously-injected copy of this block --
+ * regardless of exact format/marker version from earlier script revisions
+ * -- and re-injects fresh with the current $domain on every run. This
+ * matters because PHP's define() is a no-op if the constant is already
+ * defined: a leftover old block (e.g. from a previous Railway domain that
+ * no longer exists) would silently win over a freshly-appended correct one
+ * if it weren't fully removed first.
  */
 
 $domain = 'reeldrive-production.up.railway.app';
 $configFile = '/var/www/html/wp-config.php';
-$markerStart = '/* REELDRIVE_WP_HOME_FIX';
-$markerEnd = '/* REELDRIVE_WP_HOME_FIX_END */';
+$needle = 'REELDRIVE_WP_HOME_FIX';
+$stopMarker = "/* That's all, stop editing!";
 
 if (!file_exists($configFile)) {
     fwrite(STDERR, "fix-siteurl.php: wp-config.php not found at $configFile, skipping\n");
@@ -24,38 +26,39 @@ if (!file_exists($configFile)) {
 
 $content = file_get_contents($configFile);
 
-// Strip any previously-injected block (regardless of which domain it had),
-// so we never end up with a stale copy fighting the current one.
-$startPos = strpos($content, $markerStart);
-if ($startPos !== false) {
-    $endPos = strpos($content, $markerEnd, $startPos);
-    if ($endPos !== false) {
-        $endPos += strlen($markerEnd);
-        $content = substr($content, 0, $startPos) . substr($content, $endPos);
+// Strip every previous occurrence of our injected block, however it was
+// formatted. Each occurrence starts at the nearest preceding "/*" before
+// the needle, and runs up to the next "stop editing" marker (that's always
+// where we inject, in any script version).
+while (($needlePos = strpos($content, $needle)) !== false) {
+    $blockStart = strrpos(substr($content, 0, $needlePos), '/*');
+    if ($blockStart === false) {
+        $blockStart = $needlePos;
     }
+    $stopPos = strpos($content, $stopMarker, $needlePos);
+    if ($stopPos === false) {
+        // No stop-editing marker after this point -- bail rather than risk
+        // deleting the rest of the file.
+        break;
+    }
+    $content = substr($content, 0, $blockStart) . substr($content, $stopPos);
 }
 
 $inject = <<<PHP
 
-{$markerStart} — keep siteurl/home pinned to the real public domain
+/* {$needle} — keep siteurl/home pinned to the real public domain
  * regardless of what's stored in the database, and trust Railway's
  * TLS-terminating proxy so WordPress knows the outward-facing request is
  * HTTPS. Re-generated on every container start by fix-siteurl.php -- do
  * not hand-edit, it will be replaced. */
-if (!defined('WP_HOME')) {
-    define('WP_HOME', 'https://{$domain}');
-}
-if (!defined('WP_SITEURL')) {
-    define('WP_SITEURL', 'https://{$domain}');
-}
+define('WP_HOME', 'https://{$domain}');
+define('WP_SITEURL', 'https://{$domain}');
 if (isset(\$_SERVER['HTTP_X_FORWARDED_PROTO']) && \$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
     \$_SERVER['HTTPS'] = 'on';
 }
-{$markerEnd}
 
 PHP;
 
-$stopMarker = "/* That's all, stop editing!";
 if (strpos($content, $stopMarker) !== false) {
     $content = str_replace($stopMarker, $inject . $stopMarker, $content);
 } else {
