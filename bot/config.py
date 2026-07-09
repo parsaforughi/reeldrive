@@ -199,15 +199,13 @@ class Settings(BaseSettings):
     pro_toman_monthly: int = 98000
     pro_subscription_days: int = 30
 
-    # BalePay via WooCommerce (card-to-card / Bale wallet online checkout)
-    woocommerce_base_url: str = ""
-    woocommerce_webhook_secret: str = ""
-    woocommerce_product_ids: str = ""  # "30:12,60:13,90:14,180:15,365:16"
-    woocommerce_paid_statuses: str = "completed,processing"
-
-    @property
-    def balepay_enabled(self) -> bool:
-        return bool(self.woocommerce_base_url and self.woocommerce_webhook_secret)
+    # Following-list: must join these channels + pay per page (manual card-to-card)
+    following_required_channels: str = (
+        "@abolfazl_nouriii,@reeldirve,@license_club"
+    )
+    following_page_price_toman: int = 15000
+    following_page_count: int = 3
+    admin_telegram_ids: str = "99686187"
 
     @property
     def shop_webapp_url(self) -> str:

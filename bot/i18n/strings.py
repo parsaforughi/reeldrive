@@ -491,6 +491,97 @@ Coming soon: unfollowers list.""",
         "en": "Invalid username.",
         "ar": "اسم المستخدم غير صالح.",
     },
+    "following_join_required": {
+        "fa": (
+            "برای دیدن لیست فالووینگ، اول باید عضو این کانال‌ها بشی:\n\n"
+            "{channels}\n\n"
+            "بعد از عضویت، دکمه «بررسی مجدد» رو بزن."
+        ),
+        "en": (
+            "To view following-lists, first join these channels:\n\n"
+            "{channels}\n\n"
+            "Then tap \"Recheck\"."
+        ),
+        "ar": (
+            "لعرض قوائم المتابَعين، انضم أولاً إلى هذه القنوات:\n\n"
+            "{channels}\n\n"
+            "ثم اضغط \"إعادة الفحص\"."
+        ),
+    },
+    "following_still_missing": {
+        "fa": "هنوز عضو این کانال‌ها نیستی:\n\n{channels}\n\nبعد از عضویت دوباره امتحان کن.",
+        "en": "You're still not a member of:\n\n{channels}\n\nJoin then try again.",
+        "ar": "لا تزال غير منضم إلى:\n\n{channels}\n\nانضم ثم حاول مجدداً.",
+    },
+    "following_recheck_button": {
+        "fa": "✅ بررسی مجدد عضویت",
+        "en": "✅ Recheck membership",
+        "ar": "✅ إعادة فحص العضوية",
+    },
+    "following_pages_intro": {
+        "fa": (
+            "➡️ @{username} در مجموع {count} نفر رو فالو کرده.\n"
+            "لیست در {pages} صفحه در دسترسه — هر صفحه {price} تومان (کارت به کارت).\n\n"
+            "صفحه‌ای رو انتخاب کن:"
+        ),
+        "en": (
+            "➡️ @{username} follows {count} accounts in total.\n"
+            "The list is split into {pages} pages — each page costs {price} Toman.\n\n"
+            "Pick a page:"
+        ),
+        "ar": (
+            "➡️ @{username} يتابع {count} حساباً إجمالاً.\n"
+            "القائمة مقسمة إلى {pages} صفحات — كل صفحة بسعر {price} تومان.\n\n"
+            "اختر صفحة:"
+        ),
+    },
+    "following_pages_menu": {
+        "fa": "لیست فالووینگ @{username} — صفحه‌ای رو انتخاب کن:",
+        "en": "Following list of @{username} — pick a page:",
+        "ar": "قائمة متابَعي @{username} — اختر صفحة:",
+    },
+    "following_session_expired": {
+        "fa": "این جلسه منقضی شده. دوباره /following رو بزن.",
+        "en": "This session expired. Run /following again.",
+        "ar": "انتهت هذه الجلسة. نفّذ /following مجدداً.",
+    },
+    "following_page_header": {
+        "fa": "➡️ صفحه {page}/{total} فالووینگ @{username} ({count} نفر)",
+        "en": "➡️ Page {page}/{total} of @{username}'s following ({count})",
+        "ar": "➡️ الصفحة {page}/{total} من متابَعي @{username} ({count})",
+    },
+    "following_pay_prompt": {
+        "fa": (
+            "🔒 صفحه {page} فالووینگ @{username} قفل است.\n\n"
+            "برای باز شدنش {price} تومان کارت‌به‌کارت واریز کن و رسیدش رو برای پشتیبانی بفرست. "
+            "بعد از تأیید، دسترسی برات باز میشه."
+        ),
+        "en": (
+            "🔒 Page {page} of @{username}'s following is locked.\n\n"
+            "Send {price} Toman via card-to-card to support to unlock it. "
+            "Access is granted after manual confirmation."
+        ),
+        "ar": (
+            "🔒 الصفحة {page} من متابَعي @{username} مقفلة.\n\n"
+            "أرسل {price} تومان عبر التحويل البنكي للدعم لفتحها. "
+            "سيتم منح الوصول بعد التأكيد اليدوي."
+        ),
+    },
+    "following_pay_button": {
+        "fa": "💳 پرداخت {price} تومان (کارت به کارت)",
+        "en": "💳 Pay {price} Toman (card-to-card)",
+        "ar": "💳 ادفع {price} تومان (تحويل بنكي)",
+    },
+    "following_back_button": {
+        "fa": "◀️ بازگشت به صفحات",
+        "en": "◀️ Back to pages",
+        "ar": "◀️ العودة إلى الصفحات",
+    },
+    "following_page_unlocked_notify": {
+        "fa": "✅ صفحه {page} فالووینگ @{username} برات باز شد! برو /following بزن و اون صفحه رو ببین.",
+        "en": "✅ Page {page} of @{username}'s following is now unlocked! Run /following to view it.",
+        "ar": "✅ تم فتح الصفحة {page} من متابَعي @{username}! نفّذ /following لعرضها.",
+    },
     "stories_count": {
         "fa": "📖 {count} استوری",
         "en": "📖 {count} stories",
@@ -595,25 +686,6 @@ Coming soon: unfollowers list.""",
         "ar": (
             "🎉 <b>تم تفعيل Pro!</b>\n\n"
             "⭐ الدفع: {stars} نجمة\n"
-            "📅 الصلاحية: {days} يوماً (حتى {date})"
-        ),
-    },
-    "pro_payment_ok_balepay": {
-        "fa": (
-            "🎉 <b>Pro فعال شد!</b>\n\n"
-            "💳 پرداخت: بله‌پی\n"
-            "📅 اعتبار: {days} روز (تا {date})\n\n"
-            "ممنون از حمایتت!"
-        ),
-        "en": (
-            "🎉 <b>Pro activated!</b>\n\n"
-            "💳 Paid via BalePay\n"
-            "📅 Valid: {days} days (until {date})\n\n"
-            "Thank you!"
-        ),
-        "ar": (
-            "🎉 <b>تم تفعيل Pro!</b>\n\n"
-            "💳 الدفع عبر BalePay\n"
             "📅 الصلاحية: {days} يوماً (حتى {date})"
         ),
     },

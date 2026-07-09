@@ -42,7 +42,7 @@ async def receive_username(message: Message, state: FSMContext) -> None:
         await state.clear()
         from bot.handlers.messages import download_from_text
 
-        await download_from_text(message, text)
+        await download_from_text(message, text, state)
         return
 
     username = text.lstrip("@").lower()

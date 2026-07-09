@@ -1,7 +1,6 @@
 """FastAPI admin dashboard for Reeldrive."""
 
 import asyncio
-import base64
 import hashlib
 import hmac
 import json
@@ -26,19 +25,16 @@ from bot.db.migrate import maybe_migrate_sqlite_to_postgres
 from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.handlers.payments import PRO_PAYLOAD, _payload
 from bot.i18n import require_user_lang, t
-from bot.services.analytics import log_activity
 from bot.services.apify import apify_downloader
 from bot.services.pricing import (
     is_allowed_plan_days,
     plan_by_days,
     plan_stars,
     shop_plans_payload,
-    woocommerce_checkout_url,
 )
 from bot.services.client_pool import client_pool
 from bot.services.subscription import (
     get_bot_user,
-    grant_pro,
     is_ai_unlimited,
     is_plan_active,
     subscription_status_line,
@@ -393,22 +389,16 @@ async def api_shop_info(body: WebAppBody):
     )
     support = settings.payment_support_username.lstrip("@")
 
-    plans = shop_plans_payload()
-    if settings.balepay_enabled:
-        for plan in plans:
-            plan["balepay_url"] = woocommerce_checkout_url(plan["days"], telegram_id)
-
     return {
         "telegram_id": telegram_id,
         "bot_name": settings.bot_name,
         "pro_stars_monthly": settings.pro_stars_price,
         "pro_toman_monthly": settings.pro_toman_monthly,
-        "plans": plans,
+        "plans": shop_plans_payload(),
         "pro_active": pro_active,
         "status_html": f"<strong>وضعیت:</strong> {status}",
         "card_url": f"https://t.me/{support}",
         "stars_enabled": settings.stars_payment_enabled,
-        "balepay_enabled": settings.balepay_enabled,
     }
 
 
@@ -454,135 +444,6 @@ async def api_shop_invoice(body: WebAppInvoiceBody):
         await bot.session.close()
 
     return {"invoice_link": link, "stars": stars, "days": body.days, "label": plan["label"] if plan else ""}
-
-
-async def _woocommerce_order_already_granted(order_id: int) -> bool:
-    marker = f"order:{order_id}"
-    async with async_session() as session:
-        existing = await session.scalar(
-            select(ActivityLog.id)
-            .where(
-                ActivityLog.event_type == "payment_balepay",
-                ActivityLog.detail == marker,
-            )
-            .limit(1)
-        )
-    return existing is not None
-
-
-@app.post("/api/webhook/woocommerce")
-async def woocommerce_webhook(request: Request):
-    """WooCommerce 'order updated' webhook — activates Pro on BalePay payment.
-
-    Configure in WP Admin → WooCommerce → Settings → Advanced → Webhooks:
-    topic "Order updated", delivery URL = this endpoint, secret =
-    WOOCOMMERCE_WEBHOOK_SECRET. A small snippet on the WooCommerce side must
-    copy the telegram_id/days query params (from the checkout link built by
-    woocommerce_checkout_url) into order meta_data.
-    """
-    secret = settings.woocommerce_webhook_secret
-    if not secret:
-        raise HTTPException(status_code=503, detail="BalePay webhook not configured")
-
-    raw_body = await request.body()
-    signature = request.headers.get("x-wc-webhook-signature", "")
-    expected = base64.b64encode(
-        hmac.new(secret.encode(), raw_body, hashlib.sha256).digest()
-    ).decode()
-    if not signature or not hmac.compare_digest(signature, expected):
-        logger.warning(
-            "WC webhook signature mismatch: header_present=%s secret_len=%d "
-            "body_len=%d all_headers=%r",
-            bool(signature),
-            len(secret),
-            len(raw_body),
-            dict(request.headers),
-        )
-        raise HTTPException(status_code=401, detail="Invalid signature")
-
-    try:
-        payload = json.loads(raw_body) if raw_body else {}
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
-
-    # WooCommerce sends an empty ping on webhook creation — ack without acting.
-    order_id = payload.get("id") if isinstance(payload, dict) else None
-    if not order_id:
-        return {"ok": True, "skipped": "no_order"}
-
-    status = str(payload.get("status") or "").lower()
-    paid_statuses = {
-        s.strip() for s in settings.woocommerce_paid_statuses.split(",") if s.strip()
-    }
-    if status not in paid_statuses:
-        return {"ok": True, "skipped": f"status={status or 'unknown'}"}
-
-    meta_list = payload.get("meta_data") or []
-    meta = {
-        m.get("key"): m.get("value")
-        for m in meta_list
-        if isinstance(m, dict) and m.get("key")
-    }
-    telegram_id_raw = meta.get("telegram_id") or meta.get("_telegram_id")
-    days_raw = meta.get("days") or meta.get("_days")
-
-    if not telegram_id_raw or not days_raw:
-        logger.warning(
-            "WooCommerce webhook order=%s missing telegram_id/days in meta_data",
-            order_id,
-        )
-        return {"ok": True, "skipped": "missing_meta"}
-
-    try:
-        telegram_id = int(telegram_id_raw)
-        days = int(days_raw)
-    except (TypeError, ValueError):
-        logger.warning(
-            "WooCommerce webhook order=%s bad telegram_id/days: %r / %r",
-            order_id,
-            telegram_id_raw,
-            days_raw,
-        )
-        return {"ok": True, "skipped": "bad_meta"}
-
-    if not is_allowed_plan_days(days):
-        logger.warning("WooCommerce webhook order=%s invalid days=%s", order_id, days)
-        return {"ok": True, "skipped": "bad_days"}
-
-    if await _woocommerce_order_already_granted(order_id):
-        return {"ok": True, "skipped": "already_processed"}
-
-    expires = await grant_pro(telegram_id, days=days)
-    await log_activity(
-        telegram_id,
-        "payment_balepay",
-        detail=f"order:{order_id}",
-        meta={"plan": "pro", "days": days, "order_id": order_id, "toman": payload.get("total")},
-    )
-
-    lang = await require_user_lang(telegram_id)
-    bot = Bot(token=settings.telegram_bot_token)
-    try:
-        await bot.send_message(
-            telegram_id,
-            t(
-                "pro_payment_ok_balepay",
-                lang,
-                days=days,
-                date=expires.strftime("%Y-%m-%d %H:%M"),
-            ),
-        )
-    except Exception:
-        logger.warning(
-            "Could not notify telegram_id=%s after BalePay payment (order=%s)",
-            telegram_id,
-            order_id,
-            exc_info=True,
-        )
-    finally:
-        await bot.session.close()
-
-    return {"ok": True, "granted": True, "telegram_id": telegram_id, "days": days}
 
 
 @app.get("/")

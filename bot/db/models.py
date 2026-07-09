@@ -61,3 +61,16 @@ class WatchlistEntry(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
     instagram_username: Mapped[str] = mapped_column(String(64))
     added_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class FollowingUnlock(Base):
+    """Paid unlock of one page of another account's following-list, per user."""
+
+    __tablename__ = "following_unlocks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    target_username: Mapped[str] = mapped_column(String(64), index=True)
+    page_number: Mapped[int] = mapped_column(Integer)
+    granted_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    unlocked_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

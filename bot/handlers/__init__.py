@@ -1,5 +1,6 @@
 from aiogram import Router
 
+from bot.handlers.admin import router as admin_router
 from bot.handlers.commands import router as commands_router
 from bot.handlers.connect import router as connect_router
 from bot.handlers.language import router as language_router
@@ -13,6 +14,7 @@ from bot.handlers.watchlist import router as watchlist_router
 def setup_routers() -> Router:
     root = Router()
     root.include_router(language_router)
+    root.include_router(admin_router)
     root.include_router(commands_router)
     root.include_router(connect_router)
     root.include_router(payments_router)

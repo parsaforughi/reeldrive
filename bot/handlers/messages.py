@@ -9,12 +9,12 @@ from bot.config import settings
 from bot.handlers.download_helpers import (
     cleanup,
     run_sync,
-    send_following,
     send_media_result,
     send_profile,
     send_stories,
     send_zip,
 )
+from bot.handlers.following_shared import guard_channels, start_following_lookup
 from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb
 from bot.services.subscription import has_direct_link_download_access
@@ -23,7 +23,6 @@ from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.time_utils import user_display_label
 from bot.services.direct_download import direct_download_ready, download_media_url
-from bot.services.following import fetch_following
 from bot.services.instagram import instagram_downloader
 from bot.services.verification import get_connection
 from bot.states import ConnectStates, SearchStates
@@ -42,7 +41,7 @@ def _paywall_text(lang: str) -> str:
     )
 
 
-async def download_from_text(message: Message, text: str) -> None:
+async def download_from_text(message: Message, text: str, state: FSMContext | None = None) -> None:
     """Direct download from a message (also used when user sends link during /connect)."""
     uid = message.from_user.id
     lang = await require_user_lang(uid)
@@ -61,7 +60,7 @@ async def download_from_text(message: Message, text: str) -> None:
         return
     status = await message.answer(await tu(uid, "processing"))
     try:
-        await _dispatch(message, status, parsed, lang)
+        await _dispatch(message, status, parsed, lang, state)
     except ValueError as exc:
         logger.warning("User request failed: %s", exc)
         await status.edit_text(friendly_error(exc, lang))
@@ -115,10 +114,13 @@ async def handle_text(message: Message, state: FSMContext) -> None:
         )
         return
 
+    if parsed.kind == "following" and not await guard_channels(message, uid):
+        return
+
     status = await message.answer(await tu(uid, "processing"))
 
     try:
-        await _dispatch(message, status, parsed, lang)
+        await _dispatch(message, status, parsed, lang, state)
     except ValueError as exc:
         logger.warning("User request failed: %s", exc)
         await status.edit_text(friendly_error(exc, lang))
@@ -131,7 +133,11 @@ async def handle_text(message: Message, state: FSMContext) -> None:
 
 
 async def _dispatch(
-    message: Message, status: Message, cmd: ParsedCommand, lang: str
+    message: Message,
+    status: Message,
+    cmd: ParsedCommand,
+    lang: str,
+    state: FSMContext | None = None,
 ) -> None:
     uid = message.from_user.id
     if cmd.kind == "media_url" and cmd.url:
@@ -178,12 +184,11 @@ async def _dispatch(
         return
 
     if cmd.kind == "following":
-        users = await fetch_following(user)
         await status.delete()
-        if not users:
-            await message.answer(await tu(uid, "no_following"))
+        if state is None:
+            await message.answer(await tu(uid, "error_generic"))
             return
-        await send_following(message, user, users)
+        await start_following_lookup(message, state, user)
         return
 
     if cmd.kind == "highlights_list":
