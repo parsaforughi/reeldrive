@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
@@ -126,23 +127,27 @@ async def cancel_following(callback: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(F.data == "following:recheck")
 async def recheck_following_join(callback: CallbackQuery, state: FSMContext) -> None:
     uid = callback.from_user.id
-    missing = await missing_channels(callback.bot, uid)
-    if missing:
-        lang = await require_user_lang(uid)
-        from bot.keyboards import following_join_kb
+    try:
+        missing = await missing_channels(callback.bot, uid)
+        if missing:
+            lang = await require_user_lang(uid)
+            from bot.keyboards import following_join_kb
 
-        await callback.message.edit_text(
-            await tu(
-                uid,
-                "following_still_missing",
-                channels="\n".join(f"• {c}" for c in missing),
-            ),
-            reply_markup=following_join_kb(missing, lang),
-        )
-        await callback.answer()
-        return
-    await state.set_state(FollowingStates.waiting_username)
-    await callback.message.edit_text(await tu(uid, "following_ask_username"))
+            await callback.message.edit_text(
+                await tu(
+                    uid,
+                    "following_still_missing",
+                    channels="\n".join(f"• {c}" for c in missing),
+                ),
+                reply_markup=following_join_kb(missing, lang),
+            )
+            await callback.answer()
+            return
+        await state.set_state(FollowingStates.waiting_username)
+        await callback.message.edit_text(await tu(uid, "following_ask_username"))
+    except TelegramBadRequest as exc:
+        if "message is not modified" not in str(exc):
+            raise
     await callback.answer()
 
 
