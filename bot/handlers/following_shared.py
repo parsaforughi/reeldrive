@@ -14,6 +14,7 @@ from bot.i18n import require_user_lang, tu
 from bot.keyboards import following_join_kb, following_pages_kb
 from bot.services.following import fetch_following
 from bot.services.following_access import (
+    free_page_count,
     missing_channels,
     page_count,
     paginate,
@@ -64,6 +65,7 @@ async def start_following_lookup(
             username=username,
             count=len(users),
             pages=page_count(),
+            free=free_page_count(),
             price=f"{settings.following_page_price_toman:,}",
         ),
         reply_markup=following_pages_kb(unlocked, lang),

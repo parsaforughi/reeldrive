@@ -104,7 +104,9 @@ def _following_lines(users: list[FollowUser]) -> list[str]:
         badge = " ✓" if u.is_verified else ""
         lock = " 🔒" if u.is_private else ""
         name = f" — {escape(u.full_name)}" if u.full_name else ""
-        lines.append(f"• @{escape(u.username)}{badge}{lock}{name}")
+        username = escape(u.username)
+        link = f'<a href="https://instagram.com/{username}">{username}</a>'
+        lines.append(f"• {link}{badge}{lock}{name}")
     return lines
 
 

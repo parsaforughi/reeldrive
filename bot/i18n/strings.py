@@ -521,17 +521,17 @@ Coming soon: unfollowers list.""",
     "following_pages_intro": {
         "fa": (
             "➡️ @{username} در مجموع {count} نفر رو فالو کرده.\n"
-            "لیست در {pages} صفحه در دسترسه — هر صفحه {price} تومان (کارت به کارت).\n\n"
+            "لیست در {pages} صفحه در دسترسه — {free} صفحه اول رایگانه، بقیه هر صفحه {price} تومان (کارت به کارت).\n\n"
             "صفحه‌ای رو انتخاب کن:"
         ),
         "en": (
             "➡️ @{username} follows {count} accounts in total.\n"
-            "The list is split into {pages} pages — each page costs {price} Toman.\n\n"
+            "The list is split into {pages} pages — the first {free} are free, the rest cost {price} Toman each.\n\n"
             "Pick a page:"
         ),
         "ar": (
             "➡️ @{username} يتابع {count} حساباً إجمالاً.\n"
-            "القائمة مقسمة إلى {pages} صفحات — كل صفحة بسعر {price} تومان.\n\n"
+            "القائمة مقسمة إلى {pages} صفحات — أول {free} صفحات مجانية، والباقي بسعر {price} تومان لكل صفحة.\n\n"
             "اختر صفحة:"
         ),
     },

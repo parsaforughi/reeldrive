@@ -188,7 +188,7 @@ class Settings(BaseSettings):
     bridge_poll_interval_seconds: float = 2.0
     bridge_poll_idle_seconds: float = 10.0
     max_zip_posts: int = 100
-    max_following_list: int = 200
+    max_following_list: int = 10000  # Instagram itself caps following at ~7500
 
     stars_payment_enabled: bool = True
     free_direct_downloads: int = 3
@@ -199,12 +199,13 @@ class Settings(BaseSettings):
     pro_toman_monthly: int = 98000
     pro_subscription_days: int = 30
 
-    # Following-list: must join these channels + pay per page (manual card-to-card)
+    # Following-list: must join these channels; first N pages free, rest paid (manual card-to-card)
     following_required_channels: str = (
         "@abolfazl_nouriii,@reeldirve,@license_club"
     )
     following_page_price_toman: int = 15000
     following_page_count: int = 3
+    following_free_pages: int = 2
     admin_telegram_ids: str = "99686187"
 
     @property

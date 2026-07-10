@@ -72,6 +72,11 @@ def page_count() -> int:
     return max(1, settings.following_page_count)
 
 
+def free_page_count() -> int:
+    """First N pages are unlocked just by joining the required channels."""
+    return max(0, min(settings.following_free_pages, page_count()))
+
+
 def paginate(users: list[FollowUser]) -> list[list[FollowUser]]:
     n = page_count()
     total = len(users)
@@ -86,6 +91,8 @@ def paginate(users: list[FollowUser]) -> list[list[FollowUser]]:
 
 
 async def is_page_unlocked(telegram_id: int, target_username: str, page_number: int) -> bool:
+    if page_number <= free_page_count():
+        return True
     async with async_session() as session:
         existing = await session.scalar(
             select(FollowingUnlock.id).where(
@@ -98,6 +105,7 @@ async def is_page_unlocked(telegram_id: int, target_username: str, page_number: 
 
 
 async def unlocked_pages(telegram_id: int, target_username: str) -> set[int]:
+    free = set(range(1, free_page_count() + 1))
     async with async_session() as session:
         rows = await session.scalars(
             select(FollowingUnlock.page_number).where(
@@ -105,7 +113,7 @@ async def unlocked_pages(telegram_id: int, target_username: str) -> set[int]:
                 FollowingUnlock.target_username == target_username,
             )
         )
-    return set(rows.all())
+    return free | set(rows.all())
 
 
 async def unlock_page(
