@@ -56,6 +56,14 @@ async def fetch_following(username: str, limit: int | None = None) -> list[Follo
         logger.warning("Apify following fetch failed for @%s", username, exc_info=True)
         raise ValueError("خطای Apify در دریافت فالووینگ / Apify following fetch failed") from exc
 
+    logger.info("Apify following for @%s: %d raw item(s)", username, len(items))
     users = [u for item in items if (u := _parse_item(item))]
+    if items and not users:
+        logger.warning(
+            "Apify following for @%s: 0/%d items parsed — unexpected item shape, first item keys: %s",
+            username,
+            len(items),
+            sorted(items[0].keys()) if isinstance(items[0], dict) else type(items[0]),
+        )
     users.sort(key=lambda u: u.username)
     return users
