@@ -96,7 +96,7 @@ class Settings(BaseSettings):
 
     apify_token: str = ""
     apify_actor: str = "apify~instagram-scraper"
-    apify_following_actor: str = "datadoping~instagram-following-scraper"
+    apify_following_actor: str = "scraping_solutions~instagram-scraper-followers-following-no-cookies"
     apify_timeout_seconds: int = 120
 
     instagram_username: str = ""
