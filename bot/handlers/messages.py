@@ -184,11 +184,11 @@ async def _dispatch(
         return
 
     if cmd.kind == "following":
-        await status.delete()
         if state is None:
-            await message.answer(await tu(uid, "error_generic"))
+            await status.edit_text(await tu(uid, "error_generic"))
             return
         await start_following_lookup(message, state, user)
+        await status.delete()
         return
 
     if cmd.kind == "highlights_list":

@@ -1,11 +1,16 @@
-"""Following-list lookup: Apify first (no IG session needed), instagrapi fallback."""
+"""Following-list lookup: Apify only.
 
-import asyncio
+Deliberately does not fall back to instagrapi — that would run through the
+shared bridge Instagram session used for DM forwarding and other features,
+risking a rate-limit/challenge on that account. If Apify isn't configured or
+fails, the lookup fails outright instead.
+"""
+
 import logging
 
 from bot.config import settings
 from bot.services.apify import apify_downloader
-from bot.services.instagram import FollowUser, instagram_downloader
+from bot.services.instagram import FollowUser
 
 logger = logging.getLogger(__name__)
 
@@ -38,24 +43,19 @@ def _parse_item(item: dict) -> FollowUser | None:
     )
 
 
-async def _fetch_via_apify(username: str, limit: int) -> list[FollowUser]:
-    items = await apify_downloader.fetch_following(username, limit)
+async def fetch_following(username: str, limit: int | None = None) -> list[FollowUser]:
+    if not apify_downloader.ready:
+        raise ValueError("Apify تنظیم نشده / Apify not configured")
+
+    limit = limit or settings.max_following_list
+    try:
+        items = await apify_downloader.fetch_following(username, limit)
+    except ValueError:
+        raise
+    except Exception as exc:
+        logger.warning("Apify following fetch failed for @%s", username, exc_info=True)
+        raise ValueError("خطای Apify در دریافت فالووینگ / Apify following fetch failed") from exc
+
     users = [u for item in items if (u := _parse_item(item))]
     users.sort(key=lambda u: u.username)
     return users
-
-
-async def fetch_following(username: str, limit: int | None = None) -> list[FollowUser]:
-    limit = limit or settings.max_following_list
-
-    if apify_downloader.ready:
-        try:
-            return await _fetch_via_apify(username, limit)
-        except Exception:
-            logger.warning(
-                "Apify following fetch failed for @%s, falling back to instagrapi",
-                username,
-                exc_info=True,
-            )
-
-    return await asyncio.to_thread(instagram_downloader.get_following, username, limit)
