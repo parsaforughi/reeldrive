@@ -149,20 +149,19 @@ class ApifyDownloader:
             source_url=normalized,
         )
 
-    async def fetch_following(self, username: str, limit: int = 200) -> list[dict]:
+    async def fetch_following(self, username: str, limit: int = 500) -> list[dict]:
         """Following list via Apify (no IG login/session needed).
 
-        Uses scraping_solutions/instagram-scraper-followers-following-no-cookies
-        (or whatever APIFY_FOLLOWING_ACTOR is set to). Public accounts only.
+        Uses datadoping/instagram-following-scraper (or whatever
+        APIFY_FOLLOWING_ACTOR is set to). Public accounts only.
         """
         if not self.ready:
             raise ValueError("Apify not configured")
 
         handle = username.strip().lstrip("@").lower()
         payload = {
-            "Account": [handle],
-            "resultsLimit": max(25, min(int(limit or 200), 500000)),
-            "dataToScrape": "Followings",
+            "usernames": [handle],
+            "max_count": max(50, int(limit or 500)),
         }
         return await self._run_actor(payload, actor=settings.apify_following_actor)
 
