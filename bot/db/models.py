@@ -64,7 +64,12 @@ class WatchlistEntry(Base):
 
 
 class FollowingUnlock(Base):
-    """Paid unlock of one page of another account's following-list, per user."""
+    """Records that a user has unlocked one target account's following-list
+    (via free quota or a spent token) — access persists once granted.
+
+    ``page_number`` is a vestigial column from an earlier pagination-based
+    design; it's always written as 1 and never read.
+    """
 
     __tablename__ = "following_unlocks"
 
@@ -74,3 +79,29 @@ class FollowingUnlock(Base):
     page_number: Mapped[int] = mapped_column(Integer)
     granted_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     unlocked_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class FollowingCredit(Base):
+    """Remaining paid following-lookup tokens per user."""
+
+    __tablename__ = "following_credits"
+
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    balance: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FollowingCreditGrant(Base):
+    """Audit trail of admin-confirmed token purchases; count also drives
+    which support card is currently shown to new buyers (rotated every
+    ``settings.following_cards_rotate_every`` grants)."""
+
+    __tablename__ = "following_credit_grants"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    tokens: Mapped[int] = mapped_column(Integer)
+    granted_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    granted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

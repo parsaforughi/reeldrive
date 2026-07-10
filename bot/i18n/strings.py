@@ -518,69 +518,62 @@ Coming soon: unfollowers list.""",
         "en": "✅ Recheck membership",
         "ar": "✅ إعادة فحص العضوية",
     },
-    "following_pages_intro": {
+    "following_need_tokens": {
         "fa": (
-            "➡️ @{username} در مجموع {count} نفر رو فالو کرده.\n"
-            "لیست در {pages} صفحه در دسترسه — {free} صفحه اول رایگانه، بقیه هر صفحه {price} تومان (کارت به کارت).\n\n"
-            "صفحه‌ای رو انتخاب کن:"
+            "🔒 پیج‌های رایگانت تموم شده — برای دیدن فالووینگ @{username} باید توکن بخری.\n\n"
+            "چند تا پیج می‌خوای بخری؟ یه عدد بفرست (مثلاً ۱، ۳، ۵):"
         ),
         "en": (
-            "➡️ @{username} follows {count} accounts in total.\n"
-            "The list is split into {pages} pages — the first {free} are free, the rest cost {price} Toman each.\n\n"
-            "Pick a page:"
+            "🔒 Your free pages are used up — you need a token to view @{username}'s following.\n\n"
+            "How many pages do you want to buy? Send a number (e.g. 1, 3, 5):"
         ),
         "ar": (
-            "➡️ @{username} يتابع {count} حساباً إجمالاً.\n"
-            "القائمة مقسمة إلى {pages} صفحات — أول {free} صفحات مجانية، والباقي بسعر {price} تومان لكل صفحة.\n\n"
-            "اختر صفحة:"
+            "🔒 انتهت صفحاتك المجانية — تحتاج إلى رمز لعرض متابَعي @{username}.\n\n"
+            "كم صفحة تريد شراءها؟ أرسل رقماً (مثلاً ۱، ۳، ۵):"
         ),
     },
-    "following_pages_menu": {
-        "fa": "لیست فالووینگ @{username} — صفحه‌ای رو انتخاب کن:",
-        "en": "Following list of @{username} — pick a page:",
-        "ar": "قائمة متابَعي @{username} — اختر صفحة:",
+    "following_invalid_token_count": {
+        "fa": "عدد نامعتبره. یک عدد بین ۱ تا ۵۰ بفرست.",
+        "en": "Invalid number. Send a number between 1 and 50.",
+        "ar": "رقم غير صالح. أرسل رقماً بين ۱ و ۵۰.",
     },
-    "following_session_expired": {
-        "fa": "این جلسه منقضی شده. دوباره /following رو بزن.",
-        "en": "This session expired. Run /following again.",
-        "ar": "انتهت هذه الجلسة. نفّذ /following مجدداً.",
-    },
-    "following_page_header": {
-        "fa": "➡️ صفحه {page}/{total} فالووینگ @{username} ({count} نفر)",
-        "en": "➡️ Page {page}/{total} of @{username}'s following ({count})",
-        "ar": "➡️ الصفحة {page}/{total} من متابَعي @{username} ({count})",
-    },
-    "following_pay_prompt": {
+    "following_token_pay_prompt": {
         "fa": (
-            "🔒 صفحه {page} فالووینگ @{username} قفل است.\n\n"
-            "برای باز شدنش {price} تومان کارت‌به‌کارت واریز کن و رسیدش رو برای پشتیبانی بفرست. "
-            "بعد از تأیید، دسترسی برات باز میشه."
+            "برای {count} پیج باید {amount} تومان به شماره کارت زیر واریز کنی:\n\n"
+            "💳 <code>{card}</code>\n"
+            "به نام: {holder}\n\n"
+            "⚠️ مبلغ رو دقیقاً همین‌طور که نوشته شده واریز کن (تا آخرین تومانش) — این عدد مخصوص خودته.\n\n"
+            "بعد از واریز، رسیدش رو برای پشتیبانی بفرست تا توکن‌هات فعال بشه."
         ),
         "en": (
-            "🔒 Page {page} of @{username}'s following is locked.\n\n"
-            "Send {price} Toman via card-to-card to support to unlock it. "
-            "Access is granted after manual confirmation."
+            "For {count} page(s) you need to transfer {amount} Toman to this card:\n\n"
+            "💳 <code>{card}</code>\n"
+            "Holder: {holder}\n\n"
+            "⚠️ Transfer the exact amount shown — it's unique to you.\n\n"
+            "After paying, send the receipt to support to activate your tokens."
         ),
         "ar": (
-            "🔒 الصفحة {page} من متابَعي @{username} مقفلة.\n\n"
-            "أرسل {price} تومان عبر التحويل البنكي للدعم لفتحها. "
-            "سيتم منح الوصول بعد التأكيد اليدوي."
+            "مقابل {count} صفحة، حوّل {amount} تومان إلى هذه البطاقة:\n\n"
+            "💳 <code>{card}</code>\n"
+            "الاسم: {holder}\n\n"
+            "⚠️ حوّل المبلغ بالضبط كما هو موضح — إنه فريد لك.\n\n"
+            "بعد الدفع أرسل الإيصال للدعم لتفعيل الرموز."
         ),
     },
-    "following_pay_button": {
-        "fa": "💳 پرداخت {price} تومان (کارت به کارت)",
-        "en": "💳 Pay {price} Toman (card-to-card)",
-        "ar": "💳 ادفع {price} تومان (تحويل بنكي)",
+    "following_token_pay_button": {
+        "fa": "📨 ارسال رسید به پشتیبانی",
+        "en": "📨 Send receipt to support",
+        "ar": "📨 إرسال الإيصال للدعم",
     },
-    "following_back_button": {
-        "fa": "◀️ بازگشت به صفحات",
-        "en": "◀️ Back to pages",
-        "ar": "◀️ العودة إلى الصفحات",
+    "following_tokens_granted_notify": {
+        "fa": "✅ {count} تا توکن برات فعال شد (مجموع: {balance}). حالا /following رو بزن و اسم پیج مورد نظرت رو بفرست.",
+        "en": "✅ {count} token(s) activated (balance: {balance}). Run /following now and send the page you want.",
+        "ar": "✅ تم تفعيل {count} رمز (الرصيد: {balance}). نفّذ /following الآن وأرسل الصفحة المطلوبة.",
     },
-    "following_page_unlocked_notify": {
-        "fa": "✅ صفحه {page} فالووینگ @{username} برات باز شد! برو /following بزن و اون صفحه رو ببین.",
-        "en": "✅ Page {page} of @{username}'s following is now unlocked! Run /following to view it.",
-        "ar": "✅ تم فتح الصفحة {page} من متابَعي @{username}! نفّذ /following لعرضها.",
+    "following_access_status": {
+        "fa": "🎁 پیج رایگان باقی‌مونده: {free} | 🪙 توکن باقی‌مونده: {tokens}",
+        "en": "🎁 Free pages left: {free} | 🪙 Tokens left: {tokens}",
+        "ar": "🎁 الصفحات المجانية المتبقية: {free} | 🪙 الرموز المتبقية: {tokens}",
     },
     "stories_count": {
         "fa": "📖 {count} استوری",

@@ -11,3 +11,4 @@ class SearchStates(StatesGroup):
 
 class FollowingStates(StatesGroup):
     waiting_username = State()
+    waiting_token_count = State()

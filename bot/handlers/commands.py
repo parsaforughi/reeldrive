@@ -7,7 +7,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from bot.config import settings
-from bot.handlers.download_helpers import send_following_page
 from bot.handlers.following_shared import guard_channels, start_following_lookup
 from bot.handlers.status_helpers import (
     build_feed_text,
@@ -16,18 +15,13 @@ from bot.handlers.status_helpers import (
     build_status_text,
 )
 from bot.i18n import friendly_error, get_user_lang, require_user_lang, t, tu
-from bot.keyboards import (
-    following_cancel_kb,
-    following_pages_kb,
-    following_pay_kb,
-    language_kb,
-)
+from bot.keyboards import following_cancel_kb, following_token_pay_kb, language_kb
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.services.following_access import (
+    current_support_card,
     missing_channels,
-    page_count,
-    unlocked_pages,
+    token_price,
 )
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.verification import get_connection
@@ -186,74 +180,42 @@ async def receive_following_username(message: Message, state: FSMContext) -> Non
     await status.delete()
 
 
-@router.callback_query(F.data.startswith("following:page:"))
-async def view_following_page(callback: CallbackQuery, state: FSMContext) -> None:
-    uid = callback.from_user.id
+@router.message(StateFilter(FollowingStates.waiting_token_count))
+async def receive_token_count(message: Message, state: FSMContext) -> None:
+    uid = message.from_user.id
     lang = await require_user_lang(uid)
-    await callback.answer()
+    text = (message.text or "").strip()
 
-    try:
-        page_number = int(callback.data.rsplit(":", 1)[-1])
-    except ValueError:
+    if not text.isdigit() or not (1 <= int(text) <= 50):
+        await message.answer(await tu(uid, "following_invalid_token_count"))
         return
 
-    data = await state.get_data()
-    username = data.get("following_username")
-    pages = data.get("following_pages")
-    if not username or pages is None:
-        await callback.message.answer(await tu(uid, "following_session_expired"))
-        return
-
-    if not await guard_channels(callback.message, uid):
-        return
-
-    from bot.services.following_access import is_page_unlocked
-
-    if await is_page_unlocked(uid, username, page_number):
-        idx = page_number - 1
-        page_users = pages[idx] if 0 <= idx < len(pages) else []
-        await send_following_page(callback.message, username, page_number, page_count(), page_users)
-        return
+    await state.clear()
+    count = int(text)
+    amount = token_price(count, uid)
+    card = await current_support_card()
 
     import urllib.parse
 
     support = settings.payment_support_username.lstrip("@")
     prefill = (
-        f"سلام، درخواست دسترسی فالووینگ\n"
-        f"یوزرنیم هدف: @{username}\n"
-        f"صفحه: {page_number}\n"
-        f"مبلغ: {settings.following_page_price_toman:,} تومان\n"
+        f"سلام، درخواست توکن فالووینگ\n"
+        f"تعداد: {count}\n"
+        f"مبلغ واریزی: {amount:,} تومان\n"
         f"شناسه: {uid}"
     )
     support_url = f"https://t.me/{support}?text={urllib.parse.quote(prefill)}"
-    await callback.message.answer(
+
+    await message.answer(
         await tu(
             uid,
-            "following_pay_prompt",
-            page=page_number,
-            username=username,
-            price=f"{settings.following_page_price_toman:,}",
+            "following_token_pay_prompt",
+            count=count,
+            amount=f"{amount:,}",
+            card=card,
+            holder=settings.following_card_holder_name,
         ),
-        reply_markup=following_pay_kb(page_number, support_url, lang),
-    )
-
-
-@router.callback_query(F.data == "following:back")
-async def back_to_following_pages(callback: CallbackQuery, state: FSMContext) -> None:
-    uid = callback.from_user.id
-    lang = await require_user_lang(uid)
-    await callback.answer()
-
-    data = await state.get_data()
-    username = data.get("following_username")
-    if not username:
-        await callback.message.answer(await tu(uid, "following_session_expired"))
-        return
-
-    unlocked = await unlocked_pages(uid, username)
-    await callback.message.answer(
-        await tu(uid, "following_pages_menu", username=username),
-        reply_markup=following_pages_kb(unlocked, lang),
+        reply_markup=following_token_pay_kb(support_url, lang),
     )
 
 

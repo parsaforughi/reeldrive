@@ -71,33 +71,12 @@ def following_join_kb(channels: list[str], lang: str) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def following_pages_kb(unlocked: set[int], lang: str) -> InlineKeyboardMarkup:
-    from bot.services.following_access import page_count
-
-    builder = InlineKeyboardBuilder()
-    for i in range(1, page_count() + 1):
-        icon = "✅" if i in unlocked else "🔒"
-        builder.row(
-            InlineKeyboardButton(
-                text=f"صفحه {i} {icon}",
-                callback_data=f"following:page:{i}",
-            )
-        )
-    return builder.as_markup()
-
-
-def following_pay_kb(page_number: int, support_url: str, lang: str) -> InlineKeyboardMarkup:
+def following_token_pay_kb(support_url: str, lang: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text=t("following_pay_button", lang, price=f"{settings.following_page_price_toman:,}"),
+            text=t("following_token_pay_button", lang),
             url=support_url,
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text=t("following_back_button", lang),
-            callback_data="following:back",
         )
     )
     return builder.as_markup()

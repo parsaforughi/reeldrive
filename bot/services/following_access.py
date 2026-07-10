@@ -3,21 +3,23 @@
 1. User must currently be a member of every channel in
    ``settings.following_required_channels`` (checked live via the Bot API —
    leaving a channel revokes access on the next check, nothing is cached).
-2. The following-list is split into ``settings.following_page_count`` pages;
-   each page must be individually unlocked. Unlocking happens out-of-band:
-   the user sends a manual card-to-card payment to support (same flow used
-   elsewhere in the bot), and an admin runs /grantpage to record the unlock.
+2. Each distinct target account ("page") the user looks up must be unlocked.
+   The first ``settings.following_free_pages`` accounts are free once the
+   channels are joined; every account after that consumes one paid token.
+   Tokens are bought in whatever quantity the user picks, via a manual
+   card-to-card payment (rotated across ``settings.following_support_cards``
+   every ``settings.following_cards_rotate_every`` confirmed purchases), and
+   credited by an admin via /addtokens.
 """
 
 import logging
 
 from aiogram import Bot
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from bot.config import settings
 from bot.db.engine import async_session
-from bot.db.models import FollowingUnlock
-from bot.services.instagram import FollowUser
+from bot.db.models import FollowingCredit, FollowingCreditGrant, FollowingUnlock
 
 logger = logging.getLogger(__name__)
 
@@ -68,72 +70,134 @@ def channel_url(channel: str) -> str:
     return f"https://t.me/{channel.lstrip('@')}"
 
 
-def page_count() -> int:
-    return max(1, settings.following_page_count)
-
-
 def free_page_count() -> int:
-    """First N pages are unlocked just by joining the required channels."""
-    return max(0, min(settings.following_free_pages, page_count()))
+    return max(0, settings.following_free_pages)
 
 
-def paginate(users: list[FollowUser]) -> list[list[FollowUser]]:
-    n = page_count()
-    total = len(users)
-    base, rem = divmod(total, n)
-    pages: list[list[FollowUser]] = []
-    start = 0
-    for i in range(n):
-        size = base + (1 if i < rem else 0)
-        pages.append(users[start : start + size])
-        start += size
-    return pages
+def support_cards() -> list[str]:
+    return [
+        c.strip()
+        for c in (settings.following_support_cards or "").split(",")
+        if c.strip()
+    ]
 
 
-async def is_page_unlocked(telegram_id: int, target_username: str, page_number: int) -> bool:
-    if page_number <= free_page_count():
-        return True
+def payment_surcharge(telegram_id: int) -> int:
+    """Small per-user amount added on top of the base price so support can
+    tell buyers apart by the exact figure that lands in the bank account."""
+    return 1 + (telegram_id % 300)
+
+
+def token_price(count: int, telegram_id: int) -> int:
+    return count * settings.following_page_price_toman + payment_surcharge(telegram_id)
+
+
+async def total_credit_grants() -> int:
+    async with async_session() as session:
+        return (
+            await session.scalar(select(func.count()).select_from(FollowingCreditGrant))
+            or 0
+        )
+
+
+async def current_support_card() -> str:
+    cards = support_cards()
+    if not cards:
+        return ""
+    n = await total_credit_grants()
+    idx = (n // max(1, settings.following_cards_rotate_every)) % len(cards)
+    return cards[idx]
+
+
+async def is_unlocked(telegram_id: int, target_username: str) -> bool:
     async with async_session() as session:
         existing = await session.scalar(
             select(FollowingUnlock.id).where(
                 FollowingUnlock.telegram_id == telegram_id,
                 FollowingUnlock.target_username == target_username,
-                FollowingUnlock.page_number == page_number,
             )
         )
     return existing is not None
 
 
-async def unlocked_pages(telegram_id: int, target_username: str) -> set[int]:
-    free = set(range(1, free_page_count() + 1))
+async def unlocked_count(telegram_id: int) -> int:
     async with async_session() as session:
-        rows = await session.scalars(
-            select(FollowingUnlock.page_number).where(
-                FollowingUnlock.telegram_id == telegram_id,
-                FollowingUnlock.target_username == target_username,
+        return (
+            await session.scalar(
+                select(func.count())
+                .select_from(FollowingUnlock)
+                .where(FollowingUnlock.telegram_id == telegram_id)
+            )
+            or 0
+        )
+
+
+async def get_credit_balance(telegram_id: int) -> int:
+    async with async_session() as session:
+        balance = await session.scalar(
+            select(FollowingCredit.balance).where(
+                FollowingCredit.telegram_id == telegram_id
             )
         )
-    return free | set(rows.all())
+    return balance or 0
 
 
-async def unlock_page(
-    telegram_id: int,
-    target_username: str,
-    page_number: int,
-    *,
-    granted_by: int | None = None,
-) -> bool:
-    """Returns True if this created a new unlock, False if it already existed."""
-    if await is_page_unlocked(telegram_id, target_username, page_number):
-        return False
+async def _unlock_account(
+    telegram_id: int, target_username: str, *, granted_by: int | None = None
+) -> None:
     async with async_session() as session:
         session.add(
             FollowingUnlock(
                 telegram_id=telegram_id,
                 target_username=target_username,
-                page_number=page_number,
+                page_number=1,
                 granted_by=granted_by,
             )
         )
         await session.commit()
-    return True
+
+
+async def _consume_credit(telegram_id: int) -> bool:
+    async with async_session() as session:
+        credit = await session.get(FollowingCredit, telegram_id)
+        if not credit or credit.balance < 1:
+            return False
+        credit.balance -= 1
+        await session.commit()
+        return True
+
+
+async def check_following_access(telegram_id: int, target_username: str) -> bool:
+    """Grants access to ``target_username`` for this user if possible
+    (already unlocked, free quota left, or a token to spend) and returns
+    whether the user may now view the list."""
+    if await is_unlocked(telegram_id, target_username):
+        return True
+
+    if await unlocked_count(telegram_id) < free_page_count():
+        await _unlock_account(telegram_id, target_username)
+        return True
+
+    if await _consume_credit(telegram_id):
+        await _unlock_account(telegram_id, target_username)
+        return True
+
+    return False
+
+
+async def grant_credits(
+    telegram_id: int, tokens: int, *, granted_by: int | None = None
+) -> int:
+    """Adds tokens to the user's balance and logs the grant (which also
+    drives support-card rotation). Returns the new balance."""
+    async with async_session() as session:
+        credit = await session.get(FollowingCredit, telegram_id)
+        if credit is None:
+            credit = FollowingCredit(telegram_id=telegram_id, balance=0)
+            session.add(credit)
+        credit.balance += tokens
+        session.add(
+            FollowingCreditGrant(telegram_id=telegram_id, tokens=tokens, granted_by=granted_by)
+        )
+        await session.commit()
+        return credit.balance

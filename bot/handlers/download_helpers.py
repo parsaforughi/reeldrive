@@ -120,25 +120,6 @@ async def send_following(message: Message, username: str, users: list[FollowUser
         await message.answer(chunk)
 
 
-async def send_following_page(
-    message: Message, username: str, page: int, total_pages: int, users: list[FollowUser]
-) -> None:
-    uid = message.from_user.id
-    header = await tu(
-        uid,
-        "following_page_header",
-        page=page,
-        total=total_pages,
-        username=escape(username),
-        count=len(users),
-    )
-    await message.answer(header)
-    if not users:
-        return
-    for chunk in _chunk_lines(_following_lines(users)):
-        await message.answer(chunk)
-
-
 async def _send_media_with_markup(
     bot: Bot,
     chat_id: int,

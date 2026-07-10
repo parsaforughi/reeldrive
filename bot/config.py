@@ -199,13 +199,19 @@ class Settings(BaseSettings):
     pro_toman_monthly: int = 98000
     pro_subscription_days: int = 30
 
-    # Following-list: must join these channels; first N pages free, rest paid (manual card-to-card)
+    # Following-list: must join these channels; first N accounts ("pages") are
+    # free, every one after that costs a token bought via manual card-to-card.
     following_required_channels: str = (
         "@abolfazl_nouriii,@reeldirve,@license_club"
     )
     following_page_price_toman: int = 15000
-    following_page_count: int = 3
     following_free_pages: int = 2
+    following_support_cards: str = (
+        "6219861843482380,6037998134820017,6280231393798789,"
+        "6280231563588309,6280231380841709"
+    )
+    following_card_holder_name: str = "ابوالفضل حاجی زاده نوری"
+    following_cards_rotate_every: int = 15
     admin_telegram_ids: str = "99686187"
 
     @property

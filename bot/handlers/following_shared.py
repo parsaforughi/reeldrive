@@ -3,23 +3,24 @@
 Used by both the /following command flow (bot/handlers/commands.py) and the
 free-text quick-command entry point ("following <username>" typed directly
 in chat, handled in bot/handlers/messages.py) so that both paths enforce the
-same channel-membership + per-page-payment gate — no shortcuts.
+same channel-membership + per-account-token gate — no shortcuts.
 """
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from bot.config import settings
+from bot.handlers.download_helpers import send_following
 from bot.i18n import require_user_lang, tu
-from bot.keyboards import following_join_kb, following_pages_kb
+from bot.keyboards import following_join_kb
 from bot.services.following import fetch_following
 from bot.services.following_access import (
+    check_following_access,
     free_page_count,
+    get_credit_balance,
     missing_channels,
-    page_count,
-    paginate,
-    unlocked_pages,
+    unlocked_count,
 )
+from bot.states import FollowingStates
 
 
 async def send_join_prompt(message: Message, uid: int, missing: list[str]) -> None:
@@ -45,29 +46,27 @@ async def guard_channels(message: Message, uid: int) -> bool:
 async def start_following_lookup(
     message: Message, state: FSMContext, username: str
 ) -> bool:
-    """Fetches the following list, paginates it, stores it in FSM state, and
-    shows the page-selection menu. Returns False if there was nothing to show
-    (caller should already have sent an error/empty message in that case)."""
+    """Fetches the following list and, if the user has access to this
+    account (already unlocked, free quota, or a token to spend), shows it.
+    Otherwise prompts them to buy tokens. Returns False if there was nothing
+    to show (caller should already have sent an error/empty message in that
+    case)."""
     uid = message.from_user.id
-    lang = await require_user_lang(uid)
     users = await fetch_following(username)
     if not users:
         await message.answer(await tu(uid, "no_following"))
         return False
 
-    pages = paginate(users)
-    await state.update_data(following_username=username, following_pages=pages)
-    unlocked = await unlocked_pages(uid, username)
+    if not await check_following_access(uid, username):
+        await state.set_state(FollowingStates.waiting_token_count)
+        await message.answer(await tu(uid, "following_need_tokens", username=username))
+        return True
+
+    await send_following(message, username, users)
+
+    free_left = max(0, free_page_count() - await unlocked_count(uid))
+    tokens_left = await get_credit_balance(uid)
     await message.answer(
-        await tu(
-            uid,
-            "following_pages_intro",
-            username=username,
-            count=len(users),
-            pages=page_count(),
-            free=free_page_count(),
-            price=f"{settings.following_page_price_toman:,}",
-        ),
-        reply_markup=following_pages_kb(unlocked, lang),
+        await tu(uid, "following_access_status", free=free_left, tokens=tokens_left)
     )
     return True

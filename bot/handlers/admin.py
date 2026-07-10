@@ -7,62 +7,57 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from bot.i18n import tu
-from bot.services.following_access import is_admin, unlock_page
+from bot.services.following_access import grant_credits, is_admin
 
 router = Router()
 logger = logging.getLogger(__name__)
 
 
-@router.message(Command("grantpage"))
-async def cmd_grant_page(message: Message) -> None:
+@router.message(Command("addtokens"))
+async def cmd_add_tokens(message: Message) -> None:
     uid = message.from_user.id
     if not is_admin(uid):
         return
 
     parts = (message.text or "").split()
-    if len(parts) != 4:
+    if len(parts) != 3:
         await message.answer(
-            "فرمت درست:\n<code>/grantpage telegram_id username page</code>\n"
-            "مثال: <code>/grantpage 99686187 cristiano 2</code>"
+            "فرمت درست:\n<code>/addtokens telegram_id count</code>\n"
+            "مثال: <code>/addtokens 99686187 5</code>"
         )
         return
 
-    _, tg_raw, target_username, page_raw = parts
+    _, tg_raw, count_raw = parts
     try:
         target_id = int(tg_raw)
-        page = int(page_raw)
+        count = int(count_raw)
     except ValueError:
-        await message.answer("آیدی تلگرام و شماره صفحه باید عدد باشند.")
+        await message.answer("آیدی تلگرام و تعداد باید عدد باشند.")
         return
 
-    target_username = target_username.strip().lstrip("@").lower()
-    if page < 1 or page > 10:
-        await message.answer("شماره صفحه نامعتبر است.")
+    if count < 1:
+        await message.answer("تعداد باید حداقل ۱ باشد.")
         return
 
-    created = await unlock_page(target_id, target_username, page, granted_by=uid)
-    if created:
-        await message.answer(
-            f"✅ صفحه {page} از فالووینگ @{target_username} برای کاربر {target_id} باز شد."
-        )
-    else:
-        await message.answer("قبلاً برای این کاربر باز شده بود.")
+    balance = await grant_credits(target_id, count, granted_by=uid)
+    await message.answer(
+        f"✅ {count} توکن برای کاربر {target_id} فعال شد (موجودی فعلی: {balance})."
+    )
 
     try:
         await message.bot.send_message(
             target_id,
             await tu(
                 target_id,
-                "following_page_unlocked_notify",
-                page=page,
-                username=target_username,
+                "following_tokens_granted_notify",
+                count=count,
+                balance=balance,
             ),
         )
     except Exception:
         logger.warning(
-            "Could not notify user %s about unlocked page %s/%s",
+            "Could not notify user %s about %s granted tokens",
             target_id,
-            target_username,
-            page,
+            count,
             exc_info=True,
         )
