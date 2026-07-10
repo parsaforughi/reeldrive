@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from html import escape
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from bot.services.instagram import (
     instagram_downloader,
 )
 from bot.services.profile import fetch_profile
+
+logger = logging.getLogger(__name__)
 
 _CHUNK_LIMIT = 3500
 
@@ -60,7 +63,14 @@ async def send_profile(message: Message, username: str, status: Message) -> None
     if profile.is_private:
         await message.answer(await tu(message.from_user.id, "error_private"))
         return
-    await send_stories(message, username)
+    try:
+        await send_stories(message, username)
+    except Exception:
+        logger.warning(
+            "Stories fetch failed for @%s after profile succeeded, skipping",
+            username,
+            exc_info=True,
+        )
 
 
 async def send_stories(message: Message, username: str) -> None:
