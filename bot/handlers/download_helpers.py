@@ -15,6 +15,7 @@ from bot.services.instagram import (
     StoryItem,
     instagram_downloader,
 )
+from bot.services.profile import fetch_profile
 
 _CHUNK_LIMIT = 3500
 
@@ -48,7 +49,7 @@ def format_profile(p: ProfileResult) -> str:
 
 
 async def send_profile(message: Message, username: str, status: Message) -> None:
-    profile: ProfileResult = await run_sync(instagram_downloader.get_profile, username)
+    profile: ProfileResult = await fetch_profile(username)
     await status.edit_text(format_profile(profile))
     if profile.profile_pic_path.exists():
         await message.answer_photo(
