@@ -167,10 +167,21 @@ async def _consume_credit(telegram_id: int) -> bool:
         return True
 
 
-async def check_following_access(telegram_id: int, target_username: str) -> bool:
-    """Grants access to ``target_username`` for this user if possible
-    (already unlocked, free quota left, or a token to spend) and returns
-    whether the user may now view the list."""
+async def has_access(telegram_id: int, target_username: str) -> bool:
+    """Read-only check — would granting access succeed (already unlocked,
+    free quota, or a token to spend)? Call this BEFORE the (paid) Apify
+    fetch, so users with no tokens never trigger an actual scrape."""
+    if await is_unlocked(telegram_id, target_username):
+        return True
+    if await unlocked_count(telegram_id) < free_page_count():
+        return True
+    return await get_credit_balance(telegram_id) > 0
+
+
+async def grant_access(telegram_id: int, target_username: str) -> bool:
+    """Actually unlocks + spends a token if needed. Call only after a
+    successful, non-empty fetch, so a failed/empty lookup never costs a
+    token even if ``has_access`` said yes."""
     if await is_unlocked(telegram_id, target_username):
         return True
 

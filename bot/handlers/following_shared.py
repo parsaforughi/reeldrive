@@ -14,8 +14,9 @@ from bot.i18n import require_user_lang, tu
 from bot.keyboards import following_join_kb
 from bot.services.following import fetch_following
 from bot.services.following_access import (
-    check_following_access,
     get_credit_balance,
+    grant_access,
+    has_access,
     missing_channels,
 )
 from bot.states import FollowingStates
@@ -44,22 +45,25 @@ async def guard_channels(message: Message, uid: int) -> bool:
 async def start_following_lookup(
     message: Message, state: FSMContext, username: str
 ) -> bool:
-    """Fetches the following list and, if the user has access to this
-    account (already unlocked, free quota, or a token to spend), shows it.
-    Otherwise prompts them to buy tokens. Returns False if there was nothing
-    to show (caller should already have sent an error/empty message in that
-    case)."""
+    """Checks access (already unlocked, free quota, or a token to spend)
+    BEFORE fetching — a user with no access never triggers a paid Apify
+    scrape. Only spends a token after a successful, non-empty fetch, so a
+    private/empty account doesn't cost anything either. Returns False if
+    there was nothing to show (caller should already have sent an
+    error/empty message in that case)."""
     uid = message.from_user.id
+
+    if not await has_access(uid, username):
+        await state.set_state(FollowingStates.waiting_token_count)
+        await message.answer(await tu(uid, "following_need_tokens", username=username))
+        return True
+
     users = await fetch_following(username)
     if not users:
         await message.answer(await tu(uid, "no_following"))
         return False
 
-    if not await check_following_access(uid, username):
-        await state.set_state(FollowingStates.waiting_token_count)
-        await message.answer(await tu(uid, "following_need_tokens", username=username))
-        return True
-
+    await grant_access(uid, username)
     await send_following(message, username, users)
 
     tokens_left = await get_credit_balance(uid)
