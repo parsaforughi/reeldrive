@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.i18n import tu
-from bot.services.following_access import admin_ids, grant_credits, is_admin
+from bot.services.following_access import grant_credits, is_admin, notify_ids
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ async def send_receipt_to_admins(
         f"کارت مقصد: {card}\n\n"
         "بعد از چک کردن واریزی، روی دکمه زیر بزن:"
     )
-    for admin_id in admin_ids():
+    for admin_id in notify_ids():
         try:
             await bot.send_photo(
                 admin_id, photo_id, caption=caption, reply_markup=_approve_kb(target_id, count)

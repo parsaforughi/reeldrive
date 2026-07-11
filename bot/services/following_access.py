@@ -47,6 +47,13 @@ def admin_ids() -> frozenset[int]:
     return _parse_csv_ids(settings.admin_telegram_ids)
 
 
+def notify_ids() -> frozenset[int]:
+    """Who gets pushed receipt/purchase-request messages — falls back to
+    all admins if unset."""
+    ids = _parse_csv_ids(settings.following_notify_ids)
+    return ids or admin_ids()
+
+
 def is_admin(telegram_id: int) -> bool:
     return telegram_id in admin_ids()
 

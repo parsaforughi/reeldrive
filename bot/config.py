@@ -213,6 +213,10 @@ class Settings(BaseSettings):
     following_card_holder_name: str = "ابوالفضل حاجی زاده نوری"
     following_cards_rotate_every: int = 15
     admin_telegram_ids: str = "99686187,8989258776"
+    # Who actually gets pushed the receipt/purchase-request messages — a
+    # subset of admin_telegram_ids. Everyone in admin_telegram_ids can still
+    # approve manually (e.g. via /addtokens), they just aren't pinged.
+    following_notify_ids: str = "8989258776"
 
     @property
     def shop_webapp_url(self) -> str:
