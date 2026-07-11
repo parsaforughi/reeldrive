@@ -206,10 +206,10 @@ class Settings(BaseSettings):
     )
     following_page_price_toman: int = 15000
     following_free_pages: int = 0
-    following_support_cards: str = (
-        "6219861843482380,6037998134820017,6280231393798789,"
-        "6280231563588309,6280231380841709"
-    )
+    # Only the first card is active for now — add the rest back
+    # (6037998134820017,6280231393798789,6280231563588309,6280231380841709)
+    # whenever rotation should resume.
+    following_support_cards: str = "6219861843482380"
     following_card_holder_name: str = "ابوالفضل حاجی زاده نوری"
     following_cards_rotate_every: int = 15
     admin_telegram_ids: str = "99686187,8989258776"
