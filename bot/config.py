@@ -212,7 +212,7 @@ class Settings(BaseSettings):
     )
     following_card_holder_name: str = "ابوالفضل حاجی زاده نوری"
     following_cards_rotate_every: int = 15
-    admin_telegram_ids: str = "99686187,8989258776"
+    admin_telegram_ids: str = "8989258776"
 
     @property
     def shop_webapp_url(self) -> str:
