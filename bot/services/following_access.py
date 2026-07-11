@@ -43,8 +43,12 @@ def _parse_csv_ids(raw: str) -> frozenset[int]:
     return frozenset(out)
 
 
+def admin_ids() -> frozenset[int]:
+    return _parse_csv_ids(settings.admin_telegram_ids)
+
+
 def is_admin(telegram_id: int) -> bool:
-    return telegram_id in _parse_csv_ids(settings.admin_telegram_ids)
+    return telegram_id in admin_ids()
 
 
 async def missing_channels(bot: Bot, telegram_id: int) -> list[str]:

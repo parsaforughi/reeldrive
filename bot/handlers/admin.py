@@ -1,16 +1,29 @@
-"""Admin-only commands."""
+"""Admin-only commands + following-token purchase approval flow."""
 
 import logging
 
-from aiogram import Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.i18n import tu
-from bot.services.following_access import grant_credits, is_admin
+from bot.services.following_access import admin_ids, grant_credits, is_admin
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+
+async def _notify_target_granted(bot: Bot, target_id: int, count: int, balance: int) -> None:
+    try:
+        await bot.send_message(
+            target_id,
+            await tu(target_id, "following_tokens_granted_notify", count=count, balance=balance),
+        )
+    except Exception:
+        logger.warning(
+            "Could not notify user %s about %s granted tokens", target_id, count, exc_info=True
+        )
 
 
 @router.message(Command("addtokens"))
@@ -43,21 +56,71 @@ async def cmd_add_tokens(message: Message) -> None:
     await message.answer(
         f"✅ {count} توکن برای کاربر {target_id} فعال شد (موجودی فعلی: {balance})."
     )
+    await _notify_target_granted(message.bot, target_id, count, balance)
+
+
+def _approve_kb(target_id: int, count: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ تأیید پرداخت و فعال‌سازی توکن",
+            callback_data=f"following:approve:{target_id}:{count}",
+        )
+    )
+    return builder.as_markup()
+
+
+async def notify_admins_of_purchase_request(
+    bot: Bot,
+    target_id: int,
+    username: str | None,
+    count: int,
+    amount: int,
+    card: str,
+) -> None:
+    """Sent the moment a user picks a token count — before they've even
+    paid — so an admin can approve the instant the deposit shows up,
+    instead of waiting for the user to separately message support."""
+    who = f"@{username}" if username else str(target_id)
+    text = (
+        "🛒 درخواست خرید توکن فالووینگ\n\n"
+        f"کاربر: {who}\n"
+        f"شناسه: {target_id}\n"
+        f"تعداد: {count}\n"
+        f"مبلغ: {amount:,} تومان\n"
+        f"کارت مقصد: {card}\n\n"
+        "بعد از دیدن واریزی، روی دکمه زیر بزن:"
+    )
+    for admin_id in admin_ids():
+        try:
+            await bot.send_message(admin_id, text, reply_markup=_approve_kb(target_id, count))
+        except Exception:
+            logger.warning(
+                "Could not notify admin %s of token purchase request", admin_id, exc_info=True
+            )
+
+
+@router.callback_query(F.data.startswith("following:approve:"))
+async def approve_token_purchase(callback: CallbackQuery) -> None:
+    admin_uid = callback.from_user.id
+    if not is_admin(admin_uid):
+        await callback.answer()
+        return
 
     try:
-        await message.bot.send_message(
-            target_id,
-            await tu(
-                target_id,
-                "following_tokens_granted_notify",
-                count=count,
-                balance=balance,
-            ),
-        )
-    except Exception:
-        logger.warning(
-            "Could not notify user %s about %s granted tokens",
-            target_id,
-            count,
-            exc_info=True,
-        )
+        _, _, target_raw, count_raw = callback.data.split(":")
+        target_id = int(target_raw)
+        count = int(count_raw)
+    except ValueError:
+        await callback.answer()
+        return
+
+    balance = await grant_credits(target_id, count, granted_by=admin_uid)
+
+    base_text = callback.message.text or ""
+    await callback.message.edit_text(
+        f"{base_text}\n\n✅ تأیید شد — موجودی جدید: {balance}",
+        reply_markup=None,
+    )
+    await callback.answer("تأیید شد")
+    await _notify_target_granted(callback.bot, target_id, count, balance)

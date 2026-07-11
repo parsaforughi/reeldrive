@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from bot.config import settings
+from bot.handlers.admin import notify_admins_of_purchase_request
 from bot.handlers.following_shared import guard_channels, start_following_lookup
 from bot.handlers.status_helpers import (
     build_feed_text,
@@ -216,6 +217,10 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
             holder=settings.following_card_holder_name,
         ),
         reply_markup=following_token_pay_kb(support_url, lang),
+    )
+
+    await notify_admins_of_purchase_request(
+        message.bot, uid, message.from_user.username, count, amount, card
     )
 
 
