@@ -119,13 +119,18 @@ async def approve_token_purchase(callback: CallbackQuery) -> None:
 
     balance = await grant_credits(target_id, count, granted_by=admin_uid)
 
-    confirmed_line = f"\n\n✅ تأیید شد — موجودی جدید: {balance}"
     if callback.message.photo:
+        # New-style receipt request — keep it, just mark it confirmed.
+        confirmed_line = f"\n\n✅ تأیید شد — موجودی جدید: {balance}"
         base_caption = callback.message.caption or ""
         await callback.message.edit_caption(caption=base_caption + confirmed_line, reply_markup=None)
     else:
-        base_text = callback.message.text or ""
-        await callback.message.edit_text(base_text + confirmed_line, reply_markup=None)
+        # Old-style text-only request (pre-receipt-photo flow) — just clear
+        # it out of the chat once approved.
+        try:
+            await callback.message.delete()
+        except Exception:
+            logger.warning("Could not delete approved request message", exc_info=True)
 
     await callback.answer("تأیید شد")
     await _notify_target_granted(callback.bot, target_id, count, balance)
