@@ -70,33 +70,35 @@ def _approve_kb(target_id: int, count: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-async def notify_admins_of_purchase_request(
+async def send_receipt_to_admins(
     bot: Bot,
     target_id: int,
     username: str | None,
     count: int,
     amount: int,
     card: str,
+    photo_id: str,
 ) -> None:
-    """Sent the moment a user picks a token count — before they've even
-    paid — so an admin can approve the instant the deposit shows up,
-    instead of waiting for the user to separately message support."""
+    """Sent once the user actually submits a receipt photo — this is the
+    admin's proof to check against the bank account before approving."""
     who = f"@{username}" if username else str(target_id)
-    text = (
-        "🛒 درخواست خرید توکن فالووینگ\n\n"
+    caption = (
+        "🧾 رسید خرید توکن فالووینگ\n\n"
         f"کاربر: {who}\n"
         f"شناسه: {target_id}\n"
         f"تعداد: {count}\n"
         f"مبلغ: {amount:,} تومان\n"
         f"کارت مقصد: {card}\n\n"
-        "بعد از دیدن واریزی، روی دکمه زیر بزن:"
+        "بعد از چک کردن واریزی، روی دکمه زیر بزن:"
     )
     for admin_id in admin_ids():
         try:
-            await bot.send_message(admin_id, text, reply_markup=_approve_kb(target_id, count))
+            await bot.send_photo(
+                admin_id, photo_id, caption=caption, reply_markup=_approve_kb(target_id, count)
+            )
         except Exception:
             logger.warning(
-                "Could not notify admin %s of token purchase request", admin_id, exc_info=True
+                "Could not send receipt to admin %s for token purchase", admin_id, exc_info=True
             )
 
 
@@ -117,10 +119,13 @@ async def approve_token_purchase(callback: CallbackQuery) -> None:
 
     balance = await grant_credits(target_id, count, granted_by=admin_uid)
 
-    base_text = callback.message.text or ""
-    await callback.message.edit_text(
-        f"{base_text}\n\n✅ تأیید شد — موجودی جدید: {balance}",
-        reply_markup=None,
-    )
+    confirmed_line = f"\n\n✅ تأیید شد — موجودی جدید: {balance}"
+    if callback.message.photo:
+        base_caption = callback.message.caption or ""
+        await callback.message.edit_caption(caption=base_caption + confirmed_line, reply_markup=None)
+    else:
+        base_text = callback.message.text or ""
+        await callback.message.edit_text(base_text + confirmed_line, reply_markup=None)
+
     await callback.answer("تأیید شد")
     await _notify_target_granted(callback.bot, target_id, count, balance)

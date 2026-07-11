@@ -543,27 +543,37 @@ Coming soon: unfollowers list.""",
             "💳 <code>{card}</code>\n"
             "به نام: {holder}\n\n"
             "⚠️ مبلغ رو دقیقاً همین‌طور که نوشته شده واریز کن (تا آخرین تومانش) — این عدد مخصوص خودته.\n\n"
-            "بعد از واریز، رسیدش رو برای پشتیبانی بفرست تا توکن‌هات فعال بشه."
+            "بعد از واریز، عکس رسیدشو همینجا برام بفرست."
         ),
         "en": (
             "For {count} page(s) you need to transfer {amount} Toman to this card:\n\n"
             "💳 <code>{card}</code>\n"
             "Holder: {holder}\n\n"
             "⚠️ Transfer the exact amount shown — it's unique to you.\n\n"
-            "After paying, send the receipt to support to activate your tokens."
+            "After paying, send a photo of the receipt right here."
         ),
         "ar": (
             "مقابل {count} صفحة، حوّل {amount} تومان إلى هذه البطاقة:\n\n"
             "💳 <code>{card}</code>\n"
             "الاسم: {holder}\n\n"
             "⚠️ حوّل المبلغ بالضبط كما هو موضح — إنه فريد لك.\n\n"
-            "بعد الدفع أرسل الإيصال للدعم لتفعيل الرموز."
+            "بعد الدفع أرسل صورة الإيصال هنا مباشرة."
         ),
     },
     "following_token_pay_button": {
-        "fa": "📨 ارسال رسید به پشتیبانی",
-        "en": "📨 Send receipt to support",
-        "ar": "📨 إرسال الإيصال للدعم",
+        "fa": "📨 ارتباط با پشتیبانی",
+        "en": "📨 Contact support",
+        "ar": "📨 التواصل مع الدعم",
+    },
+    "following_receipt_need_photo": {
+        "fa": "لطفاً عکس رسید واریزی رو بفرست (نه متن).",
+        "en": "Please send a photo of the receipt (not text).",
+        "ar": "الرجاء إرسال صورة الإيصال (وليس نصاً).",
+    },
+    "following_receipt_received": {
+        "fa": "✅ رسید دریافت شد و برای بررسی برای پشتیبانی فرستاده شد. بعد از تأیید، توکن‌هات فعال می‌شه و بهت خبر می‌دیم.",
+        "en": "✅ Receipt received and sent for review. Your tokens will be activated once confirmed.",
+        "ar": "✅ تم استلام الإيصال وإرساله للمراجعة. سيتم تفعيل الرموز بعد التأكيد.",
     },
     "following_tokens_granted_notify": {
         "fa": "✅ {count} تا توکن برات فعال شد (مجموع: {balance}). حالا /following رو بزن و اسم پیج مورد نظرت رو بفرست.",

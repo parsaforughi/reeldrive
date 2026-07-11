@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from bot.config import settings
-from bot.handlers.admin import notify_admins_of_purchase_request
+from bot.handlers.admin import send_receipt_to_admins
 from bot.handlers.following_shared import guard_channels, start_following_lookup
 from bot.handlers.status_helpers import (
     build_feed_text,
@@ -191,10 +191,12 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
         await message.answer(await tu(uid, "following_invalid_token_count"))
         return
 
-    await state.clear()
     count = int(text)
     amount = token_price(count, uid)
     card = await current_support_card()
+
+    await state.set_state(FollowingStates.waiting_receipt_photo)
+    await state.update_data(following_token_count=count, following_token_amount=amount, following_token_card=card)
 
     import urllib.parse
 
@@ -219,9 +221,30 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
         reply_markup=following_token_pay_kb(support_url, lang),
     )
 
-    await notify_admins_of_purchase_request(
-        message.bot, uid, message.from_user.username, count, amount, card
+
+@router.message(StateFilter(FollowingStates.waiting_receipt_photo), F.photo)
+async def receive_token_receipt(message: Message, state: FSMContext) -> None:
+    uid = message.from_user.id
+    data = await state.get_data()
+    count = data.get("following_token_count")
+    amount = data.get("following_token_amount")
+    card = data.get("following_token_card")
+    await state.clear()
+
+    if not count:
+        await message.answer(await tu(uid, "following_session_expired"))
+        return
+
+    photo_id = message.photo[-1].file_id
+    await send_receipt_to_admins(
+        message.bot, uid, message.from_user.username, count, amount, card, photo_id
     )
+    await message.answer(await tu(uid, "following_receipt_received"))
+
+
+@router.message(StateFilter(FollowingStates.waiting_receipt_photo))
+async def receive_token_receipt_invalid(message: Message) -> None:
+    await message.answer(await tu(message.from_user.id, "following_receipt_need_photo"))
 
 
 @router.message(Command("feed"))
