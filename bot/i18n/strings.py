@@ -520,15 +520,15 @@ Coming soon: unfollowers list.""",
     },
     "following_need_tokens": {
         "fa": (
-            "🔒 پیج‌های رایگانت تموم شده — برای دیدن فالووینگ @{username} باید توکن بخری.\n\n"
+            "🔒 برای دیدن فالووینگ @{username} باید توکن بخری.\n\n"
             "چند تا پیج می‌خوای بخری؟ یه عدد بفرست (مثلاً ۱، ۳، ۵):"
         ),
         "en": (
-            "🔒 Your free pages are used up — you need a token to view @{username}'s following.\n\n"
+            "🔒 You need a token to view @{username}'s following.\n\n"
             "How many pages do you want to buy? Send a number (e.g. 1, 3, 5):"
         ),
         "ar": (
-            "🔒 انتهت صفحاتك المجانية — تحتاج إلى رمز لعرض متابَعي @{username}.\n\n"
+            "🔒 تحتاج إلى رمز لعرض متابَعي @{username}.\n\n"
             "كم صفحة تريد شراءها؟ أرسل رقماً (مثلاً ۱، ۳، ۵):"
         ),
     },
@@ -570,10 +570,10 @@ Coming soon: unfollowers list.""",
         "en": "✅ {count} token(s) activated (balance: {balance}). Run /following now and send the page you want.",
         "ar": "✅ تم تفعيل {count} رمز (الرصيد: {balance}). نفّذ /following الآن وأرسل الصفحة المطلوبة.",
     },
-    "following_access_status": {
-        "fa": "🎁 پیج رایگان باقی‌مونده: {free} | 🪙 توکن باقی‌مونده: {tokens}",
-        "en": "🎁 Free pages left: {free} | 🪙 Tokens left: {tokens}",
-        "ar": "🎁 الصفحات المجانية المتبقية: {free} | 🪙 الرموز المتبقية: {tokens}",
+    "following_tokens_status": {
+        "fa": "🪙 توکن باقی‌مونده: {tokens}",
+        "en": "🪙 Tokens left: {tokens}",
+        "ar": "🪙 الرموز المتبقية: {tokens}",
     },
     "stories_count": {
         "fa": "📖 {count} استوری",

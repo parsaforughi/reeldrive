@@ -15,10 +15,8 @@ from bot.keyboards import following_join_kb
 from bot.services.following import fetch_following
 from bot.services.following_access import (
     check_following_access,
-    free_page_count,
     get_credit_balance,
     missing_channels,
-    unlocked_count,
 )
 from bot.states import FollowingStates
 
@@ -64,9 +62,6 @@ async def start_following_lookup(
 
     await send_following(message, username, users)
 
-    free_left = max(0, free_page_count() - await unlocked_count(uid))
     tokens_left = await get_credit_balance(uid)
-    await message.answer(
-        await tu(uid, "following_access_status", free=free_left, tokens=tokens_left)
-    )
+    await message.answer(await tu(uid, "following_tokens_status", tokens=tokens_left))
     return True
