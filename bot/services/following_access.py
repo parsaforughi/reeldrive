@@ -99,6 +99,12 @@ def payment_surcharge(telegram_id: int) -> int:
     return 1 + (telegram_id % 300)
 
 
+def to_rial(toman: int) -> int:
+    """Bank statements in Iran show Rial (1 Toman = 10 Rial) — convert at
+    display time only; all pricing settings/logic stay in Toman."""
+    return toman * 10
+
+
 def token_price(count: int, telegram_id: int) -> int:
     return count * settings.following_page_price_toman + payment_surcharge(telegram_id)
 

@@ -71,8 +71,20 @@ def following_join_kb(channels: list[str], lang: str) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def following_token_pay_kb(support_url: str, lang: str) -> InlineKeyboardMarkup:
+def following_token_pay_kb(
+    support_url: str, lang: str, *, card: str, amount_rial: int
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=t("following_copy_card_button", lang),
+            callback_data=f"following:copy:card:{card}",
+        ),
+        InlineKeyboardButton(
+            text=t("following_copy_amount_button", lang),
+            callback_data=f"following:copy:amount:{amount_rial}",
+        ),
+    )
     builder.row(
         InlineKeyboardButton(
             text=t("following_token_pay_button", lang),

@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.i18n import tu
-from bot.services.following_access import grant_credits, is_admin, notify_ids
+from bot.services.following_access import grant_credits, is_admin, notify_ids, to_rial
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ async def send_receipt_to_admins(
         f"کاربر: {who}\n"
         f"شناسه: {target_id}\n"
         f"تعداد: {count}\n"
-        f"مبلغ: {amount:,} تومان\n"
+        f"مبلغ: {to_rial(amount):,} ریال\n"
         f"کارت مقصد: {card}\n\n"
         "بعد از چک کردن واریزی، روی دکمه زیر بزن:"
     )

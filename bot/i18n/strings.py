@@ -539,21 +539,21 @@ Coming soon: unfollowers list.""",
     },
     "following_token_pay_prompt": {
         "fa": (
-            "برای {count} پیج باید {amount} تومان به شماره کارت زیر واریز کنی:\n\n"
+            "برای {count} پیج باید {amount} ریال به شماره کارت زیر واریز کنی:\n\n"
             "💳 <code>{card}</code>\n"
             "به نام: {holder}\n\n"
-            "⚠️ مبلغ رو دقیقاً همین‌طور که نوشته شده واریز کن (تا آخرین تومانش) — این عدد مخصوص خودته.\n\n"
+            "⚠️ مبلغ رو دقیقاً همین‌طور که نوشته شده واریز کن (تا آخرین ریالش) — این عدد مخصوص خودته.\n\n"
             "بعد از واریز، عکس رسیدشو همینجا برام بفرست."
         ),
         "en": (
-            "For {count} page(s) you need to transfer {amount} Toman to this card:\n\n"
+            "For {count} page(s) you need to transfer {amount} Rial to this card:\n\n"
             "💳 <code>{card}</code>\n"
             "Holder: {holder}\n\n"
             "⚠️ Transfer the exact amount shown — it's unique to you.\n\n"
             "After paying, send a photo of the receipt right here."
         ),
         "ar": (
-            "مقابل {count} صفحة، حوّل {amount} تومان إلى هذه البطاقة:\n\n"
+            "مقابل {count} صفحة، حوّل {amount} ریال إلى هذه البطاقة:\n\n"
             "💳 <code>{card}</code>\n"
             "الاسم: {holder}\n\n"
             "⚠️ حوّل المبلغ بالضبط كما هو موضح — إنه فريد لك.\n\n"
@@ -564,6 +564,16 @@ Coming soon: unfollowers list.""",
         "fa": "📨 ارتباط با پشتیبانی",
         "en": "📨 Contact support",
         "ar": "📨 التواصل مع الدعم",
+    },
+    "following_copy_card_button": {
+        "fa": "📋 کپی شماره کارت",
+        "en": "📋 Copy card number",
+        "ar": "📋 نسخ رقم البطاقة",
+    },
+    "following_copy_amount_button": {
+        "fa": "📋 کپی مبلغ",
+        "en": "📋 Copy amount",
+        "ar": "📋 نسخ المبلغ",
     },
     "following_receipt_need_photo": {
         "fa": "لطفاً عکس رسید واریزی رو بفرست (نه متن).",

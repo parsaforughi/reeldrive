@@ -22,6 +22,7 @@ from bot.services.client_pool import client_pool
 from bot.services.following_access import (
     current_support_card,
     missing_channels,
+    to_rial,
     token_price,
 )
 from bot.services.subscription import has_direct_link_download_access
@@ -181,6 +182,21 @@ async def receive_following_username(message: Message, state: FSMContext) -> Non
     await status.delete()
 
 
+@router.callback_query(F.data.startswith("following:copy:"))
+async def copy_payment_value(callback: CallbackQuery) -> None:
+    try:
+        _, _, kind, value = callback.data.split(":")
+    except ValueError:
+        await callback.answer()
+        return
+    if kind == "amount":
+        try:
+            value = f"{int(value):,}"
+        except ValueError:
+            pass
+    await callback.answer(text=value, show_alert=True)
+
+
 @router.message(StateFilter(FollowingStates.waiting_token_count))
 async def receive_token_count(message: Message, state: FSMContext) -> None:
     uid = message.from_user.id
@@ -193,6 +209,7 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
 
     count = int(text)
     amount = token_price(count, uid)
+    amount_rial = to_rial(amount)
     card = await current_support_card()
 
     await state.set_state(FollowingStates.waiting_receipt_photo)
@@ -204,7 +221,7 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
     prefill = (
         f"سلام، درخواست توکن فالووینگ\n"
         f"تعداد: {count}\n"
-        f"مبلغ واریزی: {amount:,} تومان\n"
+        f"مبلغ واریزی: {amount_rial:,} ریال\n"
         f"شناسه: {uid}"
     )
     support_url = f"https://t.me/{support}?text={urllib.parse.quote(prefill)}"
@@ -214,11 +231,11 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
             uid,
             "following_token_pay_prompt",
             count=count,
-            amount=f"{amount:,}",
+            amount=f"{amount_rial:,}",
             card=card,
             holder=settings.following_card_holder_name,
         ),
-        reply_markup=following_token_pay_kb(support_url, lang),
+        reply_markup=following_token_pay_kb(support_url, lang, card=card, amount_rial=amount_rial),
     )
 
 
