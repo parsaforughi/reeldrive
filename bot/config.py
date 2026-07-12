@@ -208,7 +208,7 @@ class Settings(BaseSettings):
     following_free_pages: int = 0
     # Only the first card is active for now — add more comma-separated
     # whenever rotation should resume.
-    following_support_cards: str = "6219861462108209"
+    following_support_cards: str = "6104331002522101"
     following_card_holder_name: str = "احمد عابدزاده"
     following_cards_rotate_every: int = 15
     admin_telegram_ids: str = "99686187,8989258776"
