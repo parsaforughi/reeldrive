@@ -201,9 +201,11 @@ class Settings(BaseSettings):
 
     # Following-list: must join these channels; every account looked up
     # costs a token bought via manual card-to-card (no free pages).
-    following_required_channels: str = (
-        "@abolfazl_nouriii,@reeldirve,@license_club"
-    )
+    following_required_channels: str = "@abolfazl_nouriii,@reeldirve"
+    # On top of the base channels above, each user is also required to
+    # join exactly one of these — alternated per user (by telegram_id) so
+    # the join load is split evenly across them.
+    following_alternate_channels: str = "@license_club,@breaking_text"
     following_page_price_toman: int = 15000
     following_free_pages: int = 0
     # Only the first card is active for now — add more comma-separated

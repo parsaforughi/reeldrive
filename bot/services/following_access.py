@@ -1,8 +1,10 @@
 """Access control for the following-list feature:
 
 1. User must currently be a member of every channel in
-   ``settings.following_required_channels`` (checked live via the Bot API —
-   leaving a channel revokes access on the next check, nothing is cached).
+   ``settings.following_required_channels`` PLUS one channel from
+   ``settings.following_alternate_channels`` (alternated per user, see
+   ``required_channels``) — checked live via the Bot API, so leaving a
+   channel revokes access on the next check, nothing is cached.
 2. Each distinct target account ("page") the user looks up must be unlocked.
    The first ``settings.following_free_pages`` accounts are free once the
    channels are joined; every account after that consumes one paid token.
@@ -26,12 +28,20 @@ logger = logging.getLogger(__name__)
 _JOINED_STATUSES = frozenset({"member", "administrator", "creator"})
 
 
-def required_channels() -> list[str]:
-    return [
-        c.strip()
-        for c in (settings.following_required_channels or "").split(",")
-        if c.strip()
-    ]
+def _split_csv(raw: str) -> list[str]:
+    return [c.strip() for c in (raw or "").split(",") if c.strip()]
+
+
+def required_channels(telegram_id: int) -> list[str]:
+    """Base channels are required for everyone. On top of those, each user
+    must also join exactly one channel from following_alternate_channels —
+    picked deterministically per telegram_id, alternating across users so
+    the join load is split evenly instead of piling onto a single channel."""
+    base = _split_csv(settings.following_required_channels)
+    alternates = _split_csv(settings.following_alternate_channels)
+    if alternates:
+        base = base + [alternates[telegram_id % len(alternates)]]
+    return base
 
 
 def _parse_csv_ids(raw: str) -> frozenset[int]:
@@ -62,7 +72,7 @@ async def missing_channels(bot: Bot, telegram_id: int) -> list[str]:
     """Live-checks membership — never cached, so leaving a channel is picked
     up on the very next call."""
     missing: list[str] = []
-    for channel in required_channels():
+    for channel in required_channels(telegram_id):
         handle = "@" + channel.lstrip("@")
         try:
             member = await bot.get_chat_member(chat_id=handle, user_id=telegram_id)
