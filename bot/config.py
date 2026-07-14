@@ -99,6 +99,11 @@ class Settings(BaseSettings):
     apify_following_actor: str = "scraping_solutions~instagram-scraper-followers-following-no-cookies"
     apify_timeout_seconds: int = 120
 
+    # HikerAPI (hikerapi.com) — dedicated Instagram data API, no login
+    # required, used for /following instead of Apify (much cheaper per
+    # request for this specific endpoint).
+    hikerapi_key: str = ""
+
     instagram_username: str = ""
     instagram_password: str = ""
     instagram_session_path: str = "sessions/service.json"
