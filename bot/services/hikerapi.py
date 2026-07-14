@@ -33,6 +33,13 @@ class HikerApiClient:
                 raise ValueError("کاربر پیدا نشد / User not found")
             if not (200 <= resp.status < 300):
                 logger.error("HikerAPI HTTP %s on %s: %s", resp.status, path, body[:500])
+                exc_type = ""
+                try:
+                    exc_type = (json.loads(body) or {}).get("exc_type", "")
+                except json.JSONDecodeError:
+                    pass
+                if exc_type == "PrivateAccount":
+                    raise ValueError("اکانت خصوصی است / private account")
                 raise ValueError(f"HikerAPI خطا ({resp.status})")
             try:
                 return json.loads(body)
