@@ -226,7 +226,7 @@
         <div class="panel-head"><h2>⭐ اشتراک‌ها</h2></div>
         <div class="panel-body">
           <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-            <input type="text" id="grantId" placeholder="آیدی تلگرام" style="flex:1;min-width:120px;margin:0" />
+            <input type="text" id="grantId" placeholder="آیدی عددی یا @یوزرنیم" style="flex:1;min-width:120px;margin:0" />
             <input type="number" id="grantMonths" placeholder="ماه" min="1" value="1" style="width:70px;margin:0" />
             <button class="btn btn-primary" id="grantBtn" style="width:auto">فعال‌سازی Pro</button>
           </div>
@@ -429,17 +429,32 @@
     };
 
     $("#grantBtn").onclick = async () => {
-      const tid = toIntStrict($("#grantId").value);
+      const raw = $("#grantId").value.trim();
       const months = toIntStrict($("#grantMonths").value) || 1;
       const errEl = $("#grantErr");
       errEl.classList.add("hidden");
-      if (!tid) {
-        errEl.textContent = `آیدی تلگرام معتبر نیست. (مقدار وارد شده: "${$("#grantId").value}")`;
+      if (!raw) {
+        errEl.textContent = "آیدی یا یوزرنیم رو وارد کن.";
         errEl.classList.remove("hidden");
         return;
       }
+
       $("#grantBtn").disabled = true;
       try {
+        let tid = toIntStrict(raw);
+        if (!tid) {
+          // Not a plain number — treat it as a @username and resolve it.
+          const handle = raw.replace(/^@/, "");
+          try {
+            const found = await api(`/api/users/lookup?username=${encodeURIComponent(handle)}`);
+            tid = found.telegram_id;
+          } catch {
+            errEl.textContent = `کاربری با یوزرنیم "@${handle}" پیدا نشد (باید قبلاً ربات رو استارت زده باشه).`;
+            errEl.classList.remove("hidden");
+            return;
+          }
+        }
+
         await api(`/api/users/${tid}/subscription`, {
           method: "PATCH",
           body: JSON.stringify({ plan: "pro", days: months * 30 }),

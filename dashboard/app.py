@@ -216,6 +216,20 @@ async def api_stats(_: None = Depends(require_admin)):
     }
 
 
+@app.get("/api/users/lookup")
+async def api_users_lookup(username: str, _: None = Depends(require_admin)):
+    handle = (username or "").strip().lstrip("@")
+    if not handle:
+        raise HTTPException(status_code=400, detail="Username required")
+    async with async_session() as session:
+        telegram_id = await session.scalar(
+            select(BotUser.telegram_id).where(func.lower(BotUser.username) == handle.lower())
+        )
+    if telegram_id is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"telegram_id": telegram_id}
+
+
 @app.get("/api/users")
 async def api_users(
     page: int = 1,
