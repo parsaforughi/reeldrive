@@ -244,6 +244,19 @@
 
   <script>
     const $ = (s) => document.querySelector(s);
+
+    // Strips anything that isn't a plain ASCII digit — handles stray spaces,
+    // invisible RTL/bidi marks, and Persian/Arabic numerals that can end up
+    // in the field from copy-paste, so parseInt never silently fails.
+    function toIntStrict(raw) {
+      const cleaned = String(raw ?? "")
+        .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+        .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+        .replace(/[^0-9-]/g, "");
+      const n = parseInt(cleaned, 10);
+      return Number.isNaN(n) ? null : n;
+    }
+
     let usersPage = 1;
     let usersTotal = 0;
     const USERS_PAGE_SIZE = 50;
@@ -405,7 +418,7 @@
       let days = 30;
       if (plan === "pro") {
         const monthsInput = selectEl?.previousElementSibling;
-        const months = parseInt(monthsInput?.value, 10) || 1;
+        const months = toIntStrict(monthsInput?.value) || 1;
         days = months * 30;
       }
       await api(`/api/users/${tid}/subscription`, {
@@ -416,12 +429,12 @@
     };
 
     $("#grantBtn").onclick = async () => {
-      const tid = parseInt($("#grantId").value, 10);
-      const months = parseInt($("#grantMonths").value, 10) || 1;
+      const tid = toIntStrict($("#grantId").value);
+      const months = toIntStrict($("#grantMonths").value) || 1;
       const errEl = $("#grantErr");
       errEl.classList.add("hidden");
       if (!tid) {
-        errEl.textContent = "آیدی تلگرام معتبر نیست.";
+        errEl.textContent = `آیدی تلگرام معتبر نیست. (مقدار وارد شده: "${$("#grantId").value}")`;
         errEl.classList.remove("hidden");
         return;
       }
