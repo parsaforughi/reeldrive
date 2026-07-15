@@ -354,11 +354,13 @@
           <td>${u.ig_connected === "connected" ? "✅ @" + (u.ig_username || "") : "—"}</td>
           <td>${u.downloads}</td>
           <td class="muted">${fmtDate(u.last_seen)}</td>
-          <td>
-            <select onchange="setPlan(${u.telegram_id}, this.value)">
+          <td style="display:flex;gap:6px;align-items:center">
+            <input type="number" min="1" value="1" title="تعداد ماه (برای pro)"
+              style="width:48px;margin:0;padding:6px 4px" class="row-months" />
+            <select onchange="setPlan(${u.telegram_id}, this.value, this)">
               <option value="">تغییر پلن</option>
               <option value="free">free</option>
-              <option value="pro">pro (۳۰ روز)</option>
+              <option value="pro">pro</option>
             </select>
           </td>
         </tr>`).join("");
@@ -385,11 +387,17 @@
       renderUsersPager();
     }
 
-    window.setPlan = async (tid, plan) => {
+    window.setPlan = async (tid, plan, selectEl) => {
       if (!plan) return;
+      let days = 30;
+      if (plan === "pro") {
+        const monthsInput = selectEl?.previousElementSibling;
+        const months = parseInt(monthsInput?.value, 10) || 1;
+        days = months * 30;
+      }
       await api(`/api/users/${tid}/subscription`, {
         method: "PATCH",
-        body: JSON.stringify({ plan, days: 30 }),
+        body: JSON.stringify({ plan, days }),
       });
       loadUsers();
     };
