@@ -201,7 +201,7 @@
       <div class="panel full">
         <div class="panel-head">
           <h2>👥 کاربران</h2>
-          <input type="search" id="userSearch" placeholder="جستجو..." style="width:180px;margin:0" />
+          <input type="search" id="userSearch" placeholder="جستجو با آیدی یا یوزرنیم..." style="width:220px;margin:0" />
         </div>
         <div class="panel-body" style="max-height:360px">
           <table>
@@ -218,11 +218,20 @@
             <tbody id="usersTable"></tbody>
           </table>
         </div>
+        <div id="usersPager" style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:1px solid var(--border)"></div>
       </div>
 
       <div class="panel">
         <div class="panel-head"><h2>⭐ اشتراک‌ها</h2></div>
-        <div class="panel-body" id="subsList"></div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+            <input type="text" id="grantId" placeholder="آیدی تلگرام" style="flex:1;min-width:120px;margin:0" />
+            <input type="number" id="grantMonths" placeholder="ماه" min="1" value="1" style="width:70px;margin:0" />
+            <button class="btn btn-primary" id="grantBtn" style="width:auto">فعال‌سازی Pro</button>
+          </div>
+          <p class="err hidden" id="grantErr"></p>
+          <div id="subsList"></div>
+        </div>
       </div>
 
       <div class="panel">
@@ -234,7 +243,9 @@
 
   <script>
     const $ = (s) => document.querySelector(s);
-    let usersData = [];
+    let usersPage = 1;
+    let usersTotal = 0;
+    const USERS_PAGE_SIZE = 50;
 
     async function api(path, opts = {}) {
       const r = await fetch(path, {
@@ -332,13 +343,7 @@
       ].map(([n, ok]) => `<span class="pill ${ok ? "ok" : "fail"}">${n}</span>`).join("");
     }
 
-    function renderUsers(filter = "") {
-      const q = filter.toLowerCase();
-      const rows = usersData.filter((u) =>
-        !q || String(u.telegram_id).includes(q) ||
-        (u.username || "").toLowerCase().includes(q) ||
-        (u.name || "").toLowerCase().includes(q)
-      );
+    function renderUsers(rows) {
       $("#usersTable").innerHTML = rows.map((u) => `
         <tr class="user-row">
           <td>
@@ -353,11 +358,31 @@
             <select onchange="setPlan(${u.telegram_id}, this.value)">
               <option value="">تغییر پلن</option>
               <option value="free">free</option>
-              <option value="pro">pro</option>
-              <option value="premium">premium</option>
+              <option value="pro">pro (۳۰ روز)</option>
             </select>
           </td>
         </tr>`).join("");
+    }
+
+    function renderUsersPager() {
+      const pages = Math.max(1, Math.ceil(usersTotal / USERS_PAGE_SIZE));
+      $("#usersPager").innerHTML = `
+        <span class="muted">صفحه ${usersPage} از ${pages} · کل: ${usersTotal.toLocaleString("fa-IR")} کاربر</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" id="usersPrev" ${usersPage <= 1 ? "disabled" : ""}>قبلی</button>
+          <button class="btn btn-ghost" id="usersNext" ${usersPage >= pages ? "disabled" : ""}>بعدی</button>
+        </div>`;
+      $("#usersPrev").onclick = () => loadUsers(usersPage - 1);
+      $("#usersNext").onclick = () => loadUsers(usersPage + 1);
+    }
+
+    async function loadUsers(page = usersPage) {
+      const q = $("#userSearch").value.trim();
+      const data = await api(`/api/users?page=${page}&page_size=${USERS_PAGE_SIZE}&q=${encodeURIComponent(q)}`);
+      usersPage = data.page;
+      usersTotal = data.total;
+      renderUsers(data.items);
+      renderUsersPager();
     }
 
     window.setPlan = async (tid, plan) => {
@@ -366,7 +391,33 @@
         method: "PATCH",
         body: JSON.stringify({ plan, days: 30 }),
       });
-      loadAll();
+      loadUsers();
+    };
+
+    $("#grantBtn").onclick = async () => {
+      const tid = parseInt($("#grantId").value, 10);
+      const months = parseInt($("#grantMonths").value, 10) || 1;
+      const errEl = $("#grantErr");
+      errEl.classList.add("hidden");
+      if (!tid) {
+        errEl.textContent = "آیدی تلگرام معتبر نیست.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      $("#grantBtn").disabled = true;
+      try {
+        await api(`/api/users/${tid}/subscription`, {
+          method: "PATCH",
+          body: JSON.stringify({ plan: "pro", days: months * 30 }),
+        });
+        $("#grantId").value = "";
+        await Promise.all([loadUsers(), loadSubs()]);
+      } catch (e) {
+        errEl.textContent = "خطا: " + e.message;
+        errEl.classList.remove("hidden");
+      } finally {
+        $("#grantBtn").disabled = false;
+      }
     };
 
     function renderLogs(logs) {
@@ -404,25 +455,30 @@
         </div>`).join("");
     }
 
+    async function loadSubs() {
+      const subs = await api("/api/subscriptions");
+      renderSubs(subs);
+    }
+
     async function loadAll() {
       try {
-        const [stats, users, logs, subs] = await Promise.all([
+        const [stats, logs] = await Promise.all([
           api("/api/stats"),
-          api("/api/users"),
           api("/api/logs?limit=80"),
-          api("/api/subscriptions"),
         ]);
         renderStats(stats);
-        usersData = users;
-        renderUsers($("#userSearch").value);
         renderLogs(logs);
-        renderSubs(subs);
+        await Promise.all([loadUsers(), loadSubs()]);
       } catch (e) {
         if (e.message !== "auth") console.error(e);
       }
     }
 
-    $("#userSearch").oninput = (e) => renderUsers(e.target.value);
+    let userSearchTimer = null;
+    $("#userSearch").oninput = () => {
+      clearTimeout(userSearchTimer);
+      userSearchTimer = setTimeout(() => loadUsers(1), 300);
+    };
 
     api("/api/stats").then(() => {
       $("#login").classList.add("hidden");

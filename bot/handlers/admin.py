@@ -9,6 +9,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.i18n import tu
 from bot.services.following_access import grant_credits, is_admin, notify_ids, to_rial
+from bot.services.subscription import grant_pro
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -134,3 +135,89 @@ async def approve_token_purchase(callback: CallbackQuery) -> None:
 
     await callback.answer("تأیید شد")
     await _notify_target_granted(callback.bot, target_id, count, balance)
+
+
+def _pro_approve_kb(target_id: int, days: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ تأیید پرداخت و فعال‌سازی Pro",
+            callback_data=f"pro:approve:{target_id}:{days}",
+        )
+    )
+    return builder.as_markup()
+
+
+async def send_pro_receipt_to_admins(
+    bot: Bot,
+    target_id: int,
+    username: str | None,
+    days: int,
+    amount: int,
+    card: str,
+    photo_id: str,
+) -> None:
+    who = f"@{username}" if username else str(target_id)
+    caption = (
+        "🧾 رسید خرید Pro (کارت به کارت)\n\n"
+        f"کاربر: {who}\n"
+        f"شناسه: {target_id}\n"
+        f"مدت: {days} روز\n"
+        f"مبلغ: {to_rial(amount):,} ریال\n"
+        f"کارت مقصد: {card}\n\n"
+        "بعد از چک کردن واریزی، روی دکمه زیر بزن:"
+    )
+    for admin_id in notify_ids():
+        try:
+            await bot.send_photo(
+                admin_id, photo_id, caption=caption, reply_markup=_pro_approve_kb(target_id, days)
+            )
+        except Exception:
+            logger.warning(
+                "Could not send receipt to admin %s for Pro purchase", admin_id, exc_info=True
+            )
+
+
+@router.callback_query(F.data.startswith("pro:approve:"))
+async def approve_pro_purchase(callback: CallbackQuery) -> None:
+    admin_uid = callback.from_user.id
+    if not is_admin(admin_uid):
+        await callback.answer()
+        return
+
+    try:
+        _, _, target_raw, days_raw = callback.data.split(":")
+        target_id = int(target_raw)
+        days = int(days_raw)
+    except ValueError:
+        await callback.answer()
+        return
+
+    expires = await grant_pro(target_id, days=days)
+
+    confirmed_line = f"\n\n✅ تأیید شد — Pro تا {expires.strftime('%Y-%m-%d')}"
+    if callback.message.photo:
+        base_caption = callback.message.caption or ""
+        await callback.message.edit_caption(caption=base_caption + confirmed_line, reply_markup=None)
+    else:
+        try:
+            await callback.message.delete()
+        except Exception:
+            logger.warning("Could not delete approved Pro request message", exc_info=True)
+
+    await callback.answer("تأیید شد")
+
+    try:
+        await callback.bot.send_message(
+            target_id,
+            await tu(
+                target_id,
+                "pro_card_payment_ok",
+                days=days,
+                date=expires.strftime("%Y-%m-%d %H:%M"),
+            ),
+        )
+    except Exception:
+        logger.warning(
+            "Could not notify user %s about Pro activation", target_id, exc_info=True
+        )

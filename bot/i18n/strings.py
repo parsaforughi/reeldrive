@@ -702,6 +702,68 @@ Coming soon: unfollowers list.""",
             "📅 الصلاحية: {days} يوماً (حتى {date})"
         ),
     },
+    "pro_card_option_button": {
+        "fa": "💳 پرداخت کارت به کارت (دستی)",
+        "en": "💳 Manual card-to-card payment",
+        "ar": "💳 دفع يدوي بالتحويل البنكي",
+    },
+    "pro_pick_duration": {
+        "fa": "چند ماه Pro می‌خوای؟",
+        "en": "How many months of Pro do you want?",
+        "ar": "كم شهراً من Pro تريد؟",
+    },
+    "pro_card_pay_prompt": {
+        "fa": (
+            "برای {months} ماه Pro باید {amount} ریال به شماره کارت زیر واریز کنی:\n\n"
+            "💳 <code>{card}</code>\n"
+            "به نام: {holder}\n\n"
+            "⚠️ مبلغ رو دقیقاً همین‌طور که نوشته شده واریز کن (تا آخرین ریالش) — این عدد مخصوص خودته.\n\n"
+            "بعد از واریز، عکس رسیدشو همینجا برام بفرست."
+        ),
+        "en": (
+            "For {months} month(s) of Pro you need to transfer {amount} Rial to this card:\n\n"
+            "💳 <code>{card}</code>\n"
+            "Holder: {holder}\n\n"
+            "⚠️ Transfer the exact amount shown — it's unique to you.\n\n"
+            "After paying, send a photo of the receipt right here."
+        ),
+        "ar": (
+            "مقابل {months} شهر من Pro، حوّل {amount} ریال إلى هذه البطاقة:\n\n"
+            "💳 <code>{card}</code>\n"
+            "الاسم: {holder}\n\n"
+            "⚠️ حوّل المبلغ بالضبط كما هو موضح — إنه فريد لك.\n\n"
+            "بعد الدفع أرسل صورة الإيصال هنا مباشرة."
+        ),
+    },
+    "pro_receipt_need_photo": {
+        "fa": "لطفاً عکس رسید واریزی رو بفرست (نه متن).",
+        "en": "Please send a photo of the receipt (not text).",
+        "ar": "الرجاء إرسال صورة الإيصال (وليس نصاً).",
+    },
+    "pro_receipt_received": {
+        "fa": "✅ رسید دریافت شد و برای بررسی برای پشتیبانی فرستاده شد. بعد از تأیید، Pro فعال می‌شه و بهت خبر می‌دیم.",
+        "en": "✅ Receipt received and sent for review. Pro will be activated once confirmed.",
+        "ar": "✅ تم استلام الإيصال وإرساله للمراجعة. سيتم تفعيل Pro بعد التأكيد.",
+    },
+    "pro_card_payment_ok": {
+        "fa": (
+            "🎉 <b>Pro فعال شد!</b>\n\n"
+            "💳 پرداخت: کارت به کارت\n"
+            "📅 اعتبار: {days} روز (تا {date})\n\n"
+            "ممنون از حمایتت!"
+        ),
+        "en": (
+            "🎉 <b>Pro activated!</b>\n\n"
+            "💳 Paid via card-to-card\n"
+            "📅 Valid: {days} days (until {date})\n\n"
+            "Thank you!"
+        ),
+        "ar": (
+            "🎉 <b>تم تفعيل Pro!</b>\n\n"
+            "💳 الدفع عبر التحويل البنكي\n"
+            "📅 الصلاحية: {days} يوماً (حتى {date})"
+        ),
+    },
     "pro_payment_failed": {
         "fa": "❌ پرداخت تأیید نشد. دوباره /subscribe را بزن.",
         "en": "❌ Payment could not be verified. Try /subscribe again.",

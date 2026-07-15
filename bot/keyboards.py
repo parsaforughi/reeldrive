@@ -102,6 +102,12 @@ def subscription_shop_kb(lang: str) -> InlineKeyboardMarkup:
             web_app=WebAppInfo(url=settings.shop_webapp_url),
         )
     )
+    builder.row(
+        InlineKeyboardButton(
+            text=t("pro_card_option_button", lang),
+            callback_data="pro:card_menu",
+        )
+    )
     return builder.as_markup()
 
 
@@ -111,6 +117,49 @@ def paywall_kb(lang: str) -> InlineKeyboardMarkup:
 
 def pro_pay_kb(lang: str, *, renew: bool = False) -> InlineKeyboardMarkup | None:
     return subscription_shop_kb(lang)
+
+
+def pro_duration_kb(lang: str) -> InlineKeyboardMarkup:
+    from bot.services.pricing import PRO_DURATION_OPTIONS
+
+    builder = InlineKeyboardBuilder()
+    for plan in PRO_DURATION_OPTIONS:
+        builder.row(
+            InlineKeyboardButton(
+                text=str(plan["label"]),
+                callback_data=f"pro:days:{plan['days']}",
+            )
+        )
+    builder.row(
+        InlineKeyboardButton(
+            text=t("btn_cancel", lang),
+            callback_data="pro:cancel",
+        )
+    )
+    return builder.as_markup()
+
+
+def pro_card_pay_kb(
+    support_url: str, lang: str, *, card: str, amount_rial: int
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=t("following_copy_card_button", lang),
+            callback_data=f"pro:copy:card:{card}",
+        ),
+        InlineKeyboardButton(
+            text=t("following_copy_amount_button", lang),
+            callback_data=f"pro:copy:amount:{amount_rial}",
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=t("following_token_pay_button", lang),
+            url=support_url,
+        )
+    )
+    return builder.as_markup()
 
 
 def video_analyze_kb(file_id: str) -> InlineKeyboardMarkup:

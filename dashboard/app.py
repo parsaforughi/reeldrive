@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, or_, select
 
 from aiogram import Bot
 from aiogram.types import LabeledPrice
@@ -34,7 +34,9 @@ from bot.services.pricing import (
 )
 from bot.services.client_pool import client_pool
 from bot.services.subscription import (
+    PRO_PLANS,
     get_bot_user,
+    grant_pro,
     is_ai_unlimited,
     is_plan_active,
     subscription_status_line,
@@ -215,24 +217,52 @@ async def api_stats(_: None = Depends(require_admin)):
 
 
 @app.get("/api/users")
-async def api_users(_: None = Depends(require_admin)):
+async def api_users(
+    page: int = 1,
+    page_size: int = 50,
+    q: str = "",
+    _: None = Depends(require_admin),
+):
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    q = (q or "").strip()
+
     async with async_session() as session:
+        stmt = select(BotUser)
+        count_stmt = select(func.count(BotUser.telegram_id))
+        if q:
+            conds = [BotUser.username.ilike(f"%{q}%")]
+            if q.lstrip("-").isdigit():
+                conds.append(BotUser.telegram_id == int(q))
+            cond = or_(*conds)
+            stmt = stmt.where(cond)
+            count_stmt = count_stmt.where(cond)
+
+        total = await session.scalar(count_stmt) or 0
         users = (
             await session.execute(
-                select(BotUser).order_by(desc(BotUser.last_seen_at)).limit(500)
+                stmt.order_by(desc(BotUser.last_seen_at))
+                .offset((page - 1) * page_size)
+                .limit(page_size)
             )
         ).scalars().all()
-        connections = {
-            c.telegram_id: c
-            for c in (
-                await session.execute(select(UserConnection))
-            ).scalars().all()
-        }
 
-    out = []
+        ids = [u.telegram_id for u in users]
+        connections: dict[int, UserConnection] = {}
+        if ids:
+            connections = {
+                c.telegram_id: c
+                for c in (
+                    await session.execute(
+                        select(UserConnection).where(UserConnection.telegram_id.in_(ids))
+                    )
+                ).scalars().all()
+            }
+
+    items = []
     for u in users:
         conn = connections.get(u.telegram_id)
-        out.append(
+        items.append(
             {
                 "telegram_id": u.telegram_id,
                 "username": u.username,
@@ -251,7 +281,7 @@ async def api_users(_: None = Depends(require_admin)):
                 "blocked": u.is_blocked,
             }
         )
-    return out
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @app.get("/api/logs")
@@ -300,30 +330,38 @@ async def patch_subscription(
     _: None = Depends(require_admin),
 ):
     plan = body.plan.lower()
-    if plan not in ("free", "pro", "premium"):
+    if plan not in ("free", "pro"):
         raise HTTPException(status_code=400, detail="Invalid plan")
 
-    expires = None
-    if plan != "free" and body.days:
-        expires = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
-            days=body.days
-        )
+    if plan == "free":
+        async with async_session() as session:
+            user = await session.get(BotUser, telegram_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            user.subscription_plan = "free"
+            user.subscription_expires_at = None
+            session.add(
+                ActivityLog(
+                    telegram_id=telegram_id,
+                    event_type="admin",
+                    detail="subscription → free",
+                )
+            )
+            await session.commit()
+        return {"ok": True, "plan": "free", "expires": None}
 
+    days = max(1, body.days or 30)
+    expires = await grant_pro(telegram_id, days=days)
     async with async_session() as session:
-        user = await session.get(BotUser, telegram_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        user.subscription_plan = plan
-        user.subscription_expires_at = expires
         session.add(
             ActivityLog(
                 telegram_id=telegram_id,
                 event_type="admin",
-                detail=f"subscription → {plan}",
+                detail=f"subscription → pro (+{days}d)",
             )
         )
         await session.commit()
-    return {"ok": True, "plan": plan, "expires": to_iso_utc(expires)}
+    return {"ok": True, "plan": "pro", "expires": to_iso_utc(expires)}
 
 
 @app.get("/api/subscriptions")
@@ -385,7 +423,7 @@ async def api_shop_info(body: WebAppBody):
         user, vip, lang, telegram_id=telegram_id, username=username
     )
     pro_active = bool(
-        is_plan_active(user) and user and user.subscription_plan in ("download", "pro", "premium")
+        is_plan_active(user) and user and user.subscription_plan in PRO_PLANS
     )
     support = settings.payment_support_username.lstrip("@")
 
@@ -417,7 +455,7 @@ async def api_shop_invoice(body: WebAppInvoiceBody):
     stars = plan_stars(body.days)
 
     user = await get_bot_user(telegram_id)
-    if is_plan_active(user) and user and user.subscription_plan in ("download", "pro", "premium"):
+    if is_plan_active(user) and user and user.subscription_plan in PRO_PLANS:
         raise HTTPException(status_code=409, detail="Pro قبلاً فعال است.")
 
     bot = Bot(token=settings.telegram_bot_token)
