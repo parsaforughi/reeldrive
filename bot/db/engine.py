@@ -40,6 +40,18 @@ async def _ensure_language_column(conn) -> None:
         pass
 
 
+async def _ensure_renewal_reminder_column(conn) -> None:
+    dialect = conn.dialect.name
+    if dialect == "sqlite":
+        sql = "ALTER TABLE bot_users ADD COLUMN renewal_reminder_expiry DATETIME"
+    else:
+        sql = "ALTER TABLE bot_users ADD COLUMN IF NOT EXISTS renewal_reminder_expiry TIMESTAMP"
+    try:
+        await conn.execute(text(sql))
+    except Exception:
+        pass
+
+
 async def init_db() -> None:
     db_path = sqlite_db_path()
     if db_path:
@@ -50,6 +62,7 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await _ensure_language_column(conn)
+        await _ensure_renewal_reminder_column(conn)
 
 
 async def db_ping() -> bool:

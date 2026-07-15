@@ -764,6 +764,11 @@ Coming soon: unfollowers list.""",
             "📅 الصلاحية: {days} يوماً (حتى {date})"
         ),
     },
+    "pro_renewal_reminder": {
+        "fa": "⏰ اشتراک Pro‌ت تا {date} اعتباره (۲ روز دیگه تموم می‌شه). برای تمدید دکمه زیر رو بزن.",
+        "en": "⏰ Your Pro subscription expires on {date} (2 days left). Tap below to renew.",
+        "ar": "⏰ ينتهي اشتراكك Pro في {date} (يومان متبقيان). اضغط أدناه للتجديد.",
+    },
     "pro_payment_failed": {
         "fa": "❌ پرداخت تأیید نشد. دوباره /subscribe را بزن.",
         "en": "❌ Payment could not be verified. Try /subscribe again.",

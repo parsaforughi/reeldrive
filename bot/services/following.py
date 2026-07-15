@@ -1,15 +1,15 @@
-"""Following-list lookup: HikerAPI only.
+"""Following-list lookup: Apify only.
 
 Deliberately does not fall back to instagrapi — that would run through the
 shared bridge Instagram session used for DM forwarding and other features,
-risking a rate-limit/challenge on that account. If HikerAPI isn't configured
-or fails, the lookup fails outright instead.
+risking a rate-limit/challenge on that account. If Apify isn't configured or
+fails, the lookup fails outright instead.
 """
 
 import logging
 
 from bot.config import settings
-from bot.services.hikerapi import hiker_client
+from bot.services.apify import apify_downloader
 from bot.services.instagram import FollowUser
 
 logger = logging.getLogger(__name__)
@@ -44,23 +44,23 @@ def _parse_item(item: dict) -> FollowUser | None:
 
 
 async def fetch_following(username: str, limit: int | None = None) -> list[FollowUser]:
-    if not hiker_client.ready:
-        raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+    if not apify_downloader.ready:
+        raise ValueError("Apify تنظیم نشده / Apify not configured")
 
     limit = limit or settings.max_following_list
     try:
-        items = await hiker_client.fetch_following(username, limit)
+        items = await apify_downloader.fetch_following(username, limit)
     except ValueError:
         raise
     except Exception as exc:
-        logger.warning("HikerAPI following fetch failed for @%s", username, exc_info=True)
-        raise ValueError("خطای دریافت فالووینگ / Following fetch failed") from exc
+        logger.warning("Apify following fetch failed for @%s", username, exc_info=True)
+        raise ValueError("خطای Apify در دریافت فالووینگ / Apify following fetch failed") from exc
 
-    logger.info("HikerAPI following for @%s: %d raw item(s)", username, len(items))
+    logger.info("Apify following for @%s: %d raw item(s)", username, len(items))
     users = [u for item in items if (u := _parse_item(item))]
     if items and not users:
         logger.warning(
-            "HikerAPI following for @%s: 0/%d items parsed — unexpected item shape, first item keys: %s",
+            "Apify following for @%s: 0/%d items parsed — unexpected item shape, first item keys: %s",
             username,
             len(items),
             sorted(items[0].keys()) if isinstance(items[0], dict) else type(items[0]),

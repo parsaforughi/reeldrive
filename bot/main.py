@@ -132,6 +132,12 @@ async def main() -> None:
     poller = BridgePoller(bot, loop)
     poll_task = asyncio.create_task(poller.run_loop())
 
+    from bot.services.renewal_reminder import RenewalReminder
+
+    renewal_reminder = RenewalReminder(bot)
+    renewal_task = asyncio.create_task(renewal_reminder.run_loop())
+    logger.info("Pro renewal reminder loop started")
+
     await bot.delete_webhook(drop_pending_updates=True)
     logger.info("Starting %s (polling)…", settings.bot_name)
     logger.info(
@@ -143,6 +149,8 @@ async def main() -> None:
     finally:
         poller.stop()
         poll_task.cancel()
+        renewal_reminder.stop()
+        renewal_task.cancel()
         await bot.session.close()
 
 

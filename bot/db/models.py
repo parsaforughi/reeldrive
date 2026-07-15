@@ -23,6 +23,10 @@ class BotUser(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     language: Mapped[str] = mapped_column(String(5), default="", index=True)
+    # Stores the subscription_expires_at value we last sent a renewal
+    # reminder for — differs from subscription_expires_at once renewed,
+    # which naturally re-arms the reminder for the new expiry.
+    renewal_reminder_expiry: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ActivityLog(Base):

@@ -209,8 +209,9 @@
               <tr>
                 <th>کاربر</th>
                 <th>پلن</th>
+                <th>روزهای مانده</th>
                 <th>IG</th>
-                <th>دانلود</th>
+                <th>دانلود / دستور</th>
                 <th>آخرین بازدید</th>
                 <th></th>
               </tr>
@@ -305,6 +306,17 @@
       });
     }
 
+    function daysLeftHtml(iso, plan) {
+      if (plan === "free" || !iso) return '<span class="muted">—</span>';
+      const d = parseUtc(iso);
+      if (!d) return '<span class="muted">—</span>';
+      const ms = d.getTime() - Date.now();
+      const days = Math.ceil(ms / 86400000);
+      if (days <= 0) return '<span style="color:#f87171">منقضی</span>';
+      if (days <= 2) return `<span style="color:#fbbf24">${days.toLocaleString("fa-IR")} روز</span>`;
+      return `<span>${days.toLocaleString("fa-IR")} روز</span>`;
+    }
+
     function updateClock() {
       const el = $("#clock");
       if (!el) return;
@@ -351,8 +363,9 @@
             <span class="muted">${u.name}</span>
           </td>
           <td><span class="plan ${u.plan}">${u.plan}</span></td>
+          <td>${daysLeftHtml(u.expires, u.plan)}${u.expires && u.plan !== "free" ? `<br/><span class="muted" style="font-size:0.7rem">تا ${fmtDate(u.expires)}</span>` : ""}</td>
           <td>${u.ig_connected === "connected" ? "✅ @" + (u.ig_username || "") : "—"}</td>
-          <td>${u.downloads}</td>
+          <td>${u.downloads} / ${u.commands}</td>
           <td class="muted">${fmtDate(u.last_seen)}</td>
           <td style="display:flex;gap:6px;align-items:center">
             <input type="number" min="1" value="1" title="تعداد ماه (برای pro)"
