@@ -215,8 +215,8 @@ class Settings(BaseSettings):
     following_free_pages: int = 0
     # Only the first card is active for now — add more comma-separated
     # whenever rotation should resume.
-    following_support_cards: str = "6219861994461589"
-    following_card_holder_name: str = "علی محمدی نشلی"
+    following_support_cards: str = "6219861462108209"
+    following_card_holder_name: str = "احمد عابدزاده"
     following_cards_rotate_every: int = 15
     admin_telegram_ids: str = "99686187,8989258776"
     # Who actually gets pushed the receipt/purchase-request messages — a
