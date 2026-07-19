@@ -60,6 +60,14 @@ async def _fetch_via_apify(username: str) -> ProfileResult:
     )
 
 
+async def fetch_following_count(username: str) -> int:
+    """Cheap public follows-count lookup via the profile-details Apify call
+    (the default download actor), used to price the followings-list feature
+    before running the far more expensive followings-scraper actor."""
+    item = await apify_downloader.fetch_profile_item(username)
+    return _first_int(item, _FOLLOWING_KEYS)
+
+
 async def fetch_profile(username: str) -> ProfileResult:
     if apify_downloader.ready:
         try:

@@ -520,16 +520,19 @@ Coming soon: unfollowers list.""",
     },
     "following_need_tokens": {
         "fa": (
-            "🔒 برای دیدن فالووینگ @{username} باید توکن بخری.\n\n"
-            "چند تا پیج می‌خوای بخری؟ یه عدد بفرست (مثلاً ۱، ۳، ۵):"
+            "🔒 @{username} حدود {count} فالووینگ داره — دیدنش {tokens} توکن لازم داره "
+            "(هر ۴۰۰ فالووینگ = ۱ توکن) و به این تعداد رو نداری.\n\n"
+            "چند تا توکن می‌خوای بخری؟ یه عدد بفرست (مثلاً {tokens}):"
         ),
         "en": (
-            "🔒 You need a token to view @{username}'s following.\n\n"
-            "How many pages do you want to buy? Send a number (e.g. 1, 3, 5):"
+            "🔒 @{username} has ~{count} followings — viewing it needs {tokens} token(s) "
+            "(1 token per 400 followings) and you don't have that many.\n\n"
+            "How many tokens do you want to buy? Send a number (e.g. {tokens}):"
         ),
         "ar": (
-            "🔒 تحتاج إلى رمز لعرض متابَعي @{username}.\n\n"
-            "كم صفحة تريد شراءها؟ أرسل رقماً (مثلاً ۱، ۳، ۵):"
+            "🔒 لدى @{username} حوالي {count} متابَع — تحتاج {tokens} رمز لعرضها "
+            "(رمز واحد لكل 400 متابَع) وليس لديك هذا العدد.\n\n"
+            "كم رمزاً تريد شراءه؟ أرسل رقماً (مثلاً {tokens}):"
         ),
     },
     "following_invalid_token_count": {

@@ -7,7 +7,12 @@
    channel revokes access on the next check, nothing is cached.
 2. Each distinct target account ("page") the user looks up must be unlocked.
    The first ``settings.following_free_pages`` accounts are free once the
-   channels are joined; every account after that consumes one paid token.
+   channels are joined; every account after that consumes
+   ``tokens_required_for_count(following_count)`` paid tokens — one token
+   per started batch of ``FOLLOWINGS_PER_TOKEN`` followings (e.g. an 800-
+   following page costs 2 tokens). The count is looked up cheaply via the
+   profile-details Apify call *before* the expensive followings-list scrape
+   runs, so a user without enough tokens never triggers it.
    Tokens are bought in whatever quantity the user picks, via a manual
    card-to-card payment (rotated across ``settings.following_support_cards``
    every ``settings.following_cards_rotate_every`` confirmed purchases), and
@@ -15,6 +20,7 @@
 """
 
 import logging
+import math
 
 from aiogram import Bot
 from sqlalchemy import func, select
@@ -26,6 +32,14 @@ from bot.db.models import FollowingCredit, FollowingCreditGrant, FollowingUnlock
 logger = logging.getLogger(__name__)
 
 _JOINED_STATUSES = frozenset({"member", "administrator", "creator"})
+
+FOLLOWINGS_PER_TOKEN = 400
+
+
+def tokens_required_for_count(following_count: int) -> int:
+    """Every started batch of FOLLOWINGS_PER_TOKEN followings costs one
+    token (e.g. 800 followings -> 2 tokens, 450 -> 2 tokens)."""
+    return max(1, math.ceil(following_count / FOLLOWINGS_PER_TOKEN))
 
 
 def _split_csv(raw: str) -> list[str]:
@@ -184,31 +198,33 @@ async def _unlock_account(
         await session.commit()
 
 
-async def _consume_credit(telegram_id: int) -> bool:
+async def _consume_credit(telegram_id: int, amount: int = 1) -> bool:
     async with async_session() as session:
         credit = await session.get(FollowingCredit, telegram_id)
-        if not credit or credit.balance < 1:
+        if not credit or credit.balance < amount:
             return False
-        credit.balance -= 1
+        credit.balance -= amount
         await session.commit()
         return True
 
 
-async def has_access(telegram_id: int, target_username: str) -> bool:
+async def has_access(telegram_id: int, target_username: str, tokens_needed: int = 1) -> bool:
     """Read-only check — would granting access succeed (already unlocked,
-    free quota, or a token to spend)? Call this BEFORE the (paid) Apify
-    fetch, so users with no tokens never trigger an actual scrape."""
+    free quota, or enough tokens to spend)? Call this BEFORE the (paid,
+    expensive) followings-list Apify fetch, so users without enough tokens
+    never trigger it. ``tokens_needed`` should come from
+    ``tokens_required_for_count`` using a cheap prior follows-count lookup."""
     if await is_unlocked(telegram_id, target_username):
         return True
     if await unlocked_count(telegram_id) < free_page_count():
         return True
-    return await get_credit_balance(telegram_id) > 0
+    return await get_credit_balance(telegram_id) >= tokens_needed
 
 
-async def grant_access(telegram_id: int, target_username: str) -> bool:
-    """Actually unlocks + spends a token if needed. Call only after a
-    successful, non-empty fetch, so a failed/empty lookup never costs a
-    token even if ``has_access`` said yes."""
+async def grant_access(telegram_id: int, target_username: str, tokens_needed: int = 1) -> bool:
+    """Actually unlocks + spends ``tokens_needed`` tokens if not free. Call
+    only after a successful, non-empty fetch, so a failed/empty lookup never
+    costs tokens even if ``has_access`` said yes."""
     if await is_unlocked(telegram_id, target_username):
         return True
 
@@ -216,7 +232,7 @@ async def grant_access(telegram_id: int, target_username: str) -> bool:
         await _unlock_account(telegram_id, target_username)
         return True
 
-    if await _consume_credit(telegram_id):
+    if await _consume_credit(telegram_id, tokens_needed):
         await _unlock_account(telegram_id, target_username)
         return True
 

@@ -17,8 +17,11 @@ from bot.services.following_access import (
     get_credit_balance,
     grant_access,
     has_access,
+    is_unlocked,
     missing_channels,
+    tokens_required_for_count,
 )
+from bot.services.profile import fetch_following_count
 from bot.states import FollowingStates
 
 
@@ -45,25 +48,40 @@ async def guard_channels(message: Message, uid: int) -> bool:
 async def start_following_lookup(
     message: Message, state: FSMContext, username: str
 ) -> bool:
-    """Checks access (already unlocked, free quota, or a token to spend)
-    BEFORE fetching — a user with no access never triggers a paid Apify
-    scrape. Only spends a token after a successful, non-empty fetch, so a
-    private/empty account doesn't cost anything either. Returns False if
+    """Checks access (already unlocked, free quota, or enough tokens to
+    spend) BEFORE fetching. Pricing is one token per started batch of 400
+    followings, so for a never-unlocked account the follows count is looked
+    up first via a cheap profile-details call — BEFORE the expensive
+    followings-list scrape runs, so a user without enough tokens never
+    triggers it. Only spends tokens after a successful, non-empty fetch, so
+    a private/empty account doesn't cost anything either. Returns False if
     there was nothing to show (caller should already have sent an
     error/empty message in that case)."""
     uid = message.from_user.id
 
-    if not await has_access(uid, username):
-        await state.set_state(FollowingStates.waiting_token_count)
-        await message.answer(await tu(uid, "following_need_tokens", username=username))
-        return True
+    tokens_needed = 1
+    if not await is_unlocked(uid, username):
+        following_count = await fetch_following_count(username)
+        tokens_needed = tokens_required_for_count(following_count)
+        if not await has_access(uid, username, tokens_needed):
+            await state.set_state(FollowingStates.waiting_token_count)
+            await message.answer(
+                await tu(
+                    uid,
+                    "following_need_tokens",
+                    username=username,
+                    count=following_count,
+                    tokens=tokens_needed,
+                )
+            )
+            return True
 
     users = await fetch_following(username)
     if not users:
         await message.answer(await tu(uid, "no_following"))
         return False
 
-    await grant_access(uid, username)
+    await grant_access(uid, username, tokens_needed)
     await send_following(message, username, users)
 
     tokens_left = await get_credit_balance(uid)
