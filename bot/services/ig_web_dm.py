@@ -21,6 +21,7 @@ WEB_UA = (
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 INBOX_URL = "https://www.instagram.com/api/v1/direct_v2/inbox/"
+PENDING_INBOX_URL = "https://www.instagram.com/api/v1/direct_v2/pending_inbox/"
 BADGE_URL = "https://www.instagram.com/api/v1/direct_v2/get_badge_count/"
 
 
@@ -164,8 +165,12 @@ class WebDMClient:
         except Exception:
             return "", -1
 
-    def fetch_threads(
-        self, limit: int = 12, thread_message_limit: int = 5
+    def _fetch_threads(
+        self,
+        url: str,
+        *,
+        limit: int,
+        thread_message_limit: int,
     ) -> list[WebDMThread]:
         params = {
             "visual_message_return_type": "unseen",
@@ -173,7 +178,7 @@ class WebDMClient:
             "persistentBadging": "true",
             "limit": str(limit),
         }
-        r = self._session.get(INBOX_URL, params=params, timeout=12)
+        r = self._session.get(url, params=params, timeout=12)
         r.raise_for_status()
         data = r.json()
         raw_threads = data.get("inbox", {}).get("threads", []) or []
@@ -204,3 +209,23 @@ class WebDMClient:
                 )
             threads.append(WebDMThread(thread_id=tid, users=users, items=items))
         return threads
+
+    def fetch_threads(
+        self, limit: int = 12, thread_message_limit: int = 5
+    ) -> list[WebDMThread]:
+        """Return conversations from the regular (Primary/General) inbox."""
+        return self._fetch_threads(
+            INBOX_URL,
+            limit=limit,
+            thread_message_limit=thread_message_limit,
+        )
+
+    def fetch_pending_threads(
+        self, limit: int = 12, thread_message_limit: int = 5
+    ) -> list[WebDMThread]:
+        """Return conversations waiting in Instagram Message Requests."""
+        return self._fetch_threads(
+            PENDING_INBOX_URL,
+            limit=limit,
+            thread_message_limit=thread_message_limit,
+        )

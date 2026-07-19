@@ -49,6 +49,7 @@ class BridgePoller:
         self._bootstrapped = False
         self._idle_ticks = 0
         self._inbox_blocked_logged = False
+        self._pending_inbox_blocked_logged = False
         self._last_inbox_seq: str = ""
         self._pending_tasks: set[asyncio.Task] = set()
 
@@ -104,9 +105,6 @@ class BridgePoller:
         out: list[BridgeMessage] = []
         try:
             threads = web.fetch_threads(limit=12, thread_message_limit=5)
-            seq, _ = web.peek_activity()
-            if seq:
-                self._last_inbox_seq = seq
         except Exception as exc:
             client_pool.bridge_inbox_ok = False
             if not self._inbox_blocked_logged:
@@ -116,6 +114,24 @@ class BridgePoller:
                     exc,
                 )
             return []
+
+        # Message Requests live in a separate Instagram inbox endpoint. A
+        # failure there must not stop messages already accepted into Primary.
+        try:
+            pending_threads = web.fetch_pending_threads(
+                limit=12, thread_message_limit=5
+            )
+            self._pending_inbox_blocked_logged = False
+        except Exception as exc:
+            pending_threads = []
+            if not self._pending_inbox_blocked_logged:
+                self._pending_inbox_blocked_logged = True
+                logger.warning("IG web pending inbox read failed: %s", exc)
+
+        threads.extend(pending_threads)
+        seq, _ = web.peek_activity()
+        if seq:
+            self._last_inbox_seq = seq
 
         for thread in threads:
             for item in thread.items:
@@ -159,8 +175,10 @@ class BridgePoller:
                 and (item.media_url or item.media_files)
             )
             logger.info(
-                "Bridge DM bootstrap done (%s threads, only new messages processed%s)",
+                "Bridge DM bootstrap done (%s threads, including %s request(s); "
+                "only new messages processed%s)",
                 len(threads),
+                len(pending_threads),
                 f", {skipped} old shares skipped" if skipped else "",
             )
 
