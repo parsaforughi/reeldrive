@@ -26,6 +26,7 @@ from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.handlers.payments import PRO_PAYLOAD, _payload
 from bot.i18n import require_user_lang, t
 from bot.services.apify import apify_downloader
+from bot.services.hikerapi import hiker_client
 from bot.services.pricing import (
     is_allowed_plan_days,
     plan_by_days,
@@ -208,6 +209,7 @@ async def api_stats(_: None = Depends(require_admin)):
         "activity_24h": today_logs or 0,
         "downloads_24h": today_downloads or 0,
         "system": {
+            "hikerapi": hiker_client.ready,
             "apify": apify_downloader.ready,
             "ig_service": client_pool.service_ready,
             "ig_bridge": client_pool.bridge_ready,

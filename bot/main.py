@@ -73,6 +73,12 @@ async def main() -> None:
     loop = asyncio.get_running_loop()
 
     from bot.services.apify import apify_downloader
+    from bot.services.hikerapi import hiker_client
+
+    if hiker_client.ready:
+        logger.info("HikerAPI public profile/following provider enabled")
+    else:
+        logger.warning("HIKERAPI_KEY not set — public data will use fallback providers")
 
     if apify_downloader.ready:
         logger.info("Apify direct download enabled")

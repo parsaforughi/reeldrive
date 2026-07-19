@@ -353,9 +353,9 @@ Coming soon: unfollowers list.""",
         "ar": "❌ الحساب خاص — اجعل السيرة مرئية أو استخدم الرسائل.",
     },
     "verify_apify": {
-        "fa": "❌ بررسی Bio ممکن نشد. APIFY_TOKEN را چک کن یا بعداً امتحان کن.",
-        "en": "❌ Could not check bio. Check APIFY_TOKEN or try later.",
-        "ar": "❌ تعذر فحص السيرة. تحقق من APIFY_TOKEN.",
+        "fa": "❌ بررسی Bio ممکن نشد. HikerAPI/Apify را چک کن یا بعداً امتحان کن.",
+        "en": "❌ Could not check bio. Check HikerAPI/Apify or try later.",
+        "ar": "❌ تعذر فحص السيرة. تحقق من HikerAPI/Apify.",
     },
     "connect_disconnected": {
         "fa": "اتصال قطع شد.",
@@ -609,6 +609,7 @@ Coming soon: unfollowers list.""",
         "fa": (
             "<b>{name}</b>\n\n"
             "⭐ اشتراک: {plan}\n"
+            "👥 اطلاعات عمومی (HikerAPI): {hiker}\n"
             "⚡ دایرکت دانلود (Apify): {apify}\n"
             "📥 دانلود لینک: {svc}{ig_extra}\n"
             "💬 پل اتصال {bridge}: {brg}\n"
@@ -617,6 +618,7 @@ Coming soon: unfollowers list.""",
         "en": (
             "<b>{name}</b>\n\n"
             "⭐ Plan: {plan}\n"
+            "👥 Public data (HikerAPI): {hiker}\n"
             "⚡ Direct download (Apify): {apify}\n"
             "📥 Link download: {svc}{ig_extra}\n"
             "💬 Bridge {bridge}: {brg}\n"
@@ -625,6 +627,7 @@ Coming soon: unfollowers list.""",
         "ar": (
             "<b>{name}</b>\n\n"
             "⭐ الاشتراك: {plan}\n"
+            "👥 البيانات العامة (HikerAPI): {hiker}\n"
             "⚡ تحميل مباشر (Apify): {apify}\n"
             "📥 تحميل الروابط: {svc}{ig_extra}\n"
             "💬 جسر {bridge}: {brg}\n"

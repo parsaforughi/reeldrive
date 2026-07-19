@@ -2,8 +2,9 @@
 
 ربات تلگرام شبیه [@Regrambot](https://t.me/Regrambot) — دانلود از اینستاگرام + اتصال پیج با کد تأیید.
 
-**دایرکت دانلود (لینک)** از **Apify** — `APIFY_TOKEN` در Railway.  
-**اتصال پیج** از اکانت اینستاگرام bridge ربات (`INSTAGRAM_BRIDGE_*`).  
+**داده عمومی و فالووینگ** از **HikerAPI** — `HIKERAPI_KEY` در Railway.
+**دایرکت دانلود (لینک)** از **Apify** — `APIFY_TOKEN` در Railway.
+**اتصال پیج** از اکانت اینستاگرام bridge ربات (`INSTAGRAM_BRIDGE_*`).
 پروفایل/استوری اختیاری با `INSTAGRAM_USERNAME` (instagrapi).
 
 ## امکانات
@@ -11,7 +12,7 @@
 - **دایرکت دانلود:** لینک پست/ریل/کاروسel، استوری، هایلایت، پروفایل HD
 - **اتصال پیج:** `/connect` → کد → DM به اکانت bridge در IG → دریافت لینک‌ها در تلگرام
 - **زیپ:** `zip stories user` | `zip posts user`
-- **فالووینگ:** `/following` یا `following user` — لیست کسانی که آن آیدی فالو کرده. اول از Apify (بدون نیاز به لاگین IG، فقط پیج پابلیک) امتحان می‌شود؛ اگر Apify نبود/fail شد، به instagrapi (نیاز به اتصال IG سرویس) برمی‌گردد.
+- **فالووینگ:** `/following` یا `following user` — HikerAPI برای پیج‌های پابلیک، با Apify به‌عنوان fallback؛ هرگز از session اکانت bridge استفاده نمی‌شود.
 - **هشتگ:** `#tag` یا `hashtag name`
 - **لیست نظارت:** `/watch add|list|remove` (اتصال پیج لازم)
 
@@ -27,7 +28,7 @@
 - Worker: `railway.worker.toml` → فقط `python -m bot.main`  
 - در Railway برای هر سرویس مسیر Config file را جدا بگذار
 
-Variables **هر دو سرویس:** `DATABASE_URL` (Postgres توصیه می‌شود — [راهنما](docs/RAILWAY_DB_FA.md))، `TELEGRAM_BOT_TOKEN`, `APIFY_TOKEN`, `INSTAGRAM_BRIDGE_*`  
+Variables **هر دو سرویس:** `DATABASE_URL` (Postgres توصیه می‌شود — [راهنما](docs/RAILWAY_DB_FA.md))، `TELEGRAM_BOT_TOKEN`, `HIKERAPI_KEY`, `APIFY_TOKEN`, `INSTAGRAM_BRIDGE_*`
 Variables **فقط Web:** `DASHBOARD_PASSWORD`, `DASHBOARD_SECRET`
 
 Volume: `sessions/` و `data/` (روی Worker؛ Web فقط DB مشترک لازم دارد)

@@ -7,6 +7,7 @@ from bot.keyboards import subscription_shop_kb
 from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.services.direct_download import direct_download_ready
+from bot.services.hikerapi import hiker_client
 from bot.services.subscription import (
     direct_link_downloads_remaining,
     get_bot_user,
@@ -20,6 +21,7 @@ from sqlalchemy import select
 
 async def build_status_text(telegram_id: int, username: str | None = None) -> str:
     lang = await require_user_lang(telegram_id)
+    hiker = "✅" if hiker_client.ready else "❌"
     apify = "✅" if apify_downloader.ready else "❌"
     svc = "✅" if direct_download_ready() else "❌"
     ig_extra = " (instagrapi)" if client_pool.service_ready else ""
@@ -58,6 +60,7 @@ async def build_status_text(telegram_id: int, username: str | None = None) -> st
         "status_body",
         lang,
         name=settings.bot_name,
+        hiker=hiker,
         apify=apify,
         svc=svc,
         ig_extra=ig_extra,
