@@ -18,7 +18,6 @@ from bot.handlers.status_helpers import (
 from bot.i18n import friendly_error, get_user_lang, require_user_lang, t, tu
 from bot.keyboards import following_cancel_kb, following_token_pay_kb, language_kb
 from bot.services.apify import apify_downloader
-from bot.services.hikerapi import hiker_client
 from bot.services.following_access import (
     current_support_card,
     missing_channels,
@@ -164,8 +163,8 @@ async def receive_following_username(message: Message, state: FSMContext) -> Non
 
     await state.clear()
 
-    if not hiker_client.ready and not apify_downloader.ready:
-        await message.answer(await tu(uid, "error_service_ig"))
+    if not apify_downloader.ready:
+        await message.answer(await tu(uid, "error_apify"))
         return
 
     status = await message.answer(await tu(uid, "processing"))

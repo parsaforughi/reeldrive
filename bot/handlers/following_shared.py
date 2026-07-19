@@ -46,8 +46,8 @@ async def start_following_lookup(
     message: Message, state: FSMContext, username: str
 ) -> bool:
     """Checks access (already unlocked, free quota, or a token to spend)
-    BEFORE fetching — a user with no access never triggers a paid provider
-    request. Only spends a token after a successful, non-empty fetch, so a
+    BEFORE fetching — a user with no access never triggers a paid Apify
+    scrape. Only spends a token after a successful, non-empty fetch, so a
     private/empty account doesn't cost anything either. Returns False if
     there was nothing to show (caller should already have sent an
     error/empty message in that case)."""

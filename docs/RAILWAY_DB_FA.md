@@ -65,16 +65,11 @@ Session files هم در `/app/data/sessions/` ذخیره می‌شوند.
 
 ```
 TELEGRAM_BOT_TOKEN=
-HIKERAPI_KEY=
 APIFY_TOKEN=
 INSTAGRAM_BRIDGE_SESSION_ID=
 DASHBOARD_PASSWORD=
 DASHBOARD_SECRET=
 ```
-
-برای فعال‌شدن پروفایل عمومی، تأیید Bio و `/following`، کلید حساب شارژشده
-HikerAPI را در `HIKERAPI_KEY` قرار بده و سرویس Worker را Redeploy کن.
-در لاگ باید `HikerAPI public profile/following provider enabled` دیده شود.
 
 `DATABASE_URL` را **دستی نگذار** اگر Postgres Link کردی — Railway خودش می‌دهد.
 

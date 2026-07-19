@@ -99,11 +99,9 @@ class Settings(BaseSettings):
     apify_following_actor: str = "scraping_solutions~instagram-scraper-followers-following-no-cookies"
     apify_timeout_seconds: int = 120
 
-    # HikerAPI (hikerapi.com) — primary public Instagram data provider for
-    # profiles, bio verification and /following. Apify remains a fallback.
+    # Reserved for a future HikerAPI integration. Public-data requests
+    # currently use Apify only.
     hikerapi_key: str = ""
-    hikerapi_base_url: str = "https://api.hikerapi.com"
-    hikerapi_timeout_seconds: int = 30
 
     instagram_username: str = ""
     instagram_password: str = ""
@@ -212,7 +210,7 @@ class Settings(BaseSettings):
     # join exactly one of these — alternated per user (by telegram_id) so
     # the join load is split evenly across them. Empty = no alternation.
     following_alternate_channels: str = "@license_club,@alimo_ai"
-    following_page_price_toman: int = 15000
+    following_page_price_toman: int = 35000
     following_free_pages: int = 0
     # Only the first card is active for now — add more comma-separated
     # whenever rotation should resume.
