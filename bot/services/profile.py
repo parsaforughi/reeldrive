@@ -6,6 +6,7 @@ from pathlib import Path
 
 from bot.services.apify import apify_downloader
 from bot.services.cdn_download import download_cdn_files
+from bot.services.hikerapi import hiker_client
 from bot.services.instagram import ProfileResult, instagram_downloader
 
 logger = logging.getLogger(__name__)
@@ -61,9 +62,21 @@ async def _fetch_via_apify(username: str) -> ProfileResult:
 
 
 async def fetch_following_count(username: str) -> int:
-    """Cheap public follows-count lookup via the profile-details Apify call
-    (the default download actor), used to price the followings-list feature
-    before running the far more expensive followings-scraper actor."""
+    """Cheap public follows-count lookup, used to price the followings-list
+    feature before running the far more expensive followings-list fetch.
+    Tries HikerAPI first (a single lightweight user lookup, same provider as
+    the followings-list fetch itself); falls back to the Apify
+    profile-details call if HikerAPI isn't configured or fails."""
+    if hiker_client.ready:
+        try:
+            return await hiker_client.fetch_following_count(username)
+        except Exception:
+            logger.warning(
+                "HikerAPI follows-count lookup failed for @%s, falling back to Apify",
+                username,
+                exc_info=True,
+            )
+
     item = await apify_downloader.fetch_profile_item(username)
     return _first_int(item, _FOLLOWING_KEYS)
 

@@ -1,4 +1,6 @@
-"""HikerAPI (hikerapi.com) client — currently reserved/inactive."""
+"""HikerAPI (hikerapi.com) client — primary provider for the following-list
+feature (much cheaper per request than the Apify followings-scraper actor).
+"""
 
 import json
 import logging
@@ -45,14 +47,40 @@ class HikerApiClient:
             except json.JSONDecodeError as exc:
                 raise ValueError("پاسخ HikerAPI نامعتبر بود.") from exc
 
-    async def _resolve_user_id(self, session: aiohttp.ClientSession, username: str) -> str:
+    async def _fetch_user(self, session: aiohttp.ClientSession, username: str) -> dict:
         handle = username.strip().lstrip("@").lower()
         data = await self._get(session, "/v2/user/by/username", {"username": handle})
         user = data.get("user") or {}
+        if not user:
+            raise ValueError("کاربر پیدا نشد / User not found")
+        return user
+
+    async def _resolve_user_id(self, session: aiohttp.ClientSession, username: str) -> str:
+        user = await self._fetch_user(session, username)
         user_id = user.get("pk") or user.get("id")
         if not user_id:
             raise ValueError("کاربر پیدا نشد / User not found")
         return str(user_id)
+
+    async def fetch_following_count(self, username: str) -> int:
+        """Cheap follows-count lookup — a single /user/by/username call, used
+        to price the followings-list feature before the much more expensive
+        paginated /user/following fetch runs."""
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            user = await self._fetch_user(session, username)
+
+        for key in ("following_count", "followingCount", "follows_count"):
+            val = user.get(key)
+            if val is not None:
+                try:
+                    return int(val)
+                except (TypeError, ValueError):
+                    continue
+        return 0
 
     async def fetch_following(self, username: str, limit: int) -> list[dict]:
         if not self.ready:

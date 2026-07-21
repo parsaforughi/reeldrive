@@ -19,8 +19,8 @@ from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.analytics import record_download
-from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
+from bot.services.following import following_ready
 from bot.time_utils import user_display_label
 from bot.services.direct_download import direct_download_ready, download_media_url
 from bot.services.instagram import instagram_downloader
@@ -96,12 +96,12 @@ async def handle_text(message: Message, state: FSMContext) -> None:
     if in_search:
         await state.clear()
 
-    if parsed.kind == "following" and not apify_downloader.ready:
+    if parsed.kind == "following" and not following_ready():
         await message.answer(await tu(uid, "error_apify"))
         return
 
     needs_ig = parsed.kind != "media_url"
-    if needs_ig and parsed.kind == "following" and apify_downloader.ready:
+    if needs_ig and parsed.kind == "following" and following_ready():
         needs_ig = False
     if needs_ig and not client_pool.service_ready:
         await message.answer(await tu(uid, "error_service_ig"))
