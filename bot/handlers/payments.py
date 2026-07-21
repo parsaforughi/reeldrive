@@ -12,7 +12,12 @@ from bot.handlers.admin import send_pro_receipt_to_admins
 from bot.i18n import require_user_lang, t, tu
 from bot.keyboards import pro_card_pay_kb, pro_duration_kb, subscription_shop_kb
 from bot.services.analytics import log_activity
-from bot.services.following_access import current_support_card, payment_surcharge, to_rial
+from bot.services.following_access import (
+    current_card_holder_name,
+    current_support_card,
+    payment_surcharge,
+    to_rial,
+)
 from bot.services.pricing import is_allowed_plan_days, plan_by_days, plan_stars, plan_tomans
 from bot.services.subscription import (
     PRO_PLANS,
@@ -274,6 +279,7 @@ async def pro_pick_days(callback: CallbackQuery, state: FSMContext) -> None:
     amount = plan_tomans(days) + payment_surcharge(uid)
     amount_rial = to_rial(amount)
     card = await current_support_card()
+    holder = await current_card_holder_name()
 
     await state.set_state(ProStates.waiting_receipt_photo)
     await state.update_data(pro_days=days, pro_amount=amount, pro_card=card)
@@ -296,7 +302,7 @@ async def pro_pick_days(callback: CallbackQuery, state: FSMContext) -> None:
             months=plan["months"],
             amount=f"{amount_rial:,}",
             card=card,
-            holder=settings.following_card_holder_name,
+            holder=holder,
         ),
         reply_markup=pro_card_pay_kb(support_url, lang, card=card, amount_rial=amount_rial),
     )

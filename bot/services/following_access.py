@@ -28,12 +28,19 @@ from sqlalchemy import func, select
 from bot.config import settings
 from bot.db.engine import async_session
 from bot.db.models import FollowingCredit, FollowingCreditGrant, FollowingUnlock
+from bot.services.app_settings import get_setting, set_setting
 
 logger = logging.getLogger(__name__)
 
 _JOINED_STATUSES = frozenset({"member", "administrator", "creator"})
 
 FOLLOWINGS_PER_TOKEN = 400
+
+# DB-setting keys for the admin-panel-editable payment card — overrides
+# settings.following_support_cards / following_card_holder_name when set,
+# so admins can change the card without an env var change + redeploy.
+_CARD_NUMBER_KEY = "following_support_card"
+_CARD_HOLDER_KEY = "following_card_holder_name"
 
 
 def tokens_required_for_count(following_count: int) -> int:
@@ -142,12 +149,27 @@ async def total_credit_grants() -> int:
 
 
 async def current_support_card() -> str:
+    override = await get_setting(_CARD_NUMBER_KEY)
+    if override:
+        return override
+
     cards = support_cards()
     if not cards:
         return ""
     n = await total_credit_grants()
     idx = (n // max(1, settings.following_cards_rotate_every)) % len(cards)
     return cards[idx]
+
+
+async def current_card_holder_name() -> str:
+    return await get_setting(_CARD_HOLDER_KEY) or settings.following_card_holder_name
+
+
+async def set_support_card(card: str, holder: str) -> None:
+    """Admin-panel override for the payment card — takes effect immediately
+    for every new purchase prompt, no redeploy needed."""
+    await set_setting(_CARD_NUMBER_KEY, card.strip())
+    await set_setting(_CARD_HOLDER_KEY, holder.strip())
 
 
 async def is_unlocked(telegram_id: int, target_username: str) -> bool:

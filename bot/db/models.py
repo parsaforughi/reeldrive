@@ -97,6 +97,20 @@ class FollowingCredit(Base):
     )
 
 
+class AppSetting(Base):
+    """Generic runtime-editable key/value store for admin-panel settings
+    (e.g. the payment card number) that would otherwise need an env var
+    change + redeploy to update."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
 class FollowingCreditGrant(Base):
     """Audit trail of admin-confirmed token purchases; count also drives
     which support card is currently shown to new buyers (rotated every

@@ -19,6 +19,7 @@ from bot.i18n import friendly_error, get_user_lang, require_user_lang, t, tu
 from bot.keyboards import following_cancel_kb, following_token_pay_kb, language_kb
 from bot.services.following import following_ready
 from bot.services.following_access import (
+    current_card_holder_name,
     current_support_card,
     missing_channels,
     to_rial,
@@ -210,6 +211,7 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
     amount = token_price(count, uid)
     amount_rial = to_rial(amount)
     card = await current_support_card()
+    holder = await current_card_holder_name()
 
     await state.set_state(FollowingStates.waiting_receipt_photo)
     await state.update_data(following_token_count=count, following_token_amount=amount, following_token_card=card)
@@ -232,7 +234,7 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
             count=count,
             amount=f"{amount_rial:,}",
             card=card,
-            holder=settings.following_card_holder_name,
+            holder=holder,
         ),
         reply_markup=following_token_pay_kb(support_url, lang, card=card, amount_rial=amount_rial),
     )

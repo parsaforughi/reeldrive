@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc, func, or_, select
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter
 from aiogram.types import LabeledPrice
 
 from bot.config import settings
@@ -33,6 +34,11 @@ from bot.services.pricing import (
     shop_plans_payload,
 )
 from bot.services.client_pool import client_pool
+from bot.services.following_access import (
+    current_card_holder_name,
+    current_support_card,
+    set_support_card,
+)
 from bot.services.subscription import (
     PRO_PLANS,
     get_bot_user,
@@ -398,6 +404,113 @@ async def api_subscriptions(_: None = Depends(require_admin)):
         }
         for u in rows
     ]
+
+
+class CardBody(BaseModel):
+    card: str
+    holder: str
+
+
+@app.get("/api/settings/card")
+async def api_get_card(_: None = Depends(require_admin)):
+    return {
+        "card": await current_support_card(),
+        "holder": await current_card_holder_name(),
+    }
+
+
+@app.post("/api/settings/card")
+async def api_set_card(body: CardBody, _: None = Depends(require_admin)):
+    card = (body.card or "").strip()
+    holder = (body.holder or "").strip()
+    if not card.isdigit() or not (12 <= len(card) <= 19):
+        raise HTTPException(status_code=400, detail="شماره کارت نامعتبر است (فقط رقم، ۱۲ تا ۱۹ رقم).")
+    if not holder:
+        raise HTTPException(status_code=400, detail="نام صاحب کارت را وارد کن.")
+    await set_support_card(card, holder)
+    return {"ok": True, "card": card, "holder": holder}
+
+
+class BroadcastBody(BaseModel):
+    message: str
+
+
+_broadcast_state: dict = {
+    "running": False,
+    "total": 0,
+    "sent": 0,
+    "failed": 0,
+    "started_at": None,
+    "finished_at": None,
+}
+
+
+async def _run_broadcast(telegram_ids: list[int], text: str) -> None:
+    bot = Bot(token=settings.telegram_bot_token)
+    try:
+        for telegram_id in telegram_ids:
+            try:
+                await bot.send_message(telegram_id, text)
+                _broadcast_state["sent"] += 1
+            except TelegramRetryAfter as exc:
+                await asyncio.sleep(exc.retry_after)
+                try:
+                    await bot.send_message(telegram_id, text)
+                    _broadcast_state["sent"] += 1
+                except Exception:
+                    _broadcast_state["failed"] += 1
+            except TelegramForbiddenError:
+                # User blocked/kicked the bot — mark it so future broadcasts
+                # and the users table skip them.
+                _broadcast_state["failed"] += 1
+                async with async_session() as session:
+                    user = await session.get(BotUser, telegram_id)
+                    if user:
+                        user.is_blocked = True
+                        await session.commit()
+            except Exception:
+                logger.warning(
+                    "Broadcast send failed for %s", telegram_id, exc_info=True
+                )
+                _broadcast_state["failed"] += 1
+            # Stays comfortably under Telegram's ~30 msg/sec bot rate limit.
+            await asyncio.sleep(0.05)
+    finally:
+        await bot.session.close()
+        _broadcast_state["running"] = False
+        _broadcast_state["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+
+@app.post("/api/broadcast")
+async def api_broadcast(body: BroadcastBody, _: None = Depends(require_admin)):
+    text = (body.message or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="متن پیام خالی است.")
+    if _broadcast_state["running"]:
+        raise HTTPException(status_code=409, detail="یک پیام همگانی در حال ارسال است.")
+
+    async with async_session() as session:
+        ids = (
+            await session.scalars(
+                select(BotUser.telegram_id).where(BotUser.is_blocked.is_(False))
+            )
+        ).all()
+
+    _broadcast_state.update(
+        running=True,
+        total=len(ids),
+        sent=0,
+        failed=0,
+        started_at=datetime.now(timezone.utc).isoformat(),
+        finished_at=None,
+    )
+    asyncio.create_task(_run_broadcast(list(ids), text))
+    return {"ok": True, "total": len(ids)}
+
+
+@app.get("/api/broadcast/status")
+async def api_broadcast_status(_: None = Depends(require_admin)):
+    return _broadcast_state
 
 
 class WebAppBody(BaseModel):

@@ -239,6 +239,31 @@
         <div class="panel-head"><h2>📡 لاگ زنده</h2></div>
         <div class="panel-body" id="logsList"></div>
       </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>💳 شماره کارت پرداخت</h2></div>
+        <div class="panel-body">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <input type="text" id="cardNumber" placeholder="شماره کارت (۱۲ تا ۱۹ رقم)" inputmode="numeric" style="margin-bottom:0" />
+            <input type="text" id="cardHolder" placeholder="نام صاحب کارت" style="margin-bottom:0" />
+            <button class="btn btn-primary" id="cardSaveBtn" style="width:auto;margin-top:8px">ذخیره</button>
+          </div>
+          <p class="err hidden" id="cardErr"></p>
+          <p class="muted hidden" id="cardSaved" style="margin-top:8px">✅ ذخیره شد — از همین الان روی درخواست‌های جدید اعمال می‌شود.</p>
+        </div>
+      </div>
+
+      <div class="panel full">
+        <div class="panel-head"><h2>📢 پیام همگانی</h2></div>
+        <div class="panel-body">
+          <textarea id="broadcastText" placeholder="متن پیام برای همه کاربران ربات..." style="width:100%;min-height:100px;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,0.35);color:var(--text);font-family:inherit;resize:vertical"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:10px;flex-wrap:wrap">
+            <span class="muted" id="broadcastStatus"></span>
+            <button class="btn btn-primary" id="broadcastBtn" style="width:auto">ارسال به همه</button>
+          </div>
+          <p class="err hidden" id="broadcastErr"></p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -285,6 +310,8 @@
         $("#login").classList.add("hidden");
         $("#app").classList.remove("hidden");
         loadAll();
+        loadCardSettings();
+        pollBroadcastStatus();
       } catch {
         $("#loginErr").classList.remove("hidden");
       }
@@ -523,6 +550,99 @@
       }
     }
 
+    async function loadCardSettings() {
+      try {
+        const s = await api("/api/settings/card");
+        $("#cardNumber").value = s.card || "";
+        $("#cardHolder").value = s.holder || "";
+      } catch (e) {
+        if (e.message !== "auth") console.error(e);
+      }
+    }
+
+    $("#cardSaveBtn").onclick = async () => {
+      const card = $("#cardNumber").value.trim();
+      const holder = $("#cardHolder").value.trim();
+      const errEl = $("#cardErr");
+      const savedEl = $("#cardSaved");
+      errEl.classList.add("hidden");
+      savedEl.classList.add("hidden");
+
+      $("#cardSaveBtn").disabled = true;
+      try {
+        await api("/api/settings/card", {
+          method: "POST",
+          body: JSON.stringify({ card, holder }),
+        });
+        savedEl.classList.remove("hidden");
+      } catch (e) {
+        errEl.textContent = "خطا: " + e.message;
+        errEl.classList.remove("hidden");
+      } finally {
+        $("#cardSaveBtn").disabled = false;
+      }
+    };
+
+    let broadcastPoll = null;
+
+    function renderBroadcastStatus(s) {
+      const statusEl = $("#broadcastStatus");
+      const btn = $("#broadcastBtn");
+      if (!s || (!s.running && !s.total)) {
+        statusEl.textContent = "";
+        btn.disabled = false;
+        return;
+      }
+      statusEl.textContent = s.running
+        ? `در حال ارسال... ${(s.sent + s.failed).toLocaleString("fa-IR")} از ${s.total.toLocaleString("fa-IR")} (موفق: ${s.sent.toLocaleString("fa-IR")}، ناموفق: ${s.failed.toLocaleString("fa-IR")})`
+        : `پایان یافت — موفق: ${s.sent.toLocaleString("fa-IR")}، ناموفق: ${s.failed.toLocaleString("fa-IR")} از ${s.total.toLocaleString("fa-IR")}`;
+      btn.disabled = s.running;
+      if (!s.running && broadcastPoll) {
+        clearInterval(broadcastPoll);
+        broadcastPoll = null;
+      }
+    }
+
+    async function pollBroadcastStatus() {
+      try {
+        const s = await api("/api/broadcast/status");
+        renderBroadcastStatus(s);
+        if (s.running && !broadcastPoll) {
+          broadcastPoll = setInterval(pollBroadcastStatus, 2000);
+        }
+      } catch (e) {
+        if (e.message !== "auth") console.error(e);
+      }
+    }
+
+    $("#broadcastBtn").onclick = async () => {
+      const text = $("#broadcastText").value.trim();
+      const errEl = $("#broadcastErr");
+      errEl.classList.add("hidden");
+      if (!text) {
+        errEl.textContent = "متن پیام را وارد کن.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      if (!confirm(`این پیام برای همه کاربران ربات ارسال می‌شود. مطمئنی؟`)) return;
+
+      $("#broadcastBtn").disabled = true;
+      try {
+        await api("/api/broadcast", {
+          method: "POST",
+          body: JSON.stringify({ message: text }),
+        });
+        $("#broadcastText").value = "";
+        if (broadcastPoll) clearInterval(broadcastPoll);
+        broadcastPoll = setInterval(pollBroadcastStatus, 2000);
+        pollBroadcastStatus();
+      } catch (e) {
+        errEl.textContent = "خطا: " + e.message;
+        errEl.classList.remove("hidden");
+        $("#broadcastBtn").disabled = false;
+      }
+    };
+
     let userSearchTimer = null;
     $("#userSearch").oninput = () => {
       clearTimeout(userSearchTimer);
@@ -536,6 +656,8 @@
       setInterval(updateClock, 1000);
       loadAll();
       setInterval(loadAll, 15000);
+      loadCardSettings();
+      pollBroadcastStatus();
     }).catch(() => {});
 
     $("#password").onkeydown = (e) => {
