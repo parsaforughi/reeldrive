@@ -236,6 +236,19 @@
       </div>
 
       <div class="panel">
+        <div class="panel-head"><h2>🎟 توکن فالووینگ</h2></div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+            <input type="text" id="creditsId" placeholder="آیدی عددی یا @یوزرنیم" style="flex:1;min-width:120px;margin:0" />
+            <input type="number" id="creditsCount" placeholder="تعداد توکن" min="1" value="1" style="width:90px;margin:0" />
+            <button class="btn btn-primary" id="creditsBtn" style="width:auto">اعطای توکن</button>
+          </div>
+          <p class="err hidden" id="creditsErr"></p>
+          <p class="muted hidden" id="creditsOk"></p>
+        </div>
+      </div>
+
+      <div class="panel">
         <div class="panel-head"><h2>📡 لاگ زنده</h2></div>
         <div class="panel-body" id="logsList"></div>
       </div>
@@ -493,6 +506,49 @@
         errEl.classList.remove("hidden");
       } finally {
         $("#grantBtn").disabled = false;
+      }
+    };
+
+    $("#creditsBtn").onclick = async () => {
+      const raw = $("#creditsId").value.trim();
+      const count = toIntStrict($("#creditsCount").value) || 1;
+      const errEl = $("#creditsErr");
+      const okEl = $("#creditsOk");
+      errEl.classList.add("hidden");
+      okEl.classList.add("hidden");
+      if (!raw) {
+        errEl.textContent = "آیدی یا یوزرنیم رو وارد کن.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      $("#creditsBtn").disabled = true;
+      try {
+        let tid = toIntStrict(raw);
+        if (!tid) {
+          const handle = raw.replace(/^@/, "");
+          try {
+            const found = await api(`/api/users/lookup?username=${encodeURIComponent(handle)}`);
+            tid = found.telegram_id;
+          } catch {
+            errEl.textContent = `کاربری با یوزرنیم "@${handle}" پیدا نشد (باید قبلاً ربات رو استارت زده باشه).`;
+            errEl.classList.remove("hidden");
+            return;
+          }
+        }
+
+        const res = await api(`/api/users/${tid}/following-credits`, {
+          method: "POST",
+          body: JSON.stringify({ count }),
+        });
+        $("#creditsId").value = "";
+        okEl.textContent = `✅ ${count.toLocaleString("fa-IR")} توکن اعطا شد — موجودی فعلی: ${res.balance.toLocaleString("fa-IR")}`;
+        okEl.classList.remove("hidden");
+      } catch (e) {
+        errEl.textContent = "خطا: " + e.message;
+        errEl.classList.remove("hidden");
+      } finally {
+        $("#creditsBtn").disabled = false;
       }
     };
 

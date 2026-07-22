@@ -25,7 +25,7 @@ from bot.db.engine import async_session, db_ping, init_db
 from bot.db.migrate import maybe_migrate_sqlite_to_postgres
 from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.handlers.payments import PRO_PAYLOAD, _payload
-from bot.i18n import require_user_lang, t
+from bot.i18n import require_user_lang, t, tu
 from bot.services.apify import apify_downloader
 from bot.services.pricing import (
     is_allowed_plan_days,
@@ -37,6 +37,7 @@ from bot.services.client_pool import client_pool
 from bot.services.following_access import (
     current_card_holder_name,
     current_support_card,
+    grant_credits,
     set_support_card,
 )
 from bot.services.subscription import (
@@ -382,6 +383,54 @@ async def patch_subscription(
         )
         await session.commit()
     return {"ok": True, "plan": "pro", "expires": to_iso_utc(expires)}
+
+
+class FollowingCreditsBody(BaseModel):
+    count: int
+
+
+@app.post("/api/users/{telegram_id}/following-credits")
+async def api_grant_following_credits(
+    telegram_id: int,
+    body: FollowingCreditsBody,
+    _: None = Depends(require_admin),
+):
+    if body.count < 1:
+        raise HTTPException(status_code=400, detail="تعداد باید حداقل ۱ باشد.")
+
+    balance = await grant_credits(telegram_id, body.count)
+    async with async_session() as session:
+        session.add(
+            ActivityLog(
+                telegram_id=telegram_id,
+                event_type="admin",
+                detail=f"following credits +{body.count} (dashboard, balance={balance})",
+            )
+        )
+        await session.commit()
+
+    bot = Bot(token=settings.telegram_bot_token)
+    try:
+        await bot.send_message(
+            telegram_id,
+            await tu(
+                telegram_id,
+                "following_tokens_granted_notify",
+                count=body.count,
+                balance=balance,
+            ),
+        )
+    except Exception:
+        logger.warning(
+            "Could not notify %s about %s granted following tokens",
+            telegram_id,
+            body.count,
+            exc_info=True,
+        )
+    finally:
+        await bot.session.close()
+
+    return {"ok": True, "count": body.count, "balance": balance}
 
 
 @app.get("/api/subscriptions")
