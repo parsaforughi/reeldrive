@@ -1,4 +1,4 @@
-"""In-memory cache of last scraped posts for callback actions."""
+"""In-memory cache of downloaded posts for callback actions."""
 
 from dataclasses import dataclass, field
 
@@ -10,7 +10,7 @@ _MAX = 500
 @dataclass
 class CachedPost:
     source_url: str
-    apify_item: dict = field(default_factory=dict)
+    source_item: dict = field(default_factory=dict)
     direct_urls: list[str] = field(default_factory=list)
     variants: list[MediaVariant] = field(default_factory=list)
 

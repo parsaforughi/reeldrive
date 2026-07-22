@@ -12,10 +12,10 @@ from bot.config import settings
 from bot.db.engine import async_session
 from bot.db.models import ActivityLog
 from bot.media_variants import MediaVariant
-from bot.post_display import post_meta_from_apify
+from bot.post_display import post_meta_from_item
 from bot.services.ai_client import ai_client
 from bot.services.analytics import log_activity
-from bot.services.apify import apify_downloader
+from bot.services.hikerapi import hiker_client
 from bot.services.cdn_download import IG_CDN_HEADERS
 from bot.services.post_cache import CachedPost
 from bot.services.subscription import has_pro_access, is_ai_unlimited
@@ -117,19 +117,15 @@ async def check_ai_access(
 
 
 async def _page_benchmark(username: str, *, exclude_code: str = "") -> dict | None:
-    if not settings.ai_page_benchmark_enabled or not apify_downloader.ready:
+    if not settings.ai_page_benchmark_enabled or not hiker_client.ready:
         return None
     handle = username.strip().lstrip("@").lower()
     if not handle:
         return None
     try:
-        url = f"https://www.instagram.com/{handle}/"
-        payload = {
-            "directUrls": [url],
-            "resultsType": "posts",
-            "resultsLimit": settings.ai_page_posts_for_avg,
-        }
-        posts = await apify_downloader._run_actor(payload)
+        posts = await hiker_client.fetch_user_medias(
+            handle, settings.ai_page_posts_for_avg
+        )
     except Exception:
         logger.warning("Page benchmark scrape failed for @%s", handle)
         return None
@@ -140,12 +136,23 @@ async def _page_benchmark(username: str, *, exclude_code: str = "") -> dict | No
     for post in posts:
         if not isinstance(post, dict):
             continue
-        code = str(post.get("shortCode") or post.get("id") or "")
+        code = str(post.get("code") or post.get("shortcode") or post.get("id") or "")
         if exclude_code and code == exclude_code:
             continue
-        likes.append(_metric(post, "likesCount", "likes"))
-        comments.append(_metric(post, "commentsCount", "comments"))
-        views.append(_metric(post, "videoViewCount", "playCount", "videoPlayCount"))
+        likes.append(_metric(post, "like_count", "likes_count", "likesCount", "likes"))
+        comments.append(
+            _metric(post, "comment_count", "comments_count", "commentsCount", "comments")
+        )
+        views.append(
+            _metric(
+                post,
+                "play_count",
+                "view_count",
+                "video_view_count",
+                "videoViewCount",
+                "playCount",
+            )
+        )
 
     if not likes:
         return None
@@ -165,7 +172,7 @@ def _build_metrics_text(
     *,
     video_mode: bool = False,
 ) -> str:
-    meta = post_meta_from_apify(item, source_url)
+    meta = post_meta_from_item(item, source_url)
     caption = (meta.caption or "")[:400] if video_mode else (meta.caption or "")[:1500]
     lines = [
         f"Post URL: {meta.post_url}",
@@ -210,8 +217,8 @@ async def analyze_cached_post(
     if not ok:
         raise ValueError(reason)
 
-    item = cached.apify_item
-    meta = post_meta_from_apify(item, cached.source_url)
+    item = cached.source_item
+    meta = post_meta_from_item(item, cached.source_url)
     is_video = _is_video_item(item, cached.variants)
     benchmark = await _page_benchmark(
         meta.username,

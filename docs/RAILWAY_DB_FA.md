@@ -65,7 +65,7 @@ Session files هم در `/app/data/sessions/` ذخیره می‌شوند.
 
 ```
 TELEGRAM_BOT_TOKEN=
-APIFY_TOKEN=
+HIKERAPI_KEY=
 INSTAGRAM_BRIDGE_SESSION_ID=
 DASHBOARD_PASSWORD=
 DASHBOARD_SECRET=

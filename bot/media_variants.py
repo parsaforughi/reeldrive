@@ -1,4 +1,4 @@
-"""Extract labeled media URLs (qualities) from Apify Instagram items."""
+"""Extract labeled media URLs and qualities from Instagram media items."""
 
 import re
 from dataclasses import dataclass

@@ -11,7 +11,7 @@
    ``tokens_required_for_count(following_count)`` paid tokens — one token
    per started batch of ``FOLLOWINGS_PER_TOKEN`` followings (e.g. an 800-
    following page costs 2 tokens). The count is looked up cheaply via the
-   profile-details Apify call *before* the expensive followings-list scrape
+   profile-details API call *before* the expensive followings-list fetch
    runs, so a user without enough tokens never triggers it.
    Tokens are bought in whatever quantity the user picks, via a manual
    card-to-card payment (rotated across ``settings.following_support_cards``
@@ -233,7 +233,7 @@ async def _consume_credit(telegram_id: int, amount: int = 1) -> bool:
 async def has_access(telegram_id: int, target_username: str, tokens_needed: int = 1) -> bool:
     """Read-only check — would granting access succeed (already unlocked,
     free quota, or enough tokens to spend)? Call this BEFORE the (paid,
-    expensive) followings-list Apify fetch, so users without enough tokens
+    expensive) followings-list fetch, so users without enough tokens
     never trigger it. ``tokens_needed`` should come from
     ``tokens_required_for_count`` using a cheap prior follows-count lookup."""
     if await is_unlocked(telegram_id, target_username):

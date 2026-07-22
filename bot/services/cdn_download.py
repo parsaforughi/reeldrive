@@ -1,4 +1,4 @@
-"""Download Instagram CDN URLs (Apify output or DM payload)."""
+"""Download Instagram CDN URLs returned by the data API or DM payload."""
 
 import logging
 from pathlib import Path

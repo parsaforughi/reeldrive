@@ -96,8 +96,8 @@ async def cmd_verify(message: Message) -> None:
     if reason == "private":
         await message.answer(t("verify_private", lang))
         return
-    if reason == "apify":
-        await message.answer(t("verify_apify", lang))
+    if reason == "hikerapi":
+        await message.answer(t("verify_hikerapi", lang))
         return
     if reason == "not_in_bio" and conn:
         await message.answer(

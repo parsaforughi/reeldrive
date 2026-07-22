@@ -28,7 +28,7 @@ echo ""
 
 echo "3) Required variables (set if missing):"
 echo "   TELEGRAM_BOT_TOKEN"
-echo "   APIFY_TOKEN"
+echo "   HIKERAPI_KEY"
 echo "   INSTAGRAM_BRIDGE_SESSION_ID"
 echo "   DASHBOARD_PASSWORD"
 echo "   DASHBOARD_SECRET"

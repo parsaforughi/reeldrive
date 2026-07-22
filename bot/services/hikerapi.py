@@ -1,6 +1,4 @@
-"""HikerAPI (hikerapi.com) client — primary provider for the following-list
-feature (much cheaper per request than the Apify followings-scraper actor).
-"""
+"""HikerAPI client for Instagram profile, media, and following data."""
 
 import json
 import logging

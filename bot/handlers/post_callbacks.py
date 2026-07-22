@@ -9,7 +9,7 @@ from bot.handlers.ai_analysis import run_ai_analysis_callback
 from bot.handlers.download_helpers import send_media_result
 from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb, qualities_kb
-from bot.post_display import PostMeta, format_post_caption
+from bot.post_display import format_post_caption, post_meta_from_item
 from bot.services.direct_download import download_media_url
 from bot.services.post_cache import get_post
 from bot.services.subscription import has_pro_access
@@ -78,12 +78,7 @@ async def post_action(callback: CallbackQuery) -> None:
         return
 
     if action == "caption":
-        meta = PostMeta(
-            short_code=code,
-            post_url=cached.source_url,
-            caption=str(cached.apify_item.get("caption") or ""),
-            hashtags=cached.apify_item.get("hashtags") or [],
-        )
+        meta = post_meta_from_item(cached.source_item, cached.source_url)
         await callback.message.answer(format_post_caption(meta))
         await callback.answer()
         return

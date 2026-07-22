@@ -1,9 +1,8 @@
-"""Profile lookup: HikerAPI first (dedicated data API), Apify fallback."""
+"""Instagram profile lookup through HikerAPI."""
 
 import logging
 from pathlib import Path
 
-from bot.services.apify import apify_downloader
 from bot.services.cdn_download import download_cdn_files
 from bot.services.hikerapi import hiker_client
 from bot.services.instagram import ProfileResult
@@ -48,26 +47,6 @@ def _first_int(item: dict, keys: tuple[str, ...]) -> int:
     return 0
 
 
-async def _fetch_via_apify(username: str) -> ProfileResult:
-    item = await apify_downloader.fetch_profile_item(username)
-
-    pic_url = _first_str(item, _PIC_KEYS)
-    paths = await download_cdn_files([(pic_url, False)]) if pic_url else []
-
-    return ProfileResult(
-        username=_first_str(item, ("username",)) or username,
-        full_name=_first_str(item, _NAME_KEYS),
-        biography=apify_downloader.profile_biography(item),
-        follower_count=_first_int(item, _FOLLOWERS_KEYS),
-        following_count=_first_int(item, _FOLLOWING_KEYS),
-        media_count=_first_int(item, _POSTS_KEYS),
-        is_private=any(bool(item.get(k)) for k in _PRIVATE_KEYS),
-        is_verified=any(bool(item.get(k)) for k in _VERIFIED_KEYS),
-        profile_pic_path=paths[0] if paths else _NO_PIC,
-        direct_urls=[pic_url] if pic_url else [],
-    )
-
-
 async def _fetch_via_hiker(username: str) -> ProfileResult:
     user = await hiker_client.fetch_profile(username)
 
@@ -89,40 +68,13 @@ async def _fetch_via_hiker(username: str) -> ProfileResult:
 
 
 async def fetch_following_count(username: str) -> int:
-    """Cheap public follows-count lookup, used to price the followings-list
-    feature before running the far more expensive followings-list fetch.
-    Tries HikerAPI first (a single lightweight user lookup, same provider as
-    the followings-list fetch itself); falls back to the Apify
-    profile-details call if HikerAPI isn't configured or fails."""
-    if hiker_client.ready:
-        try:
-            return await hiker_client.fetch_following_count(username)
-        except Exception:
-            logger.warning(
-                "HikerAPI follows-count lookup failed for @%s, falling back to Apify",
-                username,
-                exc_info=True,
-            )
-
-    item = await apify_downloader.fetch_profile_item(username)
-    return _first_int(item, _FOLLOWING_KEYS)
+    """Cheap follows-count lookup used before fetching the full list."""
+    if not hiker_client.ready:
+        raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+    return await hiker_client.fetch_following_count(username)
 
 
 async def fetch_profile(username: str) -> ProfileResult:
-    if hiker_client.ready:
-        try:
-            return await _fetch_via_hiker(username)
-        except Exception:
-            logger.warning(
-                "HikerAPI profile fetch failed for @%s, falling back to Apify",
-                username,
-                exc_info=True,
-            )
-
-    if apify_downloader.ready:
-        try:
-            return await _fetch_via_apify(username)
-        except Exception:
-            logger.warning("Apify profile fetch failed for @%s", username, exc_info=True)
-
-    raise ValueError("پروفایل در دسترس نیست / Profile provider not configured")
+    if not hiker_client.ready:
+        raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+    return await _fetch_via_hiker(username)

@@ -165,7 +165,7 @@ async def receive_following_username(message: Message, state: FSMContext) -> Non
     await state.clear()
 
     if not following_ready():
-        await message.answer(await tu(uid, "error_apify"))
+        await message.answer(await tu(uid, "error_hikerapi"))
         return
 
     status = await message.answer(await tu(uid, "processing"))

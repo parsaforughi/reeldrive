@@ -352,10 +352,10 @@ Coming soon: unfollowers list.""",
         "en": "❌ Private account — make bio visible or use DM method.",
         "ar": "❌ الحساب خاص — اجعل السيرة مرئية أو استخدم الرسائل.",
     },
-    "verify_apify": {
-        "fa": "❌ بررسی Bio ممکن نشد. APIFY_TOKEN را چک کن یا بعداً امتحان کن.",
-        "en": "❌ Could not check bio. Check APIFY_TOKEN or try later.",
-        "ar": "❌ تعذر فحص السيرة. تحقق من APIFY_TOKEN.",
+    "verify_hikerapi": {
+        "fa": "❌ بررسی Bio ممکن نشد. HIKERAPI_KEY را چک کن یا بعداً امتحان کن.",
+        "en": "❌ Could not check bio. Check HIKERAPI_KEY or try later.",
+        "ar": "❌ تعذر فحص السيرة. تحقق من HIKERAPI_KEY.",
     },
     "connect_disconnected": {
         "fa": "اتصال قطع شد.",
@@ -411,7 +411,7 @@ Coming soon: unfollowers list.""",
         "en": "❌ Instagram service session expired. Try again later.",
         "ar": "❌ انتهت جلسة خدمة إنستغرام. حاول لاحقاً.",
     },
-    "error_apify": {
+    "error_hikerapi": {
         "fa": "❌ سرویس دانلود موقتاً در دسترس نیست. چند دقیقه بعد دوباره امتحان کن.",
         "en": "❌ Download service is temporarily unavailable. Try again in a few minutes.",
         "ar": "❌ خدمة التحميل غير متاحة مؤقتاً. حاول بعد قليل.",
@@ -612,7 +612,7 @@ Coming soon: unfollowers list.""",
         "fa": (
             "<b>{name}</b>\n\n"
             "⭐ اشتراک: {plan}\n"
-            "⚡ دایرکت دانلود (Apify): {apify}\n"
+            "⚡ سرویس داده HikerAPI: {hikerapi}\n"
             "📥 دانلود لینک: {svc}{ig_extra}\n"
             "💬 پل اتصال {bridge}: {brg}\n"
             "🔗 پیج تو: {page}"
@@ -620,7 +620,7 @@ Coming soon: unfollowers list.""",
         "en": (
             "<b>{name}</b>\n\n"
             "⭐ Plan: {plan}\n"
-            "⚡ Direct download (Apify): {apify}\n"
+            "⚡ HikerAPI data service: {hikerapi}\n"
             "📥 Link download: {svc}{ig_extra}\n"
             "💬 Bridge {bridge}: {brg}\n"
             "🔗 Your page: {page}"
@@ -628,7 +628,7 @@ Coming soon: unfollowers list.""",
         "ar": (
             "<b>{name}</b>\n\n"
             "⭐ الاشتراك: {plan}\n"
-            "⚡ تحميل مباشر (Apify): {apify}\n"
+            "⚡ خدمة بيانات HikerAPI: {hikerapi}\n"
             "📥 تحميل الروابط: {svc}{ig_extra}\n"
             "💬 جسر {bridge}: {brg}\n"
             "🔗 حسابك: {page}"

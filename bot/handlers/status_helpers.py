@@ -4,7 +4,6 @@ from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
 from bot.i18n import require_user_lang, t, tu
 from bot.keyboards import subscription_shop_kb
-from bot.services.apify import apify_downloader
 from bot.services.client_pool import client_pool
 from bot.services.direct_download import direct_download_ready
 from bot.services.hikerapi import hiker_client
@@ -21,7 +20,7 @@ from sqlalchemy import select
 
 async def build_status_text(telegram_id: int, username: str | None = None) -> str:
     lang = await require_user_lang(telegram_id)
-    apify = "✅" if apify_downloader.ready else "❌"
+    hikerapi = "✅" if hiker_client.ready else "❌"
     svc = "✅" if direct_download_ready() else "❌"
     ig_extra = " (HikerAPI)" if hiker_client.ready else ""
     brg = "✅" if client_pool.bridge_ready else "❌"
@@ -59,7 +58,7 @@ async def build_status_text(telegram_id: int, username: str | None = None) -> st
         "status_body",
         lang,
         name=settings.bot_name,
-        apify=apify,
+        hikerapi=hikerapi,
         svc=svc,
         ig_extra=ig_extra,
         bridge=settings.bridge_ig_handle,

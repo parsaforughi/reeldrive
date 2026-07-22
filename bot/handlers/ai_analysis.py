@@ -75,7 +75,7 @@ async def run_ai_analysis_callback(
     try:
         is_video = bool(file_id)
         if cached:
-            is_video = _is_video_item(cached.apify_item, cached.variants)
+            is_video = _is_video_item(cached.source_item, cached.variants)
         elif msg.video or (
             msg.document and msg.document.mime_type and "video" in msg.document.mime_type
         ):

@@ -94,14 +94,8 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str
 
-    apify_token: str = ""
-    apify_actor: str = "apify~instagram-scraper"
-    apify_following_actor: str = "scraping_solutions~instagram-scraper-followers-following-no-cookies"
-    apify_timeout_seconds: int = 120
-
-    # HikerAPI (hikerapi.com) — dedicated Instagram data API, no login
-    # required, primary provider for /following (much cheaper per request
-    # than the Apify followings-scraper actor). Apify remains a fallback.
+    # HikerAPI (hikerapi.com) — the only external Instagram data provider.
+    # It does not use the bridge account session.
     hikerapi_key: str = ""
 
     instagram_username: str = ""

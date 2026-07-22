@@ -1,4 +1,4 @@
-"""Following-list lookup: HikerAPI first, Apify fallback.
+"""Following-list lookup through HikerAPI.
 
 Deliberately does not fall back to instagrapi — that would run through the
 shared bridge Instagram session used for DM forwarding and other features,
@@ -8,7 +8,6 @@ risking a rate-limit/challenge on that account.
 import logging
 
 from bot.config import settings
-from bot.services.apify import apify_downloader
 from bot.services.hikerapi import hiker_client
 from bot.services.instagram import FollowUser
 
@@ -21,7 +20,7 @@ _VERIFIED_KEYS = ("is_verified", "isVerified", "verified")
 
 
 def following_ready() -> bool:
-    return hiker_client.ready or apify_downloader.ready
+    return hiker_client.ready
 
 
 def _first(item: dict, keys: tuple[str, ...]) -> str:
@@ -50,48 +49,17 @@ def _parse_item(item: dict) -> FollowUser | None:
 async def fetch_following(username: str, limit: int | None = None) -> list[FollowUser]:
     limit = limit or settings.max_following_list
     items: list[dict] = []
-    provider = ""
-    hiker_error: Exception | None = None
-
-    if hiker_client.ready:
-        try:
-            items = await hiker_client.fetch_following(username, limit)
-            provider = "HikerAPI"
-        except Exception as exc:
-            hiker_error = exc
-            logger.warning(
-                "HikerAPI following fetch failed for @%s; trying Apify fallback",
-                username,
-                exc_info=True,
-            )
-
-    if not provider and apify_downloader.ready:
-        try:
-            items = await apify_downloader.fetch_following(username, limit)
-            provider = "Apify"
-        except ValueError:
-            raise
-        except Exception as exc:
-            logger.warning(
-                "Apify following fetch failed for @%s", username, exc_info=True
-            )
-            raise ValueError(
-                "خطای سرویس در دریافت فالووینگ / Following provider failed"
-            ) from exc
-
-    if not provider:
-        if isinstance(hiker_error, ValueError):
-            raise hiker_error
-        raise ValueError("HikerAPI/Apify تنظیم نشده / provider not configured")
+    if not hiker_client.ready:
+        raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+    items = await hiker_client.fetch_following(username, limit)
 
     logger.info(
-        "%s following for @%s: %d raw item(s)", provider, username, len(items)
+        "HikerAPI following for @%s: %d raw item(s)", username, len(items)
     )
     users = [u for item in items if (u := _parse_item(item))]
     if items and not users:
         logger.warning(
-            "%s following for @%s: 0/%d items parsed — unexpected item shape, first item keys: %s",
-            provider,
+            "HikerAPI following for @%s: 0/%d items parsed — unexpected item shape, first item keys: %s",
             username,
             len(items),
             sorted(items[0].keys()) if isinstance(items[0], dict) else type(items[0]),

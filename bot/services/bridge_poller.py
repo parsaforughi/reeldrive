@@ -10,9 +10,9 @@ from bot.i18n import require_user_lang, t
 from bot.keyboards import paywall_kb
 from bot.post_display import post_meta_from_url
 from bot.services.analytics import record_download
-from bot.services.apify import apify_downloader
 from bot.services.cdn_download import download_cdn_files
 from bot.services.client_pool import client_pool
+from bot.services.direct_download import download_media_url
 from bot.services.instagram import MediaResult
 from bot.services.subscription import (
     get_bot_user,
@@ -265,7 +265,7 @@ class BridgePoller:
         user = await get_bot_user(chat_id)
         tg_username = user.username if user else None
 
-        # Same pipeline as pasting a link in Telegram chat (Apify + caption + buttons).
+        # Same HikerAPI pipeline as pasting a link in Telegram chat.
         ig_url = item.media_url or parse_media_url(text)
         if ig_url or item.media_files:
             if not await has_direct_link_download_access(chat_id, tg_username):
@@ -315,48 +315,36 @@ class BridgePoller:
         media_files: list[tuple[str, bool]] | None = None,
         ig_username: str | None = None,
     ) -> None:
-        apify_item: dict | None = None
-        normalized = url
-        results_type = "posts"
-        variants: list = []
-        paths: list = []
-
-        if url and apify_downloader.ready:
+        if url:
             try:
-                normalized, results_type, apify_item, variants = (
-                    await apify_downloader.scrape_media_url(url)
-                )
-                paths = await apify_downloader.download_variants(variants)
-                if not paths:
-                    logger.warning(
-                        "Bridge Apify CDN download failed for %s — trying DM payload",
-                        url,
-                    )
+                result = await download_media_url(url)
+                label = f"@{ig_username}" if ig_username else str(chat_id)
+                await record_download(chat_id, url, user_label=label)
+                await deliver_media_result(self._bot, chat_id, result)
+                return
             except ValueError as exc:
-                logger.warning("Bridge Apify scrape failed: %s", exc)
+                logger.warning(
+                    "Bridge HikerAPI download failed for %s — trying DM payload: %s",
+                    url,
+                    exc,
+                )
 
-        if not paths and media_files:
-            paths = await download_cdn_files(media_files)
+        paths = await download_cdn_files(media_files or []) if media_files else []
 
         if not paths:
             lang = await require_user_lang(chat_id)
             await self._bot.send_message(chat_id, t("error_not_found", lang))
             return
 
-        if apify_item and variants:
-            result = apify_downloader.build_media_result(
-                apify_item, normalized, results_type, paths, variants
-            )
-        else:
-            direct_urls = [u for u, _ in media_files] if media_files else []
-            result = MediaResult(
-                paths=paths,
-                caption="",
-                media_type="reels" if any(v for _, v in (media_files or [])) else "posts",
-                direct_urls=direct_urls,
-                post_meta=post_meta_from_url(url) if url else None,
-                source_url=url,
-            )
+        direct_urls = [u for u, _ in media_files] if media_files else []
+        result = MediaResult(
+            paths=paths,
+            caption="",
+            media_type="reels" if any(v for _, v in (media_files or [])) else "posts",
+            direct_urls=direct_urls,
+            post_meta=post_meta_from_url(url) if url else None,
+            source_url=url,
+        )
 
         if url:
             label = f"@{ig_username}" if ig_username else str(chat_id)

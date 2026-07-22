@@ -18,7 +18,6 @@ from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.analytics import record_download
-from bot.services.apify import apify_downloader
 from bot.services.hikerapi import hiker_client
 from bot.services.following import following_ready
 from bot.time_utils import user_display_label
@@ -97,13 +96,13 @@ async def handle_text(message: Message, state: FSMContext) -> None:
         await state.clear()
 
     if parsed.kind == "following" and not following_ready():
-        await message.answer(await tu(uid, "error_apify"))
+        await message.answer(await tu(uid, "error_hikerapi"))
         return
 
     needs_ig = parsed.kind != "media_url"
     if needs_ig and parsed.kind == "following" and following_ready():
         needs_ig = False
-    if needs_ig and not (hiker_client.ready or apify_downloader.ready):
+    if needs_ig and not hiker_client.ready:
         await message.answer(await tu(uid, "error_service_ig"))
         return
     if parsed.kind == "media_url" and not direct_download_ready():

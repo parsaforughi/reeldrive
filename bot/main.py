@@ -72,12 +72,12 @@ async def main() -> None:
 
     loop = asyncio.get_running_loop()
 
-    from bot.services.apify import apify_downloader
+    from bot.services.hikerapi import hiker_client
 
-    if apify_downloader.ready:
-        logger.info("Apify direct download enabled")
+    if hiker_client.ready:
+        logger.info("HikerAPI Instagram data service enabled")
     else:
-        logger.warning("APIFY_TOKEN not set — link download will need instagrapi fallback")
+        logger.warning("HIKERAPI_KEY not set — Instagram data features are disabled")
 
     from bot.services.ai_client import ai_client
     from bot.services.video_analyzer import ffmpeg_ready

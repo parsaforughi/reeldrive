@@ -39,10 +39,38 @@ def _fmt_num(n: int) -> str:
     return f"{n:,}"
 
 
-def post_meta_from_apify(item: dict, source_url: str) -> PostMeta:
-    short_code = str(item.get("shortCode") or item.get("id") or "")
+def _nested_text(item: dict, parent: str, key: str) -> str:
+    value = item.get(parent)
+    if isinstance(value, dict):
+        return str(value.get(key) or "")
+    return ""
+
+
+def _number(item: dict, *keys: str) -> int:
+    for key in keys:
+        value = item.get(key)
+        if value is not None:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                continue
+    return 0
+
+
+def post_meta_from_item(item: dict, source_url: str) -> PostMeta:
+    """Normalize a HikerAPI media item for captions and AI analysis."""
+    short_code = str(
+        item.get("code")
+        or item.get("shortcode")
+        or item.get("shortCode")
+        or item.get("id")
+        or item.get("pk")
+        or ""
+    )
     username = str(
-        item.get("ownerUsername")
+        _nested_text(item, "user", "username")
+        or _nested_text(item, "owner", "username")
+        or item.get("ownerUsername")
         or item.get("username")
         or ""
     ).lstrip("@")
@@ -57,7 +85,10 @@ def post_meta_from_apify(item: dict, source_url: str) -> PostMeta:
     else:
         tags = []
 
-    caption = str(item.get("caption") or item.get("text") or "")
+    caption_value = item.get("caption")
+    if isinstance(caption_value, dict):
+        caption_value = caption_value.get("text")
+    caption = str(item.get("caption_text") or caption_value or item.get("text") or "")
     # hashtags inside caption if not in list
     if not tags and caption:
         import re
@@ -68,11 +99,20 @@ def post_meta_from_apify(item: dict, source_url: str) -> PostMeta:
         short_code=short_code,
         post_url=post_url,
         username=username,
-        likes=int(item.get("likesCount") or 0),
-        comments=int(item.get("commentsCount") or 0),
-        views=int(item.get("videoViewCount") or item.get("playCount") or 0),
-        shares=int(item.get("reshareCount") or item.get("sharesCount") or 0),
-        timestamp_iso=str(item.get("timestamp") or ""),
+        likes=_number(item, "like_count", "likes_count", "likesCount", "likes"),
+        comments=_number(
+            item, "comment_count", "comments_count", "commentsCount", "comments"
+        ),
+        views=_number(
+            item,
+            "play_count",
+            "view_count",
+            "video_view_count",
+            "videoViewCount",
+            "playCount",
+        ),
+        shares=_number(item, "reshare_count", "reshareCount", "sharesCount"),
+        timestamp_iso=str(item.get("taken_at") or item.get("timestamp") or ""),
         caption=caption,
         hashtags=tags,
         post_tag=tag,

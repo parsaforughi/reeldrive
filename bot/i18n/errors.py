@@ -36,8 +36,8 @@ def friendly_error(exc: Exception, lang: Lang) -> str:
         raw = key.lower()
         if raw.startswith("ai error"):
             return t("ai_api_error", lang)
-        if any(x in raw for x in ("apify", "402")):
-            return t("error_apify", lang)
+        if any(x in raw for x in ("hikerapi", "402")):
+            return t("error_hikerapi", lang)
         if any(x in raw for x in ("invalid token", "incorrect api key", "authentication")):
             return t("ai_auth_failed", lang)
         if any(
