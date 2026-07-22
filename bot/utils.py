@@ -53,7 +53,13 @@ def parse_username(text: str) -> str | None:
         return name
     match = USERNAME_RE.match(text)
     if match:
-        return match.group(1).lower()
+        name = match.group(1).lower()
+        # Instagram usernames are never all-digits; reject so a stray number
+        # (e.g. a token count typed outside its prompt) isn't sent to the API
+        # as a username and waste a paid lookup on a guaranteed 400/404.
+        if name.isdigit():
+            return None
+        return name
     return None
 
 

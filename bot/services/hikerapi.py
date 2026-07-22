@@ -167,24 +167,38 @@ class HikerApiClient:
                     "اکانت خصوصی است / private account"
                 )
             user_id = str(user_id)
-            try:
-                users = await self._fetch_following_g2(session, user_id, limit)
-            except (HikerPrivateAccountError, HikerNotFoundError) as primary_exc:
-                logger.warning(
-                    "HikerAPI g2 following unavailable for @%s; trying forced GraphQL",
-                    self.normalize_username(username),
-                )
-                try:
-                    users = await self._fetch_following_forced(
-                        session, user_id, limit
-                    )
-                except (HikerPrivateAccountError, HikerNotFoundError):
-                    raise primary_exc
+            handle = self.normalize_username(username)
+            # Primary: g1 legacy public GraphQL — one request per page, works
+            # for normal public accounts where the paginated v2/g2 endpoints
+            # return an empty list, and it is the cheapest (1 request/call).
+            users = await self._fetch_following_g1(session, user_id, limit)
+            if not users:
+                # g1 came back empty — fall back to the paginated g2 endpoint
+                # before giving up, in case g1 is unavailable for this account.
                 logger.info(
-                    "HikerAPI forced GraphQL following succeeded for @%s (%d item(s))",
-                    self.normalize_username(username),
-                    len(users),
+                    "HikerAPI g1 following empty for @%s; trying g2 fallback",
+                    handle,
                 )
+                users = await self._fetch_following_g2(session, user_id, limit)
+        return users[:limit]
+
+    async def _fetch_following_g1(
+        self, session: aiohttp.ClientSession, user_id: str, limit: int
+    ) -> list[dict]:
+        users: list[dict] = []
+        cursor: str | None = None
+        for _ in range(_MAX_PAGES):
+            params: dict[str, object] = {"user_id": user_id}
+            if cursor:
+                params["end_cursor"] = cursor
+            data = await self._get(session, "/g1/user/following", params)
+            if not isinstance(data, list) or len(data) != 2:
+                raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
+            page_users = data[0] if isinstance(data[0], list) else []
+            users.extend(item for item in page_users if isinstance(item, dict))
+            cursor = str(data[1]) if data[1] else None
+            if not cursor or len(users) >= limit:
+                break
         return users[:limit]
 
     async def _fetch_following_g2(
@@ -206,25 +220,6 @@ class HikerApiClient:
             users.extend(item for item in page_users if isinstance(item, dict))
             page_id = data.get("next_page_id")
             if not page_id or len(users) >= limit:
-                break
-        return users[:limit]
-
-    async def _fetch_following_forced(
-        self, session: aiohttp.ClientSession, user_id: str, limit: int
-    ) -> list[dict]:
-        users: list[dict] = []
-        cursor: str | None = None
-        for _ in range(_MAX_PAGES):
-            params: dict[str, object] = {"user_id": user_id, "force": True}
-            if cursor:
-                params["end_cursor"] = cursor
-            data = await self._get(session, "/gql/user/following/chunk", params)
-            if not isinstance(data, list) or len(data) != 2:
-                raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
-            page_users = data[0] if isinstance(data[0], list) else []
-            users.extend(item for item in page_users if isinstance(item, dict))
-            cursor = str(data[1]) if data[1] else None
-            if not cursor or len(users) >= limit:
                 break
         return users[:limit]
 

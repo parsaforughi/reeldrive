@@ -73,17 +73,11 @@ class FakeSession:
 
 
 class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
-    async def test_g2_paginates_without_fallback(self) -> None:
+    async def test_g1_paginates_without_fallback(self) -> None:
         client = StubHikerClient(
             [
-                {
-                    "response": {"users": [{"username": "one"}]},
-                    "next_page_id": "page-2",
-                },
-                {
-                    "response": {"users": [{"username": "two"}]},
-                    "next_page_id": None,
-                },
+                [[{"username": "one"}], "cursor-2"],
+                [[{"username": "two"}], None],
             ]
         )
 
@@ -92,24 +86,26 @@ class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([user["username"] for user in users], ["one", "two"])
         self.assertEqual(
             [path for path, _ in client.calls],
-            ["/g2/user/following", "/g2/user/following"],
+            ["/g1/user/following", "/g1/user/following"],
         )
-        self.assertEqual(client.calls[1][1]["page_id"], "page-2")
+        self.assertEqual(client.calls[1][1]["end_cursor"], "cursor-2")
 
-    async def test_private_g2_uses_forced_graphql_fallback(self) -> None:
+    async def test_empty_g1_falls_back_to_g2(self) -> None:
         client = StubHikerClient(
             [
-                HikerPrivateAccountError("اکانت خصوصی است / private account"),
-                [[{"username": "visible"}], None],
+                [[], None],
+                {
+                    "response": {"users": [{"username": "visible"}]},
+                    "next_page_id": None,
+                },
             ]
         )
 
         users = await client.fetch_following("valid.user", 10)
 
         self.assertEqual([user["username"] for user in users], ["visible"])
-        self.assertEqual(client.calls[0][0], "/g2/user/following")
-        self.assertEqual(client.calls[1][0], "/gql/user/following/chunk")
-        self.assertIs(client.calls[1][1]["force"], True)
+        self.assertEqual(client.calls[0][0], "/g1/user/following")
+        self.assertEqual(client.calls[1][0], "/g2/user/following")
 
     async def test_known_private_profile_does_not_call_following_endpoint(self) -> None:
         client = StubHikerClient([], private=True)
@@ -221,6 +217,13 @@ class UsernameParsingTests(unittest.TestCase):
     def test_invalid_following_username_is_rejected(self) -> None:
         self.assertIsNone(parse_command("following نامعتبر"))
         self.assertIsNone(parse_username("/subscribe"))
+
+    def test_numeric_only_username_is_rejected(self) -> None:
+        # A stray number (e.g. a token count typed outside its prompt) must
+        # not be treated as an Instagram username — those are never all-digit.
+        for value in ("1", "3", "4", "123"):
+            with self.subTest(value=value):
+                self.assertIsNone(parse_username(value))
 
 
 if __name__ == "__main__":
