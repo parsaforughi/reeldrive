@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from html import escape
 from pathlib import Path
@@ -21,10 +20,6 @@ from bot.services.profile import fetch_profile
 logger = logging.getLogger(__name__)
 
 _CHUNK_LIMIT = 3500
-
-
-async def run_sync(func, *args):
-    return await asyncio.to_thread(func, *args)
 
 
 def cleanup(path: Path) -> None:
@@ -74,9 +69,7 @@ async def send_profile(message: Message, username: str, status: Message) -> None
 
 
 async def send_stories(message: Message, username: str) -> None:
-    stories: list[StoryItem] = await run_sync(
-        instagram_downloader.get_stories, username
-    )
+    stories: list[StoryItem] = await instagram_downloader.get_stories(username)
     uid = message.from_user.id
     if not stories:
         await message.answer(await tu(uid, "no_stories"))

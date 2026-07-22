@@ -8,7 +8,6 @@ from instagrapi.exceptions import LoginRequired
 from bot.config import settings
 from bot.handlers.download_helpers import (
     cleanup,
-    run_sync,
     send_media_result,
     send_profile,
     send_stories,
@@ -19,7 +18,8 @@ from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.analytics import record_download
-from bot.services.client_pool import client_pool
+from bot.services.apify import apify_downloader
+from bot.services.hikerapi import hiker_client
 from bot.services.following import following_ready
 from bot.time_utils import user_display_label
 from bot.services.direct_download import direct_download_ready, download_media_url
@@ -103,7 +103,7 @@ async def handle_text(message: Message, state: FSMContext) -> None:
     needs_ig = parsed.kind != "media_url"
     if needs_ig and parsed.kind == "following" and following_ready():
         needs_ig = False
-    if needs_ig and not client_pool.service_ready:
+    if needs_ig and not (hiker_client.ready or apify_downloader.ready):
         await message.answer(await tu(uid, "error_service_ig"))
         return
     if parsed.kind == "media_url" and not direct_download_ready():
@@ -161,7 +161,7 @@ async def _dispatch(
         return
 
     if cmd.kind == "hashtag" and cmd.hashtag:
-        links = await run_sync(instagram_downloader.search_hashtag, cmd.hashtag, 15)
+        links = await instagram_downloader.search_hashtag(cmd.hashtag, 15)
         await status.delete()
         if not links:
             await message.answer(await tu(uid, "no_posts"))
@@ -196,7 +196,7 @@ async def _dispatch(
         return
 
     if cmd.kind == "highlights_list":
-        highlights = await run_sync(instagram_downloader.list_highlights, user)
+        highlights = await instagram_downloader.list_highlights(user)
         await status.delete()
         if not highlights:
             await message.answer(await tu(uid, "no_highlights"))
@@ -209,9 +209,7 @@ async def _dispatch(
         return
 
     if cmd.kind == "highlight_one" and cmd.index:
-        items = await run_sync(
-            instagram_downloader.download_highlight_by_index, user, cmd.index
-        )
+        items = await instagram_downloader.download_highlight_by_index(user, cmd.index)
         await status.delete()
         if not items:
             await message.answer(await tu(uid, "empty_highlight"))
@@ -229,13 +227,13 @@ async def _dispatch(
         return
 
     if cmd.kind == "zip_stories":
-        zip_path = await run_sync(instagram_downloader.zip_stories, user)
+        zip_path = await instagram_downloader.zip_stories(user)
         await status.delete()
         await send_zip(message, zip_path, f"Stories @{user}")
         return
 
     if cmd.kind == "zip_posts":
-        zip_path = await run_sync(instagram_downloader.zip_posts, user)
+        zip_path = await instagram_downloader.zip_posts(user)
         await status.delete()
         await send_zip(message, zip_path, f"Posts @{user}")
         return

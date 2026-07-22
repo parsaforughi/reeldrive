@@ -31,7 +31,7 @@ class HikerApiClient:
             if resp.status == 401:
                 raise ValueError("HikerAPI: کلید نامعتبر / invalid API key")
             if resp.status == 404:
-                raise ValueError("کاربر پیدا نشد / User not found")
+                raise ValueError("پیدا نشد / Not found")
             if not (200 <= resp.status < 300):
                 logger.error("HikerAPI HTTP %s on %s: %s", resp.status, path, body[:500])
                 exc_type = ""
@@ -105,6 +105,90 @@ class HikerApiClient:
                     break
 
         return users[:limit]
+
+    async def fetch_profile(self, username: str) -> dict:
+        """Full profile dict (bio, counts, profile pic, private/verified flags)."""
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            return await self._fetch_user(session, username)
+
+    async def fetch_media_by_url(self, url: str) -> dict:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            data = await self._get(session, "/v1/media/by/url", {"url": url})
+        if not data:
+            raise ValueError("پست پیدا نشد / Media not found")
+        return data
+
+    async def fetch_user_stories(self, username: str) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        handle = username.strip().lstrip("@").lower()
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            data = await self._get(
+                session, "/v1/user/stories/by/username", {"username": handle}
+            )
+        return data if isinstance(data, list) else []
+
+    async def fetch_user_highlights(self, username: str) -> list[dict]:
+        """Highlight dicts, each already including its `items` (Story list)."""
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        handle = username.strip().lstrip("@").lower()
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            data = await self._get(
+                session, "/v1/user/highlights/by/username", {"username": handle}
+            )
+        return data if isinstance(data, list) else []
+
+    async def fetch_user_medias(self, username: str, limit: int) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            user_id = await self._resolve_user_id(session, username)
+
+            items: list[dict] = []
+            page_id: str | None = None
+            for _ in range(_MAX_PAGES):
+                params = {"user_id": user_id}
+                if page_id:
+                    params["page_id"] = page_id
+                data = await self._get(session, "/v2/user/medias", params)
+                page_response = data.get("response") or {}
+                page_items = (
+                    page_response.get("items") or page_response.get("medias") or []
+                )
+                items.extend(page_items)
+                page_id = data.get("next_page_id")
+                if not page_id or len(items) >= limit:
+                    break
+
+        return items[:limit]
+
+    async def fetch_hashtag_medias(self, name: str, amount: int) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            data = await self._get(
+                session,
+                "/v1/hashtag/medias/recent",
+                {"name": name.lstrip("#"), "amount": amount},
+            )
+        return data if isinstance(data, list) else []
 
 
 hiker_client = HikerApiClient()
