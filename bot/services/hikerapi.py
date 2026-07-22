@@ -1,7 +1,9 @@
 """HikerAPI client for Instagram profile, media, and following data."""
 
+import asyncio
 import json
 import logging
+import re
 
 import aiohttp
 
@@ -11,6 +13,19 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://api.hikerapi.com"
 _MAX_PAGES = 200  # safety cap against runaway pagination, not a real IG limit
+_USERNAME_RE = re.compile(r"^[a-zA-Z0-9._]{1,30}$")
+
+
+class HikerApiError(ValueError):
+    """Base error for a completed HikerAPI request."""
+
+
+class HikerNotFoundError(HikerApiError):
+    pass
+
+
+class HikerPrivateAccountError(HikerApiError):
+    pass
 
 
 class HikerApiClient:
@@ -21,34 +36,90 @@ class HikerApiClient:
     def _headers(self) -> dict:
         return {"x-access-key": settings.hikerapi_key, "accept": "application/json"}
 
-    async def _get(self, session: aiohttp.ClientSession, path: str, params: dict) -> dict:
-        async with session.get(
-            f"{_BASE}{path}", params=params, headers=self._headers()
-        ) as resp:
-            body = await resp.text()
-            if resp.status == 401:
-                raise ValueError("HikerAPI: کلید نامعتبر / invalid API key")
-            if resp.status == 404:
-                raise ValueError("پیدا نشد / Not found")
-            if not (200 <= resp.status < 300):
-                logger.error("HikerAPI HTTP %s on %s: %s", resp.status, path, body[:500])
-                exc_type = ""
-                try:
-                    exc_type = (json.loads(body) or {}).get("exc_type", "")
-                except json.JSONDecodeError:
-                    pass
-                if exc_type == "PrivateAccount":
-                    raise ValueError("اکانت خصوصی است / private account")
-                raise ValueError(f"HikerAPI خطا ({resp.status})")
+    @staticmethod
+    def normalize_username(username: str) -> str:
+        handle = username.strip().lstrip("@").lower()
+        if not _USERNAME_RE.fullmatch(handle):
+            raise ValueError("نام کاربری نامعتبر است / Invalid Instagram username")
+        return handle
+
+    def _timeout(self) -> aiohttp.ClientTimeout:
+        return aiohttp.ClientTimeout(total=max(10, settings.hikerapi_timeout_seconds))
+
+    async def _get(
+        self, session: aiohttp.ClientSession, path: str, params: dict
+    ) -> object:
+        attempts = max(1, settings.hikerapi_max_retries + 1)
+        for attempt in range(attempts):
             try:
-                return json.loads(body)
-            except json.JSONDecodeError as exc:
-                raise ValueError("پاسخ HikerAPI نامعتبر بود.") from exc
+                async with session.get(
+                    f"{_BASE}{path}", params=params, headers=self._headers()
+                ) as resp:
+                    body = await resp.text()
+                    if resp.status == 401:
+                        raise HikerApiError(
+                            "HikerAPI: کلید نامعتبر / invalid API key"
+                        )
+                    if resp.status == 404:
+                        logger.warning(
+                            "HikerAPI HTTP 404 on %s params=%s", path, params
+                        )
+                        raise HikerNotFoundError("پیدا نشد / Not found")
+                    if resp.status == 429 or resp.status >= 500:
+                        if attempt + 1 < attempts:
+                            logger.warning(
+                                "HikerAPI HTTP %s on %s; retrying (%s/%s)",
+                                resp.status,
+                                path,
+                                attempt + 1,
+                                attempts - 1,
+                            )
+                            await asyncio.sleep(0.5 * (2**attempt))
+                            continue
+                    if not (200 <= resp.status < 300):
+                        logger.error(
+                            "HikerAPI HTTP %s on %s params=%s: %s",
+                            resp.status,
+                            path,
+                            params,
+                            body[:500],
+                        )
+                        exc_type = ""
+                        try:
+                            payload = json.loads(body) or {}
+                            if isinstance(payload, dict):
+                                exc_type = str(payload.get("exc_type") or "")
+                        except json.JSONDecodeError:
+                            pass
+                        if exc_type == "PrivateAccount":
+                            raise HikerPrivateAccountError(
+                                "اکانت خصوصی است / private account"
+                            )
+                        raise HikerApiError(f"HikerAPI خطا ({resp.status})")
+                    try:
+                        return json.loads(body)
+                    except json.JSONDecodeError as exc:
+                        raise HikerApiError("پاسخ HikerAPI نامعتبر بود.") from exc
+            except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+                if attempt + 1 < attempts:
+                    logger.warning(
+                        "HikerAPI network error on %s; retrying (%s/%s): %s",
+                        path,
+                        attempt + 1,
+                        attempts - 1,
+                        exc,
+                    )
+                    await asyncio.sleep(0.5 * (2**attempt))
+                    continue
+                raise HikerApiError(
+                    "HikerAPI timeout / connection error"
+                ) from exc
+        raise HikerApiError("HikerAPI request failed")
 
     async def _fetch_user(self, session: aiohttp.ClientSession, username: str) -> dict:
-        handle = username.strip().lstrip("@").lower()
+        handle = self.normalize_username(username)
         data = await self._get(session, "/v2/user/by/username", {"username": handle})
-        user = data.get("user") or {}
+        user = data.get("user") if isinstance(data, dict) else None
         if not user:
             raise ValueError("کاربر پیدا نشد / User not found")
         return user
@@ -67,8 +138,7 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
             user = await self._fetch_user(session, username)
 
         for key in ("following_count", "followingCount", "follows_count"):
@@ -84,24 +154,78 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            user_id = await self._resolve_user_id(session, username)
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+            profile = await self._fetch_user(session, username)
+            user_id = profile.get("pk") or profile.get("id")
+            if not user_id:
+                raise HikerNotFoundError("کاربر پیدا نشد / User not found")
+            if any(
+                bool(profile.get(key))
+                for key in ("is_private", "isPrivate", "private")
+            ):
+                raise HikerPrivateAccountError(
+                    "اکانت خصوصی است / private account"
+                )
+            user_id = str(user_id)
+            try:
+                users = await self._fetch_following_g2(session, user_id, limit)
+            except (HikerPrivateAccountError, HikerNotFoundError) as primary_exc:
+                logger.warning(
+                    "HikerAPI g2 following unavailable for @%s; trying forced GraphQL",
+                    self.normalize_username(username),
+                )
+                try:
+                    users = await self._fetch_following_forced(
+                        session, user_id, limit
+                    )
+                except (HikerPrivateAccountError, HikerNotFoundError):
+                    raise primary_exc
+                logger.info(
+                    "HikerAPI forced GraphQL following succeeded for @%s (%d item(s))",
+                    self.normalize_username(username),
+                    len(users),
+                )
+        return users[:limit]
 
-            users: list[dict] = []
-            page_id: str | None = None
-            for _ in range(_MAX_PAGES):
-                params = {"user_id": user_id}
-                if page_id:
-                    params["page_id"] = page_id
-                data = await self._get(session, "/v2/user/following", params)
-                page_response = data.get("response") or {}
-                page_users = page_response.get("users") or []
-                users.extend(page_users)
-                page_id = data.get("next_page_id")
-                if not page_id or len(users) >= limit:
-                    break
+    async def _fetch_following_g2(
+        self, session: aiohttp.ClientSession, user_id: str, limit: int
+    ) -> list[dict]:
+        users: list[dict] = []
+        page_id: str | None = None
+        for _ in range(_MAX_PAGES):
+            params = {"user_id": user_id}
+            if page_id:
+                params["page_id"] = page_id
+            data = await self._get(session, "/g2/user/following", params)
+            if not isinstance(data, dict):
+                raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
+            page_response = data.get("response") or {}
+            page_users = (
+                page_response.get("users") if isinstance(page_response, dict) else []
+            ) or []
+            users.extend(item for item in page_users if isinstance(item, dict))
+            page_id = data.get("next_page_id")
+            if not page_id or len(users) >= limit:
+                break
+        return users[:limit]
 
+    async def _fetch_following_forced(
+        self, session: aiohttp.ClientSession, user_id: str, limit: int
+    ) -> list[dict]:
+        users: list[dict] = []
+        cursor: str | None = None
+        for _ in range(_MAX_PAGES):
+            params: dict[str, object] = {"user_id": user_id, "force": True}
+            if cursor:
+                params["end_cursor"] = cursor
+            data = await self._get(session, "/gql/user/following/chunk", params)
+            if not isinstance(data, list) or len(data) != 2:
+                raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
+            page_users = data[0] if isinstance(data[0], list) else []
+            users.extend(item for item in page_users if isinstance(item, dict))
+            cursor = str(data[1]) if data[1] else None
+            if not cursor or len(users) >= limit:
+                break
         return users[:limit]
 
     async def fetch_profile(self, username: str) -> dict:
@@ -109,18 +233,16 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
             return await self._fetch_user(session, username)
 
     async def fetch_media_by_url(self, url: str) -> dict:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
             data = await self._get(session, "/v1/media/by/url", {"url": url})
-        if not data:
+        if not isinstance(data, dict) or not data:
             raise ValueError("پست پیدا نشد / Media not found")
         return data
 
@@ -128,9 +250,8 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        handle = username.strip().lstrip("@").lower()
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        handle = self.normalize_username(username)
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
             data = await self._get(
                 session, "/v1/user/stories/by/username", {"username": handle}
             )
@@ -141,9 +262,8 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        handle = username.strip().lstrip("@").lower()
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        handle = self.normalize_username(username)
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
             data = await self._get(
                 session, "/v1/user/highlights/by/username", {"username": handle}
             )
@@ -153,8 +273,7 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
             user_id = await self._resolve_user_id(session, username)
 
             items: list[dict] = []
@@ -164,11 +283,15 @@ class HikerApiClient:
                 if page_id:
                     params["page_id"] = page_id
                 data = await self._get(session, "/v2/user/medias", params)
+                if not isinstance(data, dict):
+                    raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
                 page_response = data.get("response") or {}
                 page_items = (
                     page_response.get("items") or page_response.get("medias") or []
+                    if isinstance(page_response, dict)
+                    else []
                 )
-                items.extend(page_items)
+                items.extend(item for item in page_items if isinstance(item, dict))
                 page_id = data.get("next_page_id")
                 if not page_id or len(items) >= limit:
                     break
@@ -179,8 +302,7 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
             data = await self._get(
                 session,
                 "/v1/hashtag/medias/recent",

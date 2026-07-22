@@ -97,6 +97,11 @@ class Settings(BaseSettings):
     # HikerAPI (hikerapi.com) — the only external Instagram data provider.
     # It does not use the bridge account session.
     hikerapi_key: str = ""
+    hikerapi_timeout_seconds: int = 45
+    hikerapi_max_retries: int = 1
+    following_cache_ttl_seconds: int = 21600
+    following_cache_max_entries: int = 100
+    following_cache_max_users: int = 50000
 
     instagram_username: str = ""
     instagram_password: str = ""

@@ -147,14 +147,14 @@ async def recheck_following_join(callback: CallbackQuery, state: FSMContext) -> 
     await callback.answer()
 
 
-@router.message(StateFilter(FollowingStates.waiting_username))
+@router.message(StateFilter(FollowingStates.waiting_username), ~F.text.startswith("/"))
 async def receive_following_username(message: Message, state: FSMContext) -> None:
     uid = message.from_user.id
     lang = await require_user_lang(uid)
     text = (message.text or "").strip()
-    username = parse_username(text) or text.lstrip("@").lower()
+    username = parse_username(text)
 
-    if not username or " " in username or len(username) > 30:
+    if not username:
         await message.answer(await tu(uid, "following_invalid_username"))
         return
 

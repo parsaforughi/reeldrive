@@ -107,7 +107,9 @@ def parse_command(text: str) -> ParsedCommand | None:
             m = re.match(pattern.replace(r"\s+", r"\s+"), text, re.IGNORECASE)
         if m:
             groups = m.groups()
-            username = groups[0].lower()
+            username = parse_username(groups[0])
+            if not username:
+                continue
             idx = int(groups[1]) if len(groups) > 1 else None
             return ParsedCommand(
                 kind=kind, username=username, index=idx, raw=raw
@@ -116,7 +118,10 @@ def parse_command(text: str) -> ParsedCommand | None:
     # simple: highlights username (two words)
     parts = text.split()
     if len(parts) == 2:
-        cmd, user = parts[0].lower(), parts[1].lstrip("@").lower()
+        cmd = parts[0].lower()
+        user = parse_username(parts[1])
+        if not user:
+            return None
         if cmd in ("highlights", "هایلایت", "هایلایت‌ها"):
             return ParsedCommand(kind="highlights_list", username=user, raw=raw)
         if cmd in ("stories", "story", "استوری"):

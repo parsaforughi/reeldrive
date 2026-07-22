@@ -11,7 +11,7 @@ from bot.services.bio_verification import verify_pending_via_bio
 from bot.services.client_pool import client_pool
 from bot.services.verification import disconnect, get_connection, start_verification
 from bot.states import ConnectStates
-from bot.utils import parse_media_url
+from bot.utils import parse_media_url, parse_username
 
 router = Router()
 
@@ -34,7 +34,7 @@ async def cancel_connect(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
-@router.message(StateFilter(ConnectStates.waiting_username))
+@router.message(StateFilter(ConnectStates.waiting_username), ~F.text.startswith("/"))
 async def receive_username(message: Message, state: FSMContext) -> None:
     uid = message.from_user.id
     text = (message.text or "").strip()
@@ -45,8 +45,8 @@ async def receive_username(message: Message, state: FSMContext) -> None:
         await download_from_text(message, text, state)
         return
 
-    username = text.lstrip("@").lower()
-    if not username or " " in username or len(username) > 30:
+    username = parse_username(text)
+    if not username:
         await message.answer(await tu(uid, "connect_invalid_username"))
         return
 
