@@ -35,9 +35,12 @@ from bot.services.pricing import (
 )
 from bot.services.client_pool import client_pool
 from bot.services.following_access import (
+    current_alternate_channels,
     current_card_holder_name,
+    current_required_channels,
     current_support_card,
     grant_credits,
+    set_channels,
     set_support_card,
 )
 from bot.services.subscription import (
@@ -478,6 +481,33 @@ async def api_set_card(body: CardBody, _: None = Depends(require_admin)):
         raise HTTPException(status_code=400, detail="نام صاحب کارت را وارد کن.")
     await set_support_card(card, holder)
     return {"ok": True, "card": card, "holder": holder}
+
+
+class ChannelsBody(BaseModel):
+    required: str
+    alternate: str
+
+
+@app.get("/api/settings/channels")
+async def api_get_channels(_: None = Depends(require_admin)):
+    return {
+        "required": await current_required_channels(),
+        "alternate": await current_alternate_channels(),
+    }
+
+
+@app.post("/api/settings/channels")
+async def api_set_channels(body: ChannelsBody, _: None = Depends(require_admin)):
+    required = (body.required or "").strip()
+    alternate = (body.alternate or "").strip()
+    for part in required.split(",") + alternate.split(","):
+        part = part.strip()
+        if part and not part.startswith("@"):
+            raise HTTPException(
+                status_code=400, detail=f"«{part}» باید با @ شروع شود."
+            )
+    await set_channels(required, alternate)
+    return {"ok": True, "required": required, "alternate": alternate}
 
 
 class BroadcastBody(BaseModel):

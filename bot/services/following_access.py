@@ -42,6 +42,12 @@ FOLLOWINGS_PER_TOKEN = 400
 _CARD_NUMBER_KEY = "following_support_card"
 _CARD_HOLDER_KEY = "following_card_holder_name"
 
+# DB-setting keys for the admin-panel-editable join channels — overrides
+# settings.following_required_channels / following_alternate_channels when
+# set, so admins can swap a channel without an env var change + redeploy.
+_REQUIRED_CHANNELS_KEY = "following_required_channels"
+_ALTERNATE_CHANNELS_KEY = "following_alternate_channels"
+
 
 def tokens_required_for_count(following_count: int) -> int:
     """Every started batch of FOLLOWINGS_PER_TOKEN followings costs one
@@ -53,13 +59,30 @@ def _split_csv(raw: str) -> list[str]:
     return [c.strip() for c in (raw or "").split(",") if c.strip()]
 
 
-def required_channels(telegram_id: int) -> list[str]:
+async def current_required_channels() -> str:
+    override = await get_setting(_REQUIRED_CHANNELS_KEY)
+    return override if override is not None else settings.following_required_channels
+
+
+async def current_alternate_channels() -> str:
+    override = await get_setting(_ALTERNATE_CHANNELS_KEY)
+    return override if override is not None else settings.following_alternate_channels
+
+
+async def set_channels(required: str, alternate: str) -> None:
+    """Admin-panel override for the required/alternate join channels — takes
+    effect immediately for every new membership check, no redeploy needed."""
+    await set_setting(_REQUIRED_CHANNELS_KEY, required.strip())
+    await set_setting(_ALTERNATE_CHANNELS_KEY, alternate.strip())
+
+
+async def required_channels(telegram_id: int) -> list[str]:
     """Base channels are required for everyone. On top of those, each user
-    must also join exactly one channel from following_alternate_channels —
+    must also join exactly one channel from the alternate channels —
     picked deterministically per telegram_id, alternating across users so
     the join load is split evenly instead of piling onto a single channel."""
-    base = _split_csv(settings.following_required_channels)
-    alternates = _split_csv(settings.following_alternate_channels)
+    base = _split_csv(await current_required_channels())
+    alternates = _split_csv(await current_alternate_channels())
     if alternates:
         base = base + [alternates[telegram_id % len(alternates)]]
     return base
@@ -93,7 +116,7 @@ async def missing_channels(bot: Bot, telegram_id: int) -> list[str]:
     """Live-checks membership — never cached, so leaving a channel is picked
     up on the very next call."""
     missing: list[str] = []
-    for channel in required_channels(telegram_id):
+    for channel in await required_channels(telegram_id):
         handle = "@" + channel.lstrip("@")
         try:
             member = await bot.get_chat_member(chat_id=handle, user_id=telegram_id)

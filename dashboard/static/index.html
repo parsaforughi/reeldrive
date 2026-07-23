@@ -266,6 +266,19 @@
         </div>
       </div>
 
+      <div class="panel">
+        <div class="panel-head"><h2>📢 کانال‌های الزامی فالووینگ</h2></div>
+        <div class="panel-body">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <input type="text" id="channelsRequired" placeholder="کانال‌های الزامی (با کاما جدا، مثل @a,@b)" style="margin-bottom:0" />
+            <input type="text" id="channelsAlternate" placeholder="کانال‌های متناوب (اختیاری، با کاما جدا)" style="margin-bottom:0" />
+            <button class="btn btn-primary" id="channelsSaveBtn" style="width:auto;margin-top:8px">ذخیره</button>
+          </div>
+          <p class="err hidden" id="channelsErr"></p>
+          <p class="muted hidden" id="channelsSaved" style="margin-top:8px">✅ ذخیره شد — از همین الان روی چک‌های جدید اعمال می‌شود.</p>
+        </div>
+      </div>
+
       <div class="panel full">
         <div class="panel-head"><h2>📢 پیام همگانی</h2></div>
         <div class="panel-body">
@@ -324,6 +337,7 @@
         $("#app").classList.remove("hidden");
         loadAll();
         loadCardSettings();
+        loadChannelSettings();
         pollBroadcastStatus();
       } catch {
         $("#loginErr").classList.remove("hidden");
@@ -639,6 +653,39 @@
       }
     };
 
+    async function loadChannelSettings() {
+      try {
+        const s = await api("/api/settings/channels");
+        $("#channelsRequired").value = s.required || "";
+        $("#channelsAlternate").value = s.alternate || "";
+      } catch (e) {
+        if (e.message !== "auth") console.error(e);
+      }
+    }
+
+    $("#channelsSaveBtn").onclick = async () => {
+      const required = $("#channelsRequired").value.trim();
+      const alternate = $("#channelsAlternate").value.trim();
+      const errEl = $("#channelsErr");
+      const savedEl = $("#channelsSaved");
+      errEl.classList.add("hidden");
+      savedEl.classList.add("hidden");
+
+      $("#channelsSaveBtn").disabled = true;
+      try {
+        await api("/api/settings/channels", {
+          method: "POST",
+          body: JSON.stringify({ required, alternate }),
+        });
+        savedEl.classList.remove("hidden");
+      } catch (e) {
+        errEl.textContent = "خطا: " + e.message;
+        errEl.classList.remove("hidden");
+      } finally {
+        $("#channelsSaveBtn").disabled = false;
+      }
+    };
+
     let broadcastPoll = null;
 
     function renderBroadcastStatus(s) {
@@ -713,6 +760,7 @@
       loadAll();
       setInterval(loadAll, 15000);
       loadCardSettings();
+      loadChannelSettings();
       pollBroadcastStatus();
     }).catch(() => {});
 
