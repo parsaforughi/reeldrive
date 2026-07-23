@@ -209,7 +209,7 @@ class Settings(BaseSettings):
     # On top of the base channels above, each user is also required to
     # join exactly one of these — alternated per user (by telegram_id) so
     # the join load is split evenly across them. Empty = no alternation.
-    following_alternate_channels: str = "@license_club,@alimo_ai"
+    following_alternate_channels: str = "@VPNheisenberg,@alimo_ai"
     following_page_price_toman: int = 35000
     following_free_pages: int = 0
     # Only the first card is active for now — add more comma-separated
