@@ -21,12 +21,18 @@ from typing import TypeVar
 from cryptography.fernet import Fernet, InvalidToken
 from instagrapi import Client
 from instagrapi.exceptions import (
+    BadCredentials,
     BadPassword,
     ChallengeRequired,
     ClientError,
+    ClientForbiddenError,
+    ClientThrottledError,
     FeedbackRequired,
     LoginRequired,
     PleaseWaitFewMinutes,
+    ProxyAddressIsBlocked,
+    RateLimitError,
+    SentryBlock,
     TwoFactorRequired,
 )
 
@@ -73,6 +79,10 @@ class AdvancedBadCredentials(AdvancedInstagramError):
 
 class AdvancedRateLimited(AdvancedInstagramError):
     key = "advanced_rate_limited"
+
+
+class AdvancedProxyRequired(AdvancedInstagramError):
+    key = "advanced_proxy_required"
 
 
 class AdvancedFeatureDisabled(AdvancedInstagramError):
@@ -170,13 +180,34 @@ class AdvancedInstagramService:
             account = client.account_info()
         except TwoFactorRequired as exc:
             raise AdvancedTwoFactorRequired() from exc
-        except BadPassword as exc:
+        except (BadPassword, BadCredentials) as exc:
             raise AdvancedBadCredentials() from exc
         except ChallengeRequired as exc:
             raise AdvancedChallengeRequired() from exc
-        except (PleaseWaitFewMinutes, FeedbackRequired) as exc:
+        except (
+            SentryBlock,
+            ProxyAddressIsBlocked,
+            ClientForbiddenError,
+        ) as exc:
+            logger.warning(
+                "Advanced Instagram login blocked error_type=%s",
+                type(exc).__name__,
+            )
+            raise AdvancedProxyRequired() from exc
+        except (
+            PleaseWaitFewMinutes,
+            FeedbackRequired,
+            RateLimitError,
+            ClientThrottledError,
+        ) as exc:
             raise AdvancedRateLimited() from exc
         except ClientError as exc:
+            # Log only the exception class. Instagram response messages may
+            # contain account details and must not enter production logs.
+            logger.warning(
+                "Advanced Instagram login rejected error_type=%s",
+                type(exc).__name__,
+            )
             raise AdvancedInstagramError() from exc
         finally:
             # instagrapi keeps the supplied password on the Client instance;

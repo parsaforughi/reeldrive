@@ -7,14 +7,16 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from urllib.parse import urlencode
 
-from instagrapi.exceptions import TwoFactorRequired
+from instagrapi.exceptions import BadCredentials, SentryBlock, TwoFactorRequired
 
 from bot.config import settings
 from bot.services import following
 from bot.services.advanced_instagram import (
+    AdvancedBadCredentials,
     AdvancedFeatureDisabled,
     AdvancedInstagramService,
     AdvancedPrivateAccessDenied,
+    AdvancedProxyRequired,
     AdvancedTwoFactorRequired,
 )
 from bot.services.hikerapi import HikerNotFoundError, HikerPrivateAccountError
@@ -69,6 +71,28 @@ class AdvancedSessionEncryptionTests(unittest.TestCase):
         with (
             patch.object(service, "_new_client", return_value=client),
             self.assertRaises(AdvancedTwoFactorRequired),
+        ):
+            service._login_sync("user", "password", "")
+        self.assertIsNone(client.password)
+
+    def test_bad_credentials_are_classified_without_storing_password(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.login.side_effect = BadCredentials("bad credentials")
+        with (
+            patch.object(service, "_new_client", return_value=client),
+            self.assertRaises(AdvancedBadCredentials),
+        ):
+            service._login_sync("user", "password", "")
+        self.assertIsNone(client.password)
+
+    def test_blocked_server_ip_requests_residential_proxy(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.login.side_effect = SentryBlock("blocked")
+        with (
+            patch.object(service, "_new_client", return_value=client),
+            self.assertRaises(AdvancedProxyRequired),
         ):
             service._login_sync("user", "password", "")
         self.assertIsNone(client.password)

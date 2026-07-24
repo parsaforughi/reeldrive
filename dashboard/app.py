@@ -31,6 +31,7 @@ from bot.services.advanced_instagram import (
     AdvancedChallengeRequired,
     AdvancedFeatureDisabled,
     AdvancedInstagramError,
+    AdvancedProxyRequired,
     AdvancedRateLimited,
     AdvancedTwoFactorRequired,
     advanced_instagram,
@@ -705,17 +706,18 @@ async def api_instagram_connect_login(body: AdvancedConnectBody):
             status_code=429,
             content={"ok": False, "code": "rate_limited"},
         )
+    except AdvancedProxyRequired:
+        return JSONResponse(
+            status_code=503,
+            content={"ok": False, "code": "proxy_required"},
+        )
     except AdvancedFeatureDisabled:
         return JSONResponse(
             status_code=503,
             content={"ok": False, "code": "feature_disabled"},
         )
     except AdvancedInstagramError:
-        logger.warning(
-            "Advanced Instagram login failed telegram=%s username=@%s",
-            telegram_id,
-            body.username.strip().lstrip("@"),
-        )
+        logger.warning("Advanced Instagram login failed telegram=%s", telegram_id)
         return JSONResponse(
             status_code=502,
             content={"ok": False, "code": "instagram_error"},

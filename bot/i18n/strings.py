@@ -280,6 +280,11 @@ Coming soon: unfollowers list.""",
         "en": "Instagram temporarily rate-limited requests; try again later.",
         "ar": "قيّد إنستغرام الطلبات مؤقتاً؛ حاول لاحقاً.",
     },
+    "advanced_proxy_required": {
+        "fa": "اینستاگرام IP سرور را مسدود کرده؛ اتصال پیشرفته به پراکسی پایدار residential نیاز دارد.",
+        "en": "Instagram blocked the server IP; advanced connect needs a stable residential proxy.",
+        "ar": "حظر إنستغرام عنوان خادمنا؛ يحتاج الربط المتقدم إلى وكيل سكني ثابت.",
+    },
     "advanced_feature_disabled": {
         "fa": "اتصال پیشرفته هنوز روی سرور فعال نشده است.",
         "en": "Advanced connect is not enabled on the server yet.",
