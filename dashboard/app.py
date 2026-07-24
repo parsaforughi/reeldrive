@@ -30,6 +30,7 @@ from bot.services.advanced_instagram import (
     AdvancedBadCredentials,
     AdvancedChallengeRequired,
     AdvancedFeatureDisabled,
+    AdvancedInvalidUser,
     AdvancedInstagramError,
     AdvancedProxyRequired,
     AdvancedRateLimited,
@@ -695,6 +696,11 @@ async def api_instagram_connect_login(body: AdvancedConnectBody):
         return JSONResponse(
             status_code=401,
             content={"ok": False, "code": "bad_credentials"},
+        )
+    except AdvancedInvalidUser:
+        return JSONResponse(
+            status_code=401,
+            content={"ok": False, "code": "invalid_user"},
         )
     except AdvancedChallengeRequired:
         return JSONResponse(

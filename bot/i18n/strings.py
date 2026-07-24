@@ -271,9 +271,14 @@ Coming soon: unfollowers list.""",
         "ar": "طلب إنستغرام تحققاً أمنياً؛ وافق عليه في التطبيق ثم أعد الربط.",
     },
     "advanced_bad_credentials": {
-        "fa": "اینستاگرام ورود را با bad_password رد کرد. اگر مطمئنی اطلاعات درست است، IP سرور مسدود شده و پراکسی residential لازم است.",
-        "en": "Instagram rejected the login as bad_password. If the credentials are correct, the server IP is blocked and a residential proxy is required.",
-        "ar": "رفض إنستغرام تسجيل الدخول ككلمة مرور خاطئة. إذا كانت البيانات صحيحة فعنوان الخادم محظور ويلزم وكيل سكني.",
+        "fa": "اینستاگرام نام کاربری یا رمز را رد کرد. ورود در اپ رسمی را بررسی کن؛ اگر درست بود، مسیر ورود یا IP رد شده است.",
+        "en": "Instagram rejected the username or password. Verify the official app; if they are correct, the login path or IP was rejected.",
+        "ar": "رفض إنستغرام اسم المستخدم أو كلمة المرور. تحقق عبر التطبيق الرسمي؛ إن كانت صحيحة فقد رُفض مسار الدخول أو عنوان IP.",
+    },
+    "advanced_invalid_user": {
+        "fa": "اینستاگرام این نام کاربری را برای ورود معتبر ندانست. نام کاربری فعلی حساب را در اپ رسمی بررسی کن.",
+        "en": "Instagram did not accept this username for login. Check the account's current username in the official app.",
+        "ar": "لم يقبل إنستغرام اسم المستخدم هذا لتسجيل الدخول. تحقق من اسم الحساب الحالي في التطبيق الرسمي.",
     },
     "advanced_rate_limited": {
         "fa": "اینستاگرام موقتاً درخواست‌ها را محدود کرده؛ چند دقیقه بعد امتحان کن.",

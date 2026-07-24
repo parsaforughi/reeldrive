@@ -27,6 +27,7 @@ _KNOWN_VALUE_KEYS = frozenset(
         "advanced_two_factor_required",
         "advanced_challenge_required",
         "advanced_bad_credentials",
+        "advanced_invalid_user",
         "advanced_rate_limited",
         "advanced_proxy_required",
         "advanced_feature_disabled",

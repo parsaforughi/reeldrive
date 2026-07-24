@@ -74,6 +74,8 @@ def _provider_error_category(exc: ClientError) -> str:
         return "proxy"
     if "rate" in signal or "wait" in signal or "throttl" in signal:
         return "rate_limited"
+    if "invalid_user" in signal:
+        return "invalid_user"
     if "password" in signal or "credential" in signal:
         return "bad_credentials"
     if "invalid parameter" in signal:
@@ -135,6 +137,10 @@ class AdvancedChallengeRequired(AdvancedInstagramError):
 
 class AdvancedBadCredentials(AdvancedInstagramError):
     key = "advanced_bad_credentials"
+
+
+class AdvancedInvalidUser(AdvancedInstagramError):
+    key = "advanced_invalid_user"
 
 
 class AdvancedRateLimited(AdvancedInstagramError):
@@ -296,6 +302,8 @@ class AdvancedInstagramService:
                 raise AdvancedRateLimited() from exc
             if category == "bad_credentials":
                 raise AdvancedBadCredentials() from exc
+            if category == "invalid_user":
+                raise AdvancedInvalidUser() from exc
             raise AdvancedInstagramError() from exc
         except ClientError as exc:
             # Log only the exception class. Instagram response messages may

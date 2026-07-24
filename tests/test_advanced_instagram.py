@@ -21,6 +21,7 @@ from bot.services.advanced_instagram import (
     AdvancedBadCredentials,
     AdvancedChallengeRequired,
     AdvancedFeatureDisabled,
+    AdvancedInvalidUser,
     AdvancedInstagramError,
     AdvancedInstagramService,
     AdvancedPrivateAccessDenied,
@@ -61,6 +62,30 @@ class AdvancedSessionEncryptionTests(unittest.TestCase):
     def test_invalid_parameters_gets_a_safe_diagnostic_category(self):
         exc = UnknownError("Invalid Parameters")
         self.assertEqual(_provider_error_category(exc), "invalid_parameters")
+
+    def test_invalid_user_response_is_classified_separately(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.last_response = SimpleNamespace(status_code=400)
+        client.login.side_effect = UnknownError(
+            "sensitive provider response",
+            error_type="invalid_user",
+        )
+
+        with (
+            patch.object(service, "_new_client", return_value=client),
+            self.assertLogs(
+                "bot.services.advanced_instagram", level="WARNING"
+            ) as captured,
+            self.assertRaises(AdvancedInvalidUser),
+        ):
+            service._login_sync("user", "password", "")
+
+        logs = "\n".join(captured.output)
+        self.assertIn("provider_error_type=invalid_user", logs)
+        self.assertIn("category=invalid_user", logs)
+        self.assertNotIn("sensitive provider response", logs)
+        self.assertIsNone(client.password)
 
     def test_short_encryption_key_keeps_feature_disabled(self):
         service = AdvancedInstagramService()
