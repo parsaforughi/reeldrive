@@ -34,6 +34,7 @@ from instagrapi.exceptions import (
     RateLimitError,
     SentryBlock,
     TwoFactorRequired,
+    UnknownError,
 )
 
 from bot.config import settings
@@ -44,6 +45,37 @@ from bot.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
+
+
+def _safe_provider_error_type(exc: ClientError) -> str:
+    raw = str(getattr(exc, "error_type", "") or "").strip().lower()
+    if not raw:
+        return "missing"
+    if len(raw) > 64 or any(
+        char not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for char in raw
+    ):
+        return "other"
+    return raw
+
+
+def _provider_error_category(exc: ClientError) -> str:
+    signal = " ".join(
+        (
+            str(getattr(exc, "error_type", "") or ""),
+            str(getattr(exc, "message", "") or ""),
+        )
+    ).lower()
+    if "two_factor" in signal or "verification_code" in signal:
+        return "two_factor"
+    if "challenge" in signal or "checkpoint" in signal:
+        return "challenge"
+    if "sentry" in signal or "proxy" in signal or "ip_address" in signal:
+        return "proxy"
+    if "rate" in signal or "wait" in signal or "throttl" in signal:
+        return "rate_limited"
+    if "password" in signal or "credential" in signal:
+        return "bad_credentials"
+    return "unknown"
 
 
 class AdvancedInstagramError(ValueError):
@@ -172,12 +204,13 @@ class AdvancedInstagramService:
     ) -> tuple[Client, str, str]:
         client = self._new_client()
         try:
-            client.login(
+            logged_in = client.login(
                 username,
                 password,
                 verification_code=verification_code.strip(),
             )
-            account = client.account_info()
+            if not logged_in:
+                raise AdvancedInstagramError()
         except TwoFactorRequired as exc:
             raise AdvancedTwoFactorRequired() from exc
         except BadPassword as exc:
@@ -206,6 +239,27 @@ class AdvancedInstagramService:
             ClientThrottledError,
         ) as exc:
             raise AdvancedRateLimited() from exc
+        except UnknownError as exc:
+            category = _provider_error_category(exc)
+            response = getattr(client, "last_response", None)
+            logger.warning(
+                "Advanced Instagram login rejected error_type=UnknownError "
+                "provider_error_type=%s category=%s http_status=%s",
+                _safe_provider_error_type(exc),
+                category,
+                getattr(response, "status_code", "unknown"),
+            )
+            if category == "two_factor":
+                raise AdvancedTwoFactorRequired() from exc
+            if category == "challenge":
+                raise AdvancedChallengeRequired() from exc
+            if category == "proxy":
+                raise AdvancedProxyRequired() from exc
+            if category == "rate_limited":
+                raise AdvancedRateLimited() from exc
+            if category == "bad_credentials":
+                raise AdvancedBadCredentials() from exc
+            raise AdvancedInstagramError() from exc
         except ClientError as exc:
             # Log only the exception class. Instagram response messages may
             # contain account details and must not enter production logs.
@@ -219,8 +273,8 @@ class AdvancedInstagramService:
             # it is never needed after login and must not enter the cache.
             client.password = None
 
-        account_username = str(account.username or username).lstrip("@").lower()
-        account_id = str(account.pk or client.user_id or "")
+        account_username = str(client.username or username).lstrip("@").lower()
+        account_id = str(client.user_id or "")
         if not account_id:
             raise AdvancedInstagramError()
         return client, account_username, account_id

@@ -12,13 +12,16 @@ from instagrapi.exceptions import (
     BadPassword,
     SentryBlock,
     TwoFactorRequired,
+    UnknownError,
 )
 
 from bot.config import settings
 from bot.services import following
 from bot.services.advanced_instagram import (
     AdvancedBadCredentials,
+    AdvancedChallengeRequired,
     AdvancedFeatureDisabled,
+    AdvancedInstagramError,
     AdvancedInstagramService,
     AdvancedPrivateAccessDenied,
     AdvancedProxyRequired,
@@ -116,6 +119,73 @@ class AdvancedSessionEncryptionTests(unittest.TestCase):
             self.assertRaises(AdvancedProxyRequired),
         ):
             service._login_sync("user", "password", "")
+        self.assertIsNone(client.password)
+
+    def test_success_uses_login_session_without_extra_account_info_request(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.login.return_value = True
+        client.username = "Resolved_User"
+        client.user_id = 12345
+
+        with patch.object(service, "_new_client", return_value=client):
+            result_client, username, account_id = service._login_sync(
+                "input_user", "password", ""
+            )
+
+        self.assertIs(result_client, client)
+        self.assertEqual(username, "resolved_user")
+        self.assertEqual(account_id, "12345")
+        client.account_info.assert_not_called()
+        self.assertIsNone(client.password)
+
+    def test_unknown_challenge_is_classified_without_logging_response(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.last_response = SimpleNamespace(status_code=400)
+        client.login.side_effect = UnknownError(
+            "sensitive account response",
+            error_type="checkpoint_required",
+        )
+
+        with (
+            patch.object(service, "_new_client", return_value=client),
+            self.assertLogs(
+                "bot.services.advanced_instagram", level="WARNING"
+            ) as captured,
+            self.assertRaises(AdvancedChallengeRequired),
+        ):
+            service._login_sync("user", "password", "")
+
+        logs = "\n".join(captured.output)
+        self.assertIn("provider_error_type=checkpoint_required", logs)
+        self.assertIn("category=challenge", logs)
+        self.assertNotIn("sensitive account response", logs)
+        self.assertIsNone(client.password)
+
+    def test_unclassified_unknown_error_logs_only_sanitized_metadata(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.last_response = SimpleNamespace(status_code=400)
+        client.login.side_effect = UnknownError(
+            "sensitive account response",
+            error_type="unsafe value with spaces",
+        )
+
+        with (
+            patch.object(service, "_new_client", return_value=client),
+            self.assertLogs(
+                "bot.services.advanced_instagram", level="WARNING"
+            ) as captured,
+            self.assertRaises(AdvancedInstagramError),
+        ):
+            service._login_sync("user", "password", "")
+
+        logs = "\n".join(captured.output)
+        self.assertIn("provider_error_type=other", logs)
+        self.assertIn("category=unknown", logs)
+        self.assertNotIn("sensitive account response", logs)
+        self.assertNotIn("unsafe value with spaces", logs)
         self.assertIsNone(client.password)
 
 
