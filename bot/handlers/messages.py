@@ -226,7 +226,7 @@ async def _dispatch(
         return
 
     if cmd.kind == "zip_stories":
-        zip_path = await instagram_downloader.zip_stories(user)
+        zip_path = await instagram_downloader.zip_stories(user, uid)
         await status.delete()
         await send_zip(message, zip_path, f"Stories @{user}")
         return

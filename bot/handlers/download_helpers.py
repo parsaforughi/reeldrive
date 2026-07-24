@@ -55,8 +55,10 @@ async def send_profile(message: Message, username: str, status: Message) -> None
 
 
 async def send_stories(message: Message, username: str) -> None:
-    stories: list[StoryItem] = await instagram_downloader.get_stories(username)
     uid = message.from_user.id
+    stories: list[StoryItem] = await instagram_downloader.get_stories(
+        username, uid
+    )
     if not stories:
         await message.answer(await tu(uid, "no_stories"))
         return

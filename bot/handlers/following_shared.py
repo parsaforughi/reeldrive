@@ -12,7 +12,7 @@ from aiogram.types import Message
 from bot.handlers.download_helpers import send_following
 from bot.i18n import require_user_lang, tu
 from bot.keyboards import following_join_kb
-from bot.services.following import fetch_following
+from bot.services.following import fetch_following, fetch_following_count
 from bot.services.following_access import (
     get_credit_balance,
     grant_access,
@@ -21,7 +21,6 @@ from bot.services.following_access import (
     missing_channels,
     tokens_required_for_count,
 )
-from bot.services.profile import fetch_following_count
 from bot.states import FollowingStates
 
 
@@ -61,7 +60,7 @@ async def start_following_lookup(
 
     tokens_needed = 1
     if not await is_unlocked(uid, username):
-        following_count = await fetch_following_count(username)
+        following_count = await fetch_following_count(username, uid)
         tokens_needed = tokens_required_for_count(following_count)
         if not await has_access(uid, username, tokens_needed):
             await state.set_state(FollowingStates.waiting_token_count)
@@ -76,7 +75,7 @@ async def start_following_lookup(
             )
             return True
 
-    users = await fetch_following(username)
+    users = await fetch_following(username, telegram_id=uid)
     if not users:
         await message.answer(await tu(uid, "no_following"))
         return False

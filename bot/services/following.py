@@ -1,8 +1,8 @@
-"""Following-list lookup through HikerAPI.
+"""Following-list lookup.
 
-Deliberately does not fall back to instagrapi — that would run through the
-shared bridge Instagram session used for DM forwarding and other features,
-risking a rate-limit/challenge on that account.
+Public targets use HikerAPI and its shared cache. Private targets may fall
+back only to the requesting user's encrypted advanced session; private data
+is deliberately never stored in the shared cache.
 """
 
 import asyncio
@@ -10,7 +10,7 @@ import logging
 import time
 
 from bot.config import settings
-from bot.services.hikerapi import hiker_client
+from bot.services.hikerapi import HikerPrivateAccountError, hiker_client
 from bot.services.instagram import FollowUser
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,43 @@ async def _fetch_and_cache(
     return users
 
 
-async def fetch_following(username: str, limit: int | None = None) -> list[FollowUser]:
+def _parse_users(items: list[dict]) -> list[FollowUser]:
+    users = [u for item in items if (u := _parse_item(item))]
+    users.sort(key=lambda u: u.username)
+    return users
+
+
+async def fetch_following_count(
+    username: str, telegram_id: int | None = None
+) -> int:
+    handle = hiker_client.normalize_username(username)
+    profile = await hiker_client.fetch_profile(handle)
+    is_private = any(bool(profile.get(key)) for key in _PRIVATE_KEYS)
+    if is_private:
+        if telegram_id is None:
+            from bot.services.advanced_instagram import AdvancedConnectRequired
+
+            raise AdvancedConnectRequired()
+        from bot.services.advanced_instagram import advanced_instagram
+
+        return await advanced_instagram.fetch_following_count(telegram_id, handle)
+
+    for key in ("following_count", "followingCount", "follows_count"):
+        value = profile.get(key)
+        if value is not None:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                continue
+    return 0
+
+
+async def fetch_following(
+    username: str,
+    limit: int | None = None,
+    *,
+    telegram_id: int | None = None,
+) -> list[FollowUser]:
     limit = limit or settings.max_following_list
     handle = hiker_client.normalize_username(username)
     key = (handle, limit)
@@ -126,4 +162,23 @@ async def fetch_following(username: str, limit: int | None = None) -> list[Follo
                 _inflight.pop(key, None)
 
         task.add_done_callback(clear_inflight)
-    return list(await asyncio.shield(task))
+    try:
+        return list(await asyncio.shield(task))
+    except HikerPrivateAccountError:
+        if telegram_id is None:
+            from bot.services.advanced_instagram import AdvancedConnectRequired
+
+            raise AdvancedConnectRequired()
+        from bot.services.advanced_instagram import advanced_instagram
+
+        items = await advanced_instagram.fetch_following(
+            telegram_id, handle, limit
+        )
+        logger.info(
+            "Advanced-session following telegram=%s target=@%s: %d raw item(s)",
+            telegram_id,
+            handle,
+            len(items),
+        )
+        # Never put viewer-authorized private data in the process-wide cache.
+        return _parse_users(items)
