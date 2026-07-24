@@ -6,19 +6,19 @@ import hmac
 import json
 import logging
 import secrets
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from sqlalchemy import desc, func, or_, select
-
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter
 from aiogram.types import LabeledPrice
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from sqlalchemy import desc, func, or_, select
 
 from bot.config import settings
 from bot.db.engine import async_session, db_ping, init_db
@@ -26,12 +26,14 @@ from bot.db.migrate import maybe_migrate_sqlite_to_postgres
 from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.handlers.payments import PRO_PAYLOAD, _payload
 from bot.i18n import require_user_lang, t, tu
-from bot.services.hikerapi import hiker_client
-from bot.services.pricing import (
-    is_allowed_plan_days,
-    plan_by_days,
-    plan_stars,
-    shop_plans_payload,
+from bot.services.advanced_instagram import (
+    AdvancedBadCredentials,
+    AdvancedChallengeRequired,
+    AdvancedFeatureDisabled,
+    AdvancedInstagramError,
+    AdvancedRateLimited,
+    AdvancedTwoFactorRequired,
+    advanced_instagram,
 )
 from bot.services.client_pool import client_pool
 from bot.services.following_access import (
@@ -42,6 +44,13 @@ from bot.services.following_access import (
     grant_credits,
     set_channels,
     set_support_card,
+)
+from bot.services.hikerapi import hiker_client
+from bot.services.pricing import (
+    is_allowed_plan_days,
+    plan_by_days,
+    plan_stars,
+    shop_plans_payload,
 )
 from bot.services.subscription import (
     PRO_PLANS,
@@ -59,6 +68,9 @@ SESSION_COOKIE = "reeldrive_admin"
 SESSION_DAYS = 7
 logger = logging.getLogger(__name__)
 _db_ready = False
+_advanced_login_attempts: dict[int, list[float]] = {}
+_ADVANCED_LOGIN_WINDOW_SECONDS = 15 * 60
+_ADVANCED_LOGIN_MAX_ATTEMPTS = 5
 
 
 def _sign_token(raw: str) -> str:
@@ -606,6 +618,120 @@ def _shop_user_from_init(body: WebAppBody) -> dict:
     if not user:
         raise HTTPException(status_code=401, detail="Invalid init data")
     return user
+
+
+def _advanced_user_from_init(init_data: str) -> dict:
+    user = validate_init_data(init_data, max_age_seconds=10 * 60)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired init data")
+    return user
+
+
+def _check_advanced_login_rate(telegram_id: int) -> None:
+    now = time.monotonic()
+    recent = [
+        at
+        for at in _advanced_login_attempts.get(telegram_id, [])
+        if now - at < _ADVANCED_LOGIN_WINDOW_SECONDS
+    ]
+    if len(recent) >= _ADVANCED_LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="تلاش‌های ورود زیاد بود. ۱۵ دقیقه بعد دوباره امتحان کن.",
+        )
+    recent.append(now)
+    _advanced_login_attempts[telegram_id] = recent
+
+
+class AdvancedConnectBody(BaseModel):
+    init_data: str
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
+    verification_code: str = Field(default="", max_length=16)
+
+
+@app.get("/instagram-connect")
+async def instagram_connect_page():
+    path = STATIC_DIR / "instagram-connect.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Advanced connect not found")
+    return FileResponse(path)
+
+
+@app.post("/api/instagram-connect/info")
+async def api_instagram_connect_info(body: WebAppBody):
+    tg_user = _advanced_user_from_init(body.init_data)
+    telegram_id = int(tg_user["id"])
+    info = await advanced_instagram.session_info(telegram_id)
+    enabled = advanced_instagram.ready
+    return {
+        "enabled": enabled,
+        "connected": enabled and info.connected,
+        "username": info.username,
+        "status": info.status if enabled else "feature_disabled",
+        "connected_at": to_iso_utc(info.connected_at),
+    }
+
+
+@app.post("/api/instagram-connect/login")
+async def api_instagram_connect_login(body: AdvancedConnectBody):
+    tg_user = _advanced_user_from_init(body.init_data)
+    telegram_id = int(tg_user["id"])
+    _check_advanced_login_rate(telegram_id)
+    try:
+        info = await advanced_instagram.connect(
+            telegram_id,
+            body.username,
+            body.password,
+            body.verification_code,
+        )
+    except AdvancedTwoFactorRequired:
+        return JSONResponse(
+            status_code=409,
+            content={"ok": False, "code": "two_factor_required"},
+        )
+    except AdvancedBadCredentials:
+        return JSONResponse(
+            status_code=401,
+            content={"ok": False, "code": "bad_credentials"},
+        )
+    except AdvancedChallengeRequired:
+        return JSONResponse(
+            status_code=409,
+            content={"ok": False, "code": "challenge_required"},
+        )
+    except AdvancedRateLimited:
+        return JSONResponse(
+            status_code=429,
+            content={"ok": False, "code": "rate_limited"},
+        )
+    except AdvancedFeatureDisabled:
+        return JSONResponse(
+            status_code=503,
+            content={"ok": False, "code": "feature_disabled"},
+        )
+    except AdvancedInstagramError:
+        logger.warning(
+            "Advanced Instagram login failed telegram=%s username=@%s",
+            telegram_id,
+            body.username.strip().lstrip("@"),
+        )
+        return JSONResponse(
+            status_code=502,
+            content={"ok": False, "code": "instagram_error"},
+        )
+
+    _advanced_login_attempts.pop(telegram_id, None)
+    return {"ok": True, "connected": True, "username": info.username}
+
+
+@app.post("/api/instagram-connect/disconnect")
+async def api_instagram_connect_disconnect(body: WebAppBody):
+    tg_user = _advanced_user_from_init(body.init_data)
+    telegram_id = int(tg_user["id"])
+    removed = await advanced_instagram.disconnect(telegram_id)
+    _advanced_login_attempts.pop(telegram_id, None)
+    return {"ok": True, "removed": removed}
 
 
 @app.get("/shop")

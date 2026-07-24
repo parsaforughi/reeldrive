@@ -1,5 +1,5 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     instagram_session_id: str = ""
     instagram_bridge_session_id: str = ""
     instagram_proxy: str = ""
+    # Advanced per-user connection. This high-entropy secret encrypts session
+    # cookies/device state at rest; Instagram passwords are never persisted.
+    instagram_session_encryption_key: str = ""
+    advanced_instagram_proxy: str = ""
+    advanced_instagram_client_cache_size: int = 50
     instagram_bridge_enabled: bool = True
     instagram_bridge_force_login: bool = False
 
@@ -226,6 +231,14 @@ class Settings(BaseSettings):
     @property
     def shop_webapp_url(self) -> str:
         """Mini App lives on the dashboard at /shop — same public URL."""
+        return f"{self._webapp_base_url()}/shop"
+
+    @property
+    def advanced_connect_webapp_url(self) -> str:
+        """Advanced Instagram connection Mini App on the dashboard."""
+        return f"{self._webapp_base_url()}/instagram-connect"
+
+    def _webapp_base_url(self) -> str:
         base = (self.webapp_base_url or "").strip()
         if not base:
             base = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
@@ -236,7 +249,7 @@ class Settings(BaseSettings):
         if not base.startswith("http"):
             scheme = "http" if base.startswith("localhost") else "https"
             base = f"{scheme}://{base}"
-        return f"{base.rstrip('/')}/shop"
+        return base.rstrip("/")
 
     openai_api_key: str = ""
     ai_api_base: str = "https://api.openai.com/v1"

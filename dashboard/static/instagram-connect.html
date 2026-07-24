@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>اتصال پیشرفته ReelDrive</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: var(--tg-theme-bg-color, #17212b);
+      --card: var(--tg-theme-secondary-bg-color, #202d3a);
+      --text: var(--tg-theme-text-color, #f5f7fa);
+      --muted: var(--tg-theme-hint-color, #91a0af);
+      --accent: var(--tg-theme-button-color, #39a7e8);
+      --accent-text: var(--tg-theme-button-text-color, #fff);
+      --danger: #ef6b73;
+      --ok: #45c486;
+      --line: rgba(145,160,175,.2);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 18px 14px 36px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, sans-serif;
+    }
+    .wrap { max-width: 520px; margin: 0 auto; }
+    h1 { margin: 0; font-size: 20px; }
+    .lead { color: var(--muted); line-height: 1.8; font-size: 13px; margin: 8px 0 16px; }
+    .card { background: var(--card); border-radius: 16px; padding: 16px; margin-top: 12px; }
+    .status { display: flex; align-items: center; gap: 9px; font-size: 14px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+    .dot.ok { background: var(--ok); box-shadow: 0 0 0 4px rgba(69,196,134,.12); }
+    label { display: block; margin: 14px 0 6px; color: var(--muted); font-size: 12px; }
+    input {
+      width: 100%; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+      border-radius: 11px; padding: 13px 12px; font-size: 15px; outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    button {
+      width: 100%; border: 0; border-radius: 11px; padding: 13px 14px; margin-top: 14px;
+      background: var(--accent); color: var(--accent-text); font-size: 15px; font-weight: 650; cursor: pointer;
+    }
+    button:disabled { opacity: .55; cursor: wait; }
+    button.secondary { background: transparent; color: var(--danger); border: 1px solid rgba(239,107,115,.45); }
+    .notice { font-size: 12px; line-height: 1.75; color: var(--muted); }
+    .notice strong { color: var(--text); }
+    .message { display: none; margin-top: 12px; padding: 11px 12px; border-radius: 10px; font-size: 13px; line-height: 1.7; }
+    .message.show { display: block; }
+    .message.error { background: rgba(239,107,115,.12); color: #ffadb2; }
+    .message.success { background: rgba(69,196,134,.12); color: #8ce2b5; }
+    .hidden { display: none !important; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-left: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🔐 اتصال پیشرفته اینستاگرام</h1>
+    <p class="lead">برای استوری و Following پیج‌های خصوصی‌ای که اکانتت آن‌ها را دنبال می‌کند.</p>
+
+    <section class="card">
+      <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">در حال بررسی…</span></div>
+    </section>
+
+    <section id="loginCard" class="card hidden">
+      <form id="loginForm" autocomplete="on">
+        <label for="username">یوزرنیم اینستاگرام</label>
+        <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="64" />
+
+        <label for="password">پسورد</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256" />
+
+        <div id="otpWrap" class="hidden">
+          <label for="otp">کد ورود دومرحله‌ای</label>
+          <input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="16" />
+        </div>
+
+        <button id="loginButton" type="submit">اتصال امن</button>
+      </form>
+      <div id="message" class="message"></div>
+    </section>
+
+    <section id="connectedCard" class="card hidden">
+      <div id="connectedUser" style="font-weight:650"></div>
+      <p class="notice">session رمزگذاری‌شده فعال است. حالا دستور <strong>following username</strong> یا <strong>story username</strong> را در ربات بفرست.</p>
+      <button id="disconnectButton" type="button" class="secondary">قطع اتصال پیشرفته</button>
+    </section>
+
+    <section class="card notice">
+      <strong>نکات امنیتی</strong><br />
+      پسورد ذخیره نمی‌شود و فقط برای ساخت session استفاده می‌شود. session تا زمان قطع اتصال به‌صورت رمزگذاری‌شده نگهداری می‌شود. ورود خودکار غیررسمی ممکن است باعث تأیید امنیتی یا محدودیت موقت اینستاگرام شود.
+    </section>
+  </main>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
+    const initData = tg?.initData || "";
+    const $ = (id) => document.getElementById(id);
+
+    function showMessage(text, type = "error") {
+      const box = $("message");
+      box.textContent = text;
+      box.className = `message show ${type}`;
+    }
+    function clearMessage() { $("message").className = "message"; }
+    function setLoading(button, loading, label) {
+      button.disabled = loading;
+      button.innerHTML = loading ? `<span class="spinner"></span>${label}` : label;
+    }
+    async function api(path, payload = {}) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ init_data: initData, ...payload })
+      });
+      let body = {};
+      try { body = await response.json(); } catch (_) {}
+      return { response, body };
+    }
+    function render(info) {
+      const connected = Boolean(info.connected);
+      $("statusDot").classList.toggle("ok", connected);
+      $("statusText").textContent = connected
+        ? `متصل به @${info.username}`
+        : (info.enabled ? "هنوز متصل نشده است" : "این قابلیت روی سرور فعال نشده است");
+      $("connectedCard").classList.toggle("hidden", !connected);
+      $("loginCard").classList.toggle("hidden", connected || !info.enabled);
+      if (connected) $("connectedUser").textContent = `✅ @${info.username}`;
+      if (!info.enabled) showMessage("کلید رمزگذاری session هنوز روی سرور تنظیم نشده است.");
+    }
+    async function loadInfo() {
+      if (!initData) {
+        $("statusText").textContent = "این صفحه را از دکمه داخل ربات باز کن";
+        return;
+      }
+      try {
+        const { response, body } = await api("/api/instagram-connect/info");
+        if (!response.ok) throw new Error();
+        render(body);
+      } catch (_) {
+        $("statusText").textContent = "بررسی وضعیت ممکن نشد";
+      }
+    }
+    $("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault(); clearMessage();
+      const button = $("loginButton");
+      setLoading(button, true, "در حال اتصال…");
+      try {
+        const { response, body } = await api("/api/instagram-connect/login", {
+          username: $("username").value.trim(),
+          password: $("password").value,
+          verification_code: $("otp").value.trim()
+        });
+        if (response.ok && body.ok) {
+          $("password").value = ""; $("otp").value = "";
+          showMessage("اتصال با موفقیت انجام شد.", "success");
+          await loadInfo();
+          return;
+        }
+        const messages = {
+          two_factor_required: "کد ورود دومرحله‌ای را وارد کن و دوباره بزن.",
+          bad_credentials: "یوزرنیم یا پسورد صحیح نیست.",
+          challenge_required: "اینستاگرام تأیید امنیتی خواسته؛ داخل اپ اینستاگرام ورود را تأیید کن و دوباره تلاش کن.",
+          rate_limited: "تلاش زیاد بوده؛ چند دقیقه بعد دوباره امتحان کن.",
+          feature_disabled: "اتصال پیشرفته هنوز روی سرور فعال نشده است.",
+          instagram_error: "ورود اینستاگرام کامل نشد. داخل اپ اینستاگرام اعلان امنیتی را بررسی کن."
+        };
+        if (body.code === "two_factor_required") $("otpWrap").classList.remove("hidden");
+        showMessage(messages[body.code] || body.detail || "اتصال انجام نشد.");
+      } catch (_) {
+        showMessage("ارتباط با سرور برقرار نشد.");
+      } finally {
+        setLoading(button, false, "اتصال امن");
+      }
+    });
+    $("disconnectButton").addEventListener("click", async () => {
+      if (!confirm("اتصال پیشرفته و session ذخیره‌شده حذف شود؟")) return;
+      const button = $("disconnectButton");
+      setLoading(button, true, "در حال قطع…");
+      try {
+        const { response } = await api("/api/instagram-connect/disconnect");
+        if (!response.ok) throw new Error();
+        await loadInfo();
+      } catch (_) {
+        alert("قطع اتصال انجام نشد.");
+      } finally {
+        setLoading(button, false, "قطع اتصال پیشرفته");
+      }
+    });
+    loadInfo();
+  </script>
+</body>
+</html>

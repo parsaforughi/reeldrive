@@ -39,6 +39,7 @@ MESSAGES: dict[str, dict[str, str]] = {
 🛒 فروشگاه: /subscribe
 
 🔐 اتصال پیج (اختیاری): /connect
+🔓 اتصال پیشرفته برای محتوای خصوصی: /advancedconnect
 
 از دکمه آبی <b>Menu</b> کنار چت استفاده کن 👇""",
         "en": f"""Hi! 👋 Welcome to <b>{NAME}</b>.
@@ -47,6 +48,7 @@ MESSAGES: dict[str, dict[str, str]] = {
 🛒 Shop: /subscribe
 
 🔐 Connect page (optional): /connect
+🔓 Advanced private access: /advancedconnect
 
 Use the blue <b>Menu</b> button next to the chat 👇""",
         "ar": f"""مرحباً! 👋 أهلاً بك في <b>{NAME}</b>.
@@ -55,6 +57,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 🛒 المتجر: /subscribe
 
 🔐 ربط الحساب: /connect
+🔓 الربط المتقدم للمحتوى الخاص: /advancedconnect
 
 استخدم زر <b>Menu</b> الأزرق بجانب المحادثة 👇""",
     },
@@ -68,6 +71,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <b>⭐ Pro:</b> دانلود نامحدود + AI — ۲۰ ستاره/ماه
 
 <b>🔐 اتصال پیج:</b> /connect → کد → دایرکت {BRIDGE}
+<b>🔓 اتصال پیشرفته:</b> /advancedconnect — استوری و Following خصوصی مجاز
 
 <b>دستورات:</b>
 <code>highlights user</code> | <code>zip stories user</code> | <code>following user</code> | <code>#tag</code>""",
@@ -80,6 +84,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <b>⭐ Pro:</b> unlimited download + AI — 20 Stars/month
 
 <b>🔐 Connect page:</b> /connect → code → DM {BRIDGE}
+<b>🔓 Advanced connect:</b> /advancedconnect — authorized private stories/following
 
 <b>Commands:</b>
 <code>highlights user</code> | <code>zip stories user</code> | <code>following user</code> | <code>#tag</code>""",
@@ -92,6 +97,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <b>⭐ Pro:</b> تحميل غير محدود + AI — 20 نجمة/شهر
 
 <b>🔐 ربط الحساب:</b> /connect → رمز → رسالة {BRIDGE}
+<b>🔓 الربط المتقدم:</b> /advancedconnect — القصص وقوائم المتابعة الخاصة المسموح بها
 
 <b>أوامر:</b>
 <code>highlights user</code> | <code>zip stories user</code> | <code>following user</code> | <code>#tag</code>""",
@@ -191,21 +197,98 @@ Coming soon: unfollowers list.""",
         "fa": f"""📜 <b>حریم خصوصی — {NAME}</b>
 
 • پسورد اینستاگرام ذخیره نمی‌شود.
-• فقط یوزرنیم متصل و شناسه تلگرام نگه داشته می‌شود.
+• در اتصال عادی فقط یوزرنیم متصل و شناسه تلگرام نگه داشته می‌شود.
+• در اتصال پیشرفته، session و مشخصات دستگاه به‌صورت رمزگذاری‌شده تا زمان قطع اتصال نگه داشته می‌شود.
 • /disconnect — قطع اتصال
+• /advancedconnect — مدیریت و حذف اتصال پیشرفته
 • محتوا فقط برای تحویل به خودت پردازش می‌شود.""",
         "en": f"""📜 <b>Privacy — {NAME}</b>
 
 • We never store your Instagram password.
-• Only connected username and Telegram ID are kept.
+• Basic connect stores only the connected username and Telegram ID.
+• Advanced connect stores encrypted session/device data until you disconnect.
 • /disconnect — disconnect anytime
+• /advancedconnect — manage/delete the advanced session
 • Content is processed only to deliver downloads to you.""",
         "ar": f"""📜 <b>الخصوصية — {NAME}</b>
 
 • لا نحفظ كلمة مرور إنستغرام.
-• نحفظ اسم المستخدم المرتبط ومعرف تيليجرام فقط.
+• الربط العادي يحفظ اسم المستخدم ومعرف تيليجرام فقط.
+• الربط المتقدم يحفظ بيانات الجلسة والجهاز مشفرة حتى إلغاء الربط.
 • /disconnect — إلغاء الربط
+• /advancedconnect — إدارة وحذف الجلسة المتقدمة
 • المحتوى يُعالَج فقط لتسليمه إليك.""",
+    },
+    "advanced_connect_button": {
+        "fa": "🔐 باز کردن اتصال پیشرفته",
+        "en": "🔐 Open advanced connect",
+        "ar": "🔐 فتح الربط المتقدم",
+    },
+    "advanced_connect_intro": {
+        "fa": (
+            "🔓 <b>اتصال پیشرفته</b>\n\n"
+            "برای دانلود استوری و دیدن Following پیج‌های خصوصی‌ای که اکانتت "
+            "واقعاً دنبال می‌کند. پسورد ذخیره نمی‌شود؛ session رمزگذاری‌شده است.\n\n"
+            "⚠️ این اتصال از API غیررسمی استفاده می‌کند و ممکن است اینستاگرام "
+            "تأیید امنیتی بخواهد."
+        ),
+        "en": (
+            "🔓 <b>Advanced connect</b>\n\n"
+            "Use your own Instagram permissions for private stories and following "
+            "lists you are allowed to see. Passwords are not stored; the session is encrypted.\n\n"
+            "⚠️ This uses an unofficial API and Instagram may request a security check."
+        ),
+        "ar": (
+            "🔓 <b>الربط المتقدم</b>\n\n"
+            "لاستخدام صلاحيات حسابك للقصص وقوائم المتابعة الخاصة المسموح لك بها. "
+            "لا نحفظ كلمة المرور والجلسة مشفرة.\n\n"
+            "⚠️ قد يطلب إنستغرام تحققاً أمنياً."
+        ),
+    },
+    "advanced_connect_required": {
+        "fa": "🔐 این پیج خصوصی است. اول /advancedconnect را انجام بده.",
+        "en": "🔐 This account is private. Use /advancedconnect first.",
+        "ar": "🔐 هذا الحساب خاص. استخدم /advancedconnect أولاً.",
+    },
+    "advanced_session_expired": {
+        "fa": "🔐 session اینستاگرام منقضی شده؛ از /advancedconnect دوباره وصل شو.",
+        "en": "🔐 Your Instagram session expired; reconnect with /advancedconnect.",
+        "ar": "🔐 انتهت جلسة إنستغرام؛ أعد الربط عبر /advancedconnect.",
+    },
+    "advanced_private_access_denied": {
+        "fa": "❌ اکانت متصل این پیج خصوصی را فالو ندارد یا درخواستش هنوز پذیرفته نشده.",
+        "en": "❌ The connected account does not follow this private account, or its request is pending.",
+        "ar": "❌ الحساب المرتبط لا يتابع هذا الحساب الخاص أو أن الطلب ما زال معلقاً.",
+    },
+    "advanced_two_factor_required": {
+        "fa": "کد ورود دومرحله‌ای لازم است؛ /advancedconnect را باز کن.",
+        "en": "A two-factor code is required; open /advancedconnect.",
+        "ar": "رمز التحقق بخطوتين مطلوب؛ افتح /advancedconnect.",
+    },
+    "advanced_challenge_required": {
+        "fa": "اینستاگرام تأیید امنیتی خواسته؛ داخل اپ تأیید کن و دوباره /advancedconnect را بزن.",
+        "en": "Instagram requested a security check; approve it in the app and reconnect.",
+        "ar": "طلب إنستغرام تحققاً أمنياً؛ وافق عليه في التطبيق ثم أعد الربط.",
+    },
+    "advanced_bad_credentials": {
+        "fa": "یوزرنیم یا پسورد اینستاگرام صحیح نیست.",
+        "en": "The Instagram username or password is incorrect.",
+        "ar": "اسم المستخدم أو كلمة المرور غير صحيحة.",
+    },
+    "advanced_rate_limited": {
+        "fa": "اینستاگرام موقتاً درخواست‌ها را محدود کرده؛ چند دقیقه بعد امتحان کن.",
+        "en": "Instagram temporarily rate-limited requests; try again later.",
+        "ar": "قيّد إنستغرام الطلبات مؤقتاً؛ حاول لاحقاً.",
+    },
+    "advanced_feature_disabled": {
+        "fa": "اتصال پیشرفته هنوز روی سرور فعال نشده است.",
+        "en": "Advanced connect is not enabled on the server yet.",
+        "ar": "الربط المتقدم غير مفعل على الخادم بعد.",
+    },
+    "advanced_connect_error": {
+        "fa": "اتصال اینستاگرام کامل نشد؛ اعلان‌های امنیتی اپ را بررسی کن.",
+        "en": "Instagram connection failed; check security notifications in the app.",
+        "ar": "لم يكتمل ربط إنستغرام؛ تحقق من إشعارات الأمان في التطبيق.",
     },
     "connect_ask_username": {
         "fa": "یوزرنیم پیج اینستاگرامت را بفرست (مثلاً <code>myshop</code>):",

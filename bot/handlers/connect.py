@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from bot.config import settings
 from bot.handlers.connect_hints import connected_usage_hint
 from bot.i18n import require_user_lang, t, tu
-from bot.keyboards import connect_cancel_kb
+from bot.keyboards import advanced_connect_kb, connect_cancel_kb
 from bot.services.bio_verification import verify_pending_via_bio
 from bot.services.client_pool import client_pool
 from bot.services.verification import disconnect, get_connection, start_verification
@@ -14,6 +14,16 @@ from bot.states import ConnectStates
 from bot.utils import parse_media_url, parse_username
 
 router = Router()
+
+
+@router.message(Command("advancedconnect"))
+async def cmd_advanced_connect(message: Message) -> None:
+    uid = message.from_user.id
+    lang = await require_user_lang(uid)
+    await message.answer(
+        await tu(uid, "advanced_connect_intro"),
+        reply_markup=advanced_connect_kb(lang),
+    )
 
 
 @router.message(Command("connect"))

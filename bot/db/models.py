@@ -58,6 +58,25 @@ class UserConnection(Base):
     )
 
 
+class AdvancedInstagramSession(Base):
+    """Per-user Instagram session used only for explicitly authorized
+    private-account reads. Passwords are never stored; ``encrypted_settings``
+    contains an authenticated-encryption blob of instagrapi session/device
+    settings and cookies.
+    """
+
+    __tablename__ = "advanced_instagram_sessions"
+
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    instagram_username: Mapped[str] = mapped_column(String(64), index=True)
+    instagram_user_id: Mapped[str] = mapped_column(String(32))
+    encrypted_settings: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(24), default="connected", index=True)
+    connected_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class WatchlistEntry(Base):
     __tablename__ = "watchlist"
 

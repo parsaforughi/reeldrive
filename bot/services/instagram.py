@@ -10,11 +10,16 @@ from bot.config import settings
 from bot.media_variants import extract_media_variants
 from bot.post_display import post_meta_from_item
 from bot.services.cdn_download import download_cdn_url
-from bot.services.hikerapi import hiker_client
+from bot.services.hikerapi import (
+    HikerNotFoundError,
+    HikerPrivateAccountError,
+    hiker_client,
+)
 from bot.services.post_cache import CachedPost, cache_post
 
 logger = logging.getLogger(__name__)
 TMP = Path("/tmp/reeldrive")
+_PRIVATE_PROFILE_KEYS = ("is_private", "isPrivate", "private")
 
 
 @dataclass
@@ -117,7 +122,9 @@ class InstagramDownloader:
                 if not resolved:
                     continue
                 url, is_video = resolved
-                path = await download_cdn_url(session, url, folder, i, is_video=is_video)
+                path = await download_cdn_url(
+                    session, url, folder, i, is_video=is_video
+                )
                 if not path:
                     continue
                 result.append(
@@ -130,8 +137,38 @@ class InstagramDownloader:
                 )
         return result
 
-    async def get_stories(self, username: str) -> list[StoryItem]:
-        stories = await hiker_client.fetch_user_stories(username)
+    async def get_stories(
+        self, username: str, telegram_id: int | None = None
+    ) -> list[StoryItem]:
+        private_target = False
+        try:
+            stories = await hiker_client.fetch_user_stories(username)
+        except HikerPrivateAccountError:
+            stories = []
+            private_target = True
+        except HikerNotFoundError:
+            # Some Hiker story responses use 404 for a private target. Confirm
+            # privacy from public profile metadata before using a user session;
+            # a genuine missing public user must keep its original 404 result.
+            profile = await hiker_client.fetch_profile(username)
+            if not any(bool(profile.get(key)) for key in _PRIVATE_PROFILE_KEYS):
+                raise
+            stories = []
+            private_target = True
+
+        if private_target and telegram_id is not None:
+            from bot.services.advanced_instagram import advanced_instagram
+
+            if await advanced_instagram.has_session(telegram_id):
+                stories = await advanced_instagram.fetch_stories(telegram_id, username)
+            else:
+                from bot.services.advanced_instagram import AdvancedConnectRequired
+
+                raise AdvancedConnectRequired()
+        elif private_target:
+            from bot.services.advanced_instagram import AdvancedConnectRequired
+
+            raise AdvancedConnectRequired()
         if not stories:
             return []
         return await self._download_story_items(stories)
@@ -149,18 +186,22 @@ class InstagramDownloader:
                 count = len(items)
             result.append(
                 HighlightInfo(
-                    pk=pk, title=h.get("title") or "Highlight", item_count=int(count or 0)
+                    pk=pk,
+                    title=h.get("title") or "Highlight",
+                    item_count=int(count or 0),
                 )
             )
         return result
 
-    async def download_highlight_by_index(self, username: str, index: int) -> list[StoryItem]:
+    async def download_highlight_by_index(
+        self, username: str, index: int
+    ) -> list[StoryItem]:
         highlights = await hiker_client.fetch_user_highlights(username)
         if index < 1 or index > len(highlights):
-            raise ValueError(
-                f"هایلایت #{index} وجود ندارد. تعداد: {len(highlights)}"
-            )
-        return await self._download_story_items(highlights[index - 1].get("items") or [])
+            raise ValueError(f"هایلایت #{index} وجود ندارد. تعداد: {len(highlights)}")
+        return await self._download_story_items(
+            highlights[index - 1].get("items") or []
+        )
 
     async def download_media_url(self, url: str) -> MediaResult:
         media = await hiker_client.fetch_media_by_url(url)
@@ -183,7 +224,9 @@ class InstagramDownloader:
                 if not resolved:
                     continue
                 m_url, is_video = resolved
-                path = await download_cdn_url(session, m_url, folder, i, is_video=is_video)
+                path = await download_cdn_url(
+                    session, m_url, folder, i, is_video=is_video
+                )
                 if path:
                     paths.append(path)
                     direct_urls.append(m_url)
@@ -215,8 +258,8 @@ class InstagramDownloader:
             source_url=url,
         )
 
-    async def zip_stories(self, username: str) -> Path:
-        stories = await self.get_stories(username)
+    async def zip_stories(self, username: str, telegram_id: int | None = None) -> Path:
+        stories = await self.get_stories(username, telegram_id)
         if not stories:
             raise ValueError("استوری فعالی نیست / No active stories")
         return self._zip_paths([s.path for s in stories], f"{username}_stories.zip")
@@ -239,7 +282,9 @@ class InstagramDownloader:
                     if not resolved:
                         continue
                     m_url, is_video = resolved
-                    path = await download_cdn_url(session, m_url, folder, idx, is_video=is_video)
+                    path = await download_cdn_url(
+                        session, m_url, folder, idx, is_video=is_video
+                    )
                     idx += 1
                     if path:
                         paths.append(path)
@@ -261,7 +306,7 @@ class InstagramDownloader:
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for i, p in enumerate(paths):
                 if p.exists():
-                    zf.write(p, arcname=f"{i+1}{p.suffix}")
+                    zf.write(p, arcname=f"{i + 1}{p.suffix}")
         return zip_path
 
 

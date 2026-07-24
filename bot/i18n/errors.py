@@ -21,6 +21,15 @@ _KNOWN_VALUE_KEYS = frozenset(
         "ai_auth_failed",
         "ai_api_error",
         "ai_rate_limit",
+        "advanced_connect_required",
+        "advanced_session_expired",
+        "advanced_private_access_denied",
+        "advanced_two_factor_required",
+        "advanced_challenge_required",
+        "advanced_bad_credentials",
+        "advanced_rate_limited",
+        "advanced_feature_disabled",
+        "advanced_connect_error",
     }
 )
 
