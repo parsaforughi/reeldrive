@@ -17,6 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TypeVar
+from uuid import UUID
 
 from cryptography.fernet import Fernet, InvalidToken
 from instagrapi import Client
@@ -75,7 +76,34 @@ def _provider_error_category(exc: ClientError) -> str:
         return "rate_limited"
     if "password" in signal or "credential" in signal:
         return "bad_credentials"
+    if "invalid parameter" in signal:
+        return "invalid_parameters"
     return "unknown"
+
+
+def _stable_login_settings(username: str) -> dict:
+    """Build a repeatable pre-login device identity without storing secrets."""
+
+    seed = hashlib.sha256(
+        f"reeldrive-instagram-device:{username.lstrip('@').lower()}".encode()
+    ).digest()
+
+    def stable_uuid(label: str) -> str:
+        digest = hashlib.sha256(seed + label.encode()).digest()
+        return str(UUID(bytes=digest[:16], version=4))
+
+    return {
+        "uuids": {
+            "phone_id": stable_uuid("phone_id"),
+            "uuid": stable_uuid("uuid"),
+            "client_session_id": stable_uuid("client_session_id"),
+            "advertising_id": stable_uuid("advertising_id"),
+            "android_device_id": "android-"
+            + hashlib.sha256(seed + b"android_device_id").hexdigest()[:16],
+            "request_id": stable_uuid("request_id"),
+            "tray_session_id": stable_uuid("tray_session_id"),
+        }
+    }
 
 
 class AdvancedInstagramError(ValueError):
@@ -191,18 +219,27 @@ class AdvancedInstagramService:
     async def has_session(self, telegram_id: int) -> bool:
         return self.ready and (await self.session_info(telegram_id)).connected
 
-    def _new_client(self, stored_settings: dict | None = None) -> Client:
+    def _new_client(
+        self,
+        stored_settings: dict | None = None,
+        *,
+        username: str = "",
+    ) -> Client:
+        initial_settings = stored_settings
+        if initial_settings is None and username:
+            initial_settings = _stable_login_settings(username)
         client = Client(
-            settings=stored_settings or {},
+            settings=initial_settings or {},
             proxy=self.proxy or None,
             delay_range=[1, 3],
+            request_timeout=10,
         )
         return client
 
     def _login_sync(
         self, username: str, password: str, verification_code: str
     ) -> tuple[Client, str, str]:
-        client = self._new_client()
+        client = self._new_client(username=username)
         try:
             logged_in = client.login(
                 username,

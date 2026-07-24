@@ -26,6 +26,8 @@ from bot.services.advanced_instagram import (
     AdvancedPrivateAccessDenied,
     AdvancedProxyRequired,
     AdvancedTwoFactorRequired,
+    _provider_error_category,
+    _stable_login_settings,
 )
 from bot.services.hikerapi import HikerNotFoundError, HikerPrivateAccountError
 from bot.services.instagram import InstagramDownloader
@@ -33,6 +35,33 @@ from bot.webapp_auth import validate_init_data
 
 
 class AdvancedSessionEncryptionTests(unittest.TestCase):
+    def test_prelogin_device_identity_is_stable_per_instagram_account(self):
+        first = _stable_login_settings("@Example.User")
+        second = _stable_login_settings("example.user")
+        other = _stable_login_settings("other.user")
+
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, other)
+        self.assertNotIn("example.user", json.dumps(first))
+        self.assertTrue(first["uuids"]["android_device_id"].startswith("android-"))
+
+    def test_login_client_uses_proxy_friendly_timeout(self):
+        service = AdvancedInstagramService()
+        with patch.object(
+            type(service), "proxy", new_callable=PropertyMock, return_value=""
+        ):
+            client = service._new_client(username="example.user")
+
+        self.assertEqual(client.request_timeout, 10)
+        self.assertEqual(
+            client.get_settings()["uuids"],
+            _stable_login_settings("example.user")["uuids"],
+        )
+
+    def test_invalid_parameters_gets_a_safe_diagnostic_category(self):
+        exc = UnknownError("Invalid Parameters")
+        self.assertEqual(_provider_error_category(exc), "invalid_parameters")
+
     def test_short_encryption_key_keeps_feature_disabled(self):
         service = AdvancedInstagramService()
         with patch.object(settings, "instagram_session_encryption_key", "too-short"):
