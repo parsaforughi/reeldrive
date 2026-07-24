@@ -29,6 +29,10 @@ INSTAGRAM_SESSION_ENCRYPTION_KEY=<random-hex-value>
 ADVANCED_INSTAGRAM_PROXY=http://user:pass@host:port
 ```
 
+اگر Instagram با وجود اطلاعات ورود صحیح خطای `bad_password` برگرداند، طبق
+رفتار خود `instagrapi` ممکن است IP دیتاسنتری blacklist شده باشد؛ در این حالت
+پراکسی sticky/residential عملاً الزامی است و تکرار ورود با همان IP توصیه نمی‌شود.
+
 کلید رمزگذاری را بعداً عوض نکن؛ با تغییر آن sessionهای قبلی قابل خواندن نیستند و کاربران باید دوباره متصل شوند.
 
 ## تست دستی

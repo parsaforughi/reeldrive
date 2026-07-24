@@ -7,7 +7,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from urllib.parse import urlencode
 
-from instagrapi.exceptions import BadCredentials, SentryBlock, TwoFactorRequired
+from instagrapi.exceptions import (
+    BadCredentials,
+    BadPassword,
+    SentryBlock,
+    TwoFactorRequired,
+)
 
 from bot.config import settings
 from bot.services import following
@@ -84,6 +89,22 @@ class AdvancedSessionEncryptionTests(unittest.TestCase):
             self.assertRaises(AdvancedBadCredentials),
         ):
             service._login_sync("user", "password", "")
+        self.assertIsNone(client.password)
+
+    def test_bad_password_response_is_classified_without_logging_details(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.login.side_effect = BadPassword("sensitive provider response")
+        with (
+            patch.object(service, "_new_client", return_value=client),
+            self.assertLogs(
+                "bot.services.advanced_instagram", level="WARNING"
+            ) as captured,
+            self.assertRaises(AdvancedBadCredentials),
+        ):
+            service._login_sync("user", "password", "")
+
+        self.assertNotIn("sensitive provider response", "\n".join(captured.output))
         self.assertIsNone(client.password)
 
     def test_blocked_server_ip_requests_residential_proxy(self):

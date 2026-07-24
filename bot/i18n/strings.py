@@ -271,9 +271,9 @@ Coming soon: unfollowers list.""",
         "ar": "طلب إنستغرام تحققاً أمنياً؛ وافق عليه في التطبيق ثم أعد الربط.",
     },
     "advanced_bad_credentials": {
-        "fa": "یوزرنیم یا پسورد اینستاگرام صحیح نیست.",
-        "en": "The Instagram username or password is incorrect.",
-        "ar": "اسم المستخدم أو كلمة المرور غير صحيحة.",
+        "fa": "اینستاگرام ورود را با bad_password رد کرد. اگر مطمئنی اطلاعات درست است، IP سرور مسدود شده و پراکسی residential لازم است.",
+        "en": "Instagram rejected the login as bad_password. If the credentials are correct, the server IP is blocked and a residential proxy is required.",
+        "ar": "رفض إنستغرام تسجيل الدخول ككلمة مرور خاطئة. إذا كانت البيانات صحيحة فعنوان الخادم محظور ويلزم وكيل سكني.",
     },
     "advanced_rate_limited": {
         "fa": "اینستاگرام موقتاً درخواست‌ها را محدود کرده؛ چند دقیقه بعد امتحان کن.",

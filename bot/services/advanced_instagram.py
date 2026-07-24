@@ -180,7 +180,12 @@ class AdvancedInstagramService:
             account = client.account_info()
         except TwoFactorRequired as exc:
             raise AdvancedTwoFactorRequired() from exc
-        except (BadPassword, BadCredentials) as exc:
+        except BadPassword as exc:
+            # Instagram also returns ``bad_password`` when the datacenter IP
+            # is blacklisted. Log only the class; never log its response text.
+            logger.warning("Advanced Instagram login rejected error_type=BadPassword")
+            raise AdvancedBadCredentials() from exc
+        except BadCredentials as exc:
             raise AdvancedBadCredentials() from exc
         except ChallengeRequired as exc:
             raise AdvancedChallengeRequired() from exc
