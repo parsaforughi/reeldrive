@@ -28,6 +28,22 @@ class HikerPrivateAccountError(HikerApiError):
     pass
 
 
+def _iter_search_users(data: object) -> list[dict]:
+    """Normalize the /user/search/followers response into a list of user dicts,
+    tolerating the list / {"users": [...]} / {"response": {"users": [...]}}
+    shapes HikerAPI uses across endpoint variants."""
+    if isinstance(data, list):
+        return [x for x in data if isinstance(x, dict)]
+    if isinstance(data, dict):
+        for key in ("users", "response", "results"):
+            val = data.get(key)
+            if isinstance(val, dict):
+                val = val.get("users")
+            if isinstance(val, list):
+                return [x for x in val if isinstance(x, dict)]
+    return []
+
+
 class HikerApiClient:
     @property
     def ready(self) -> bool:
@@ -214,6 +230,49 @@ class HikerApiClient:
                     session, user_id, limit, "followers"
                 )
         return users[:limit]
+
+    async def followers_follow_back(
+        self, user_id: str, candidates: list[str], *, concurrency: int = 8
+    ) -> set[str]:
+        """Return the subset of ``candidates`` (usernames) that follow
+        ``user_id``, via /v1/user/search/followers — one request per candidate.
+
+        This is the cheap, EXACT way to test reciprocity for a small following
+        set against a very large follower list: instead of paginating hundreds
+        of thousands of followers, we search each of the (few hundred) accounts
+        the user follows inside their own followers. Requests are bounded by
+        ``concurrency`` so a big following set doesn't burst the API.
+        """
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+        found: set[str] = set()
+        semaphore = asyncio.Semaphore(max(1, concurrency))
+
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+
+            async def check(name: str) -> None:
+                target = name.lstrip("@").lower()
+                async with semaphore:
+                    try:
+                        data = await self._get(
+                            session,
+                            "/v1/user/search/followers",
+                            {"user_id": user_id, "query": target},
+                        )
+                    except HikerNotFoundError:
+                        return
+                for item in _iter_search_users(data):
+                    handle = (
+                        str(item.get("username") or item.get("user_name") or "")
+                        .lstrip("@")
+                        .lower()
+                    )
+                    if handle == target:
+                        found.add(target)
+                        return
+
+            await asyncio.gather(*(check(n) for n in candidates))
+        return found
 
     async def _fetch_follow_g1(
         self,

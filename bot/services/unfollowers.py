@@ -51,17 +51,19 @@ def _int_from(profile: dict, keys: tuple[str, ...]) -> int:
     return 0
 
 
-async def precheck_counts(username: str) -> tuple[int, int, bool]:
-    """Cheap single profile call → (following_count, follower_count, is_private).
+async def precheck_counts(username: str) -> tuple[int, int, bool, str]:
+    """Cheap single profile call → (following, follower, is_private, user_id).
 
     Follower/following counts are public even for a private account, so this
     is enough to price the lookup *before* the expensive follow-graph scrape.
+    The user_id (pk) is returned so the search strategy needs no extra lookup.
     """
     profile = await hiker_client.fetch_profile(username)
     following = _int_from(profile, _FOLLOWING_COUNT_KEYS)
     followers = _int_from(profile, _FOLLOWER_COUNT_KEYS)
     is_private = any(bool(profile.get(key)) for key in _PRIVATE_KEYS)
-    return following, followers, is_private
+    user_id = str(profile.get("pk") or profile.get("id") or "")
+    return following, followers, is_private, user_id
 
 
 @dataclass
@@ -72,29 +74,51 @@ class UnfollowerReport:
     mutual_count: int
     not_following_back: list[FollowUser] = field(default_factory=list)
     fans: list[FollowUser] = field(default_factory=list)
-    # False when the follower list was too large to fetch completely, so the
-    # non-mutual result is a best-effort approximation over the scanned slice
-    # (and the "fans" list is omitted because it can't be trusted).
-    followers_complete: bool = True
+    # Is the "doesn't follow you back" list exact? True for the bulk path with
+    # a complete follower list and for the search path; False only when a huge
+    # private page had to be scanned partially.
+    not_back_exact: bool = True
+    # Whether the "fans" list (follows you, you don't follow back) was computed.
+    # The search path can't produce it (it never enumerates the full followers).
+    fans_available: bool = True
+
+
+# Approx followers returned per bulk page. The per-candidate search wins only
+# when the follower list dwarfs the following set by more than this factor.
+_SEARCH_PAGE_SIZE = 50
+# Above this following size, one-by-one search is itself too many requests, so
+# we stay on the bulk path (and accept the follower-scan cap).
+_SEARCH_MAX_FOLLOWING = 5000
 
 
 def followers_scan_limit() -> int:
-    """How many followers we are willing to scan for one report.
-
-    We never pull an unbounded follower list: reciprocity for the *following*
-    set (the bounded candidate set) is all we need, and the scan is capped so
-    a mega-follower page can't run up the token bill or the request count.
-    """
+    """How many followers we are willing to bulk-scan for one report."""
     return max(1, settings.max_following_list)
 
 
-def token_cost_units(following_count: int, follower_count: int) -> int:
-    """Accounts actually scraped from HikerAPI — the basis for pricing.
+def _choose_strategy(following_count: int, follower_count: int) -> tuple[str, int]:
+    """Pick the cheaper *exact* strategy and return (name, token_cost_units).
 
-    The follower side is capped at ``followers_scan_limit()`` so a huge page
-    is charged for what we scan, not its full (unfetched) follower count.
+    - "search": fetch the (small) following list, then test each account's
+      reciprocity via /user/search/followers — ~following_count requests, and
+      it never touches the giant follower list. Chosen when followers dwarf
+      following (influencer/business pages).
+    - "bulk": fetch both lists and diff — cheapest when the two are of similar
+      size. The follower side is priced/capped at followers_scan_limit().
     """
-    return following_count + min(follower_count, followers_scan_limit())
+    cap = followers_scan_limit()
+    if (
+        0 < following_count <= _SEARCH_MAX_FOLLOWING
+        and follower_count > following_count * _SEARCH_PAGE_SIZE
+    ):
+        # list fetch (~following) + one search per following.
+        return "search", following_count * 2
+    return "bulk", following_count + min(follower_count, cap)
+
+
+def token_cost_units(following_count: int, follower_count: int) -> int:
+    """Pricing basis — the accounts/requests the chosen strategy will spend."""
+    return _choose_strategy(following_count, follower_count)[1]
 
 
 def _diff(a: list[FollowUser], b: list[FollowUser]) -> list[FollowUser]:
@@ -103,53 +127,25 @@ def _diff(a: list[FollowUser], b: list[FollowUser]) -> list[FollowUser]:
     return [u for u in a if u.username not in b_names]
 
 
-async def _fetch_sets(
-    telegram_id: int,
-    handle: str,
-    *,
-    follower_count: int,
-    is_private: bool,
-    limit: int,
+async def _fetch_via_session(
+    telegram_id: int, follower_count: int, limit: int
 ) -> tuple[list[FollowUser], list[FollowUser], bool]:
-    """Return (following, followers, followers_complete).
-
-    Fetches the following list first (bounded, cheap). The follower list is
-    only fetched when it can matter, and is skipped entirely when the page has
-    no followers. Private pages fall back to the user's own advanced session.
-    """
+    """Private own-page path: read both lists from the user's own session."""
     from bot.services.advanced_instagram import (
         AdvancedConnectRequired,
         advanced_instagram,
     )
 
-    async def via_session() -> tuple[list[FollowUser], list[FollowUser], bool]:
-        if not await advanced_instagram.has_session(telegram_id):
-            raise UnfollowerAccessRequired() from None
-        try:
-            f_items, fl_items = await advanced_instagram.fetch_own_follow_sets(
-                telegram_id, limit
-            )
-        except AdvancedConnectRequired:
-            raise UnfollowerAccessRequired() from None
-        complete = follower_count <= limit
-        return _parse_users(f_items), _parse_users(fl_items), complete
-
-    if is_private:
-        return await via_session()
-
+    if not await advanced_instagram.has_session(telegram_id):
+        raise UnfollowerAccessRequired() from None
     try:
-        following = _parse_users(await hiker_client.fetch_following(handle, limit))
-        if follower_count <= 0:
-            # No followers at all → everyone you follow is a non-follower.
-            return following, [], True
-        followers = _parse_users(await hiker_client.fetch_followers(handle, limit))
-    except HikerPrivateAccountError:
-        return await via_session()
-
-    # The follower list is complete only if the reported count fits within the
-    # scan cap and we actually fetched (about) that many.
-    complete = follower_count <= limit and len(followers) >= min(follower_count, limit)
-    return following, followers, complete
+        f_items, fl_items = await advanced_instagram.fetch_own_follow_sets(
+            telegram_id, limit
+        )
+    except AdvancedConnectRequired:
+        raise UnfollowerAccessRequired() from None
+    complete = follower_count <= limit
+    return _parse_users(f_items), _parse_users(fl_items), complete
 
 
 async def build_report(
@@ -159,27 +155,77 @@ async def build_report(
     following_count: int,
     follower_count: int,
     is_private: bool,
+    user_id: str = "",
 ) -> UnfollowerReport:
     """Build the non-mutual report for ``username`` (the user's own page).
 
-    ``following_count``/``follower_count``/``is_private`` come from the cheap
-    ``precheck_counts`` call already made for pricing, so no extra profile
-    request is spent here.
+    Counts/privacy/user_id come from the cheap ``precheck_counts`` call already
+    made for pricing, so no extra profile request is spent here.
     """
     limit = followers_scan_limit()
     handle = hiker_client.normalize_username(username)
 
-    following, followers, complete = await _fetch_sets(
-        telegram_id,
-        handle,
-        follower_count=follower_count,
-        is_private=is_private,
-        limit=limit,
-    )
+    # --- Search strategy: exact, and never pulls the giant follower list. ---
+    strategy, _ = _choose_strategy(following_count, follower_count)
+    if strategy == "search" and not is_private and user_id:
+        try:
+            following = _parse_users(
+                await hiker_client.fetch_following(handle, limit)
+            )
+            follow_back = await hiker_client.followers_follow_back(
+                user_id, [u.username for u in following]
+            )
+        except HikerPrivateAccountError:
+            following, followers, complete = await _fetch_via_session(
+                telegram_id, follower_count, limit
+            )
+        else:
+            not_back = [u for u in following if u.username not in follow_back]
+            logger.info(
+                "Unfollower report @%s [search]: following=%d follow_back=%d ghosts=%d",
+                handle,
+                len(following),
+                len(follow_back),
+                len(not_back),
+            )
+            return UnfollowerReport(
+                username=handle,
+                following_count=len(following),
+                followers_count=follower_count,
+                mutual_count=len(following) - len(not_back),
+                not_following_back=not_back,
+                fans=[],
+                not_back_exact=True,
+                fans_available=False,
+            )
+    else:
+        # --- Bulk strategy: fetch both lists and diff. ---
+        if is_private:
+            following, followers, complete = await _fetch_via_session(
+                telegram_id, follower_count, limit
+            )
+        else:
+            try:
+                following = _parse_users(
+                    await hiker_client.fetch_following(handle, limit)
+                )
+                if follower_count <= 0:
+                    followers, complete = [], True
+                else:
+                    followers = _parse_users(
+                        await hiker_client.fetch_followers(handle, limit)
+                    )
+                    complete = follower_count <= limit and len(followers) >= min(
+                        follower_count, limit
+                    )
+            except HikerPrivateAccountError:
+                following, followers, complete = await _fetch_via_session(
+                    telegram_id, follower_count, limit
+                )
 
     mutual = len({u.username for u in following} & {u.username for u in followers})
     logger.info(
-        "Unfollower report @%s: following=%d followers=%d mutual=%d complete=%s",
+        "Unfollower report @%s [bulk]: following=%d followers=%d mutual=%d complete=%s",
         handle,
         len(following),
         len(followers),
@@ -192,8 +238,8 @@ async def build_report(
         followers_count=follower_count,
         mutual_count=mutual,
         not_following_back=_diff(following, followers),
-        # A "fan" (follows you, you don't follow back) can only be asserted
-        # against a COMPLETE follower list — omit it when the scan was capped.
+        # A "fan" can only be asserted against a COMPLETE follower list.
         fans=_diff(followers, following) if complete else [],
-        followers_complete=complete,
+        not_back_exact=complete,
+        fans_available=complete,
     )

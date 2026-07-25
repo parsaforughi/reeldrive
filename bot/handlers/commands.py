@@ -130,7 +130,9 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
     # One cheap profile call → counts + privacy. Reused for pricing AND the
     # scrape strategy, so no extra request is spent inside build_report.
     try:
-        following_count, follower_count, is_private = await precheck_counts(handle)
+        following_count, follower_count, is_private, user_id = await precheck_counts(
+            handle
+        )
     except ValueError as exc:
         await message.answer(friendly_error(exc, lang))
         return
@@ -168,6 +170,7 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
             following_count=following_count,
             follower_count=follower_count,
             is_private=is_private,
+            user_id=user_id,
         )
     except UnfollowerAccessRequired:
         await status.edit_text(await tu(uid, "unfollowers_private_needs_advanced"))

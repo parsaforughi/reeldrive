@@ -115,6 +115,12 @@ async def send_following(message: Message, username: str, users: list[FollowUser
 async def send_unfollowers(message: Message, report) -> None:
     """Render an UnfollowerReport: summary, then the non-mutual lists."""
     uid = message.from_user.id
+    # The "fans" stat/line only appears when that list was actually computed.
+    fans_line = (
+        await tu(uid, "unfollowers_fans_stat", fans=len(report.fans))
+        if report.fans_available
+        else ""
+    )
     await message.answer(
         await tu(
             uid,
@@ -124,11 +130,15 @@ async def send_unfollowers(message: Message, report) -> None:
             followers=report.followers_count,
             mutual=report.mutual_count,
             ghosts=len(report.not_following_back),
-            fans=len(report.fans),
+            fans_line=fans_line,
         )
     )
-    if not report.followers_complete:
+    if not report.not_back_exact:
+        # Big private page scanned only partially → ghost list is approximate.
         await message.answer(await tu(uid, "unfollowers_approximate"))
+    elif not report.fans_available:
+        # Search path: ghosts exact, fans intentionally skipped.
+        await message.answer(await tu(uid, "unfollowers_fans_skipped"))
     if report.not_following_back:
         await message.answer(
             await tu(uid, "unfollowers_list_header", count=len(report.not_following_back))

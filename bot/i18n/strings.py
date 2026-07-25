@@ -196,25 +196,27 @@ Connect your page with /connect first, then run /unfollowers.""",
             "➡️ دنبال می‌کنی: <b>{following}</b>\n"
             "⬅️ دنبالت می‌کنند: <b>{followers}</b>\n"
             "🤝 متقابل: <b>{mutual}</b>\n\n"
-            "💔 فالوت نمی‌کنند: <b>{ghosts}</b>\n"
-            "⭐ فن‌ها (تو فالوشان نمی‌کنی): <b>{fans}</b>"
+            "💔 فالوت نمی‌کنند: <b>{ghosts}</b>{fans_line}"
         ),
         "en": (
             "🚶‍♂️ <b>Unfollowers — @{username}</b>\n\n"
             "➡️ Following: <b>{following}</b>\n"
             "⬅️ Followers: <b>{followers}</b>\n"
             "🤝 Mutual: <b>{mutual}</b>\n\n"
-            "💔 Don't follow you back: <b>{ghosts}</b>\n"
-            "⭐ Fans (you don't follow back): <b>{fans}</b>"
+            "💔 Don't follow you back: <b>{ghosts}</b>{fans_line}"
         ),
         "ar": (
             "🚶‍♂️ <b>من ألغى المتابعة — @{username}</b>\n\n"
             "➡️ تتابع: <b>{following}</b>\n"
             "⬅️ يتابعك: <b>{followers}</b>\n"
             "🤝 متبادل: <b>{mutual}</b>\n\n"
-            "💔 لا يتابعونك: <b>{ghosts}</b>\n"
-            "⭐ معجبون (لا تتابعهم): <b>{fans}</b>"
+            "💔 لا يتابعونك: <b>{ghosts}</b>{fans_line}"
         ),
+    },
+    "unfollowers_fans_stat": {
+        "fa": "\n⭐ فن‌ها (تو فالوشان نمی‌کنی): <b>{fans}</b>",
+        "en": "\n⭐ Fans (you don't follow back): <b>{fans}</b>",
+        "ar": "\n⭐ معجبون (لا تتابعهم): <b>{fans}</b>",
     },
     "unfollowers_list_header": {
         "fa": "💔 <b>{count}</b> نفر که فالوت نمی‌کنند:",
@@ -230,6 +232,21 @@ Connect your page with /connect first, then run /unfollowers.""",
         "fa": "🎉 همه‌ی کسانی که دنبال می‌کنی، دنبالت می‌کنند.",
         "en": "🎉 Everyone you follow follows you back.",
         "ar": "🎉 كل من تتابعه يتابعك.",
+    },
+    "unfollowers_fans_skipped": {
+        "fa": (
+            "ℹ️ پیجت فالوور زیاد داره، برای همین لیست «فالوت نمی‌کنند» رو دقیق و "
+            "بدون سوزوندن توکن اضافه درآوردیم؛ فقط لیست «فن‌ها» این‌بار محاسبه نشد."
+        ),
+        "en": (
+            "ℹ️ Your page has many followers, so we computed the exact "
+            "“don't follow you back” list without burning extra tokens; only the "
+            "“fans” list was skipped this time."
+        ),
+        "ar": (
+            "ℹ️ صفحتك لديها متابِعون كثر، لذلك حسبنا قائمة «لا يتابعونك» بدقة ودون "
+            "استهلاك رموز إضافية؛ فقط قائمة «المعجبين» تم تخطّيها هذه المرة."
+        ),
     },
     "unfollowers_approximate": {
         "fa": (
