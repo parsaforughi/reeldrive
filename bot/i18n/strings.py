@@ -231,6 +231,24 @@ Connect your page with /connect first, then run /unfollowers.""",
         "en": "🎉 Everyone you follow follows you back.",
         "ar": "🎉 كل من تتابعه يتابعك.",
     },
+    "unfollowers_approximate": {
+        "fa": (
+            "⚠️ پیجت فالوور زیادی داره؛ برای صرفه‌جویی فقط بخشی از فالورها بررسی شد. "
+            "پس لیست «فالوت نمی‌کنند» تقریبیه (ممکنه چند نفرش واقعاً فالوت کنن) و "
+            "لیست «فن‌ها» این‌بار محاسبه نشد."
+        ),
+        "en": (
+            "⚠️ Your page has a lot of followers; to save tokens only part of the "
+            "follower list was scanned. So the “don't follow you back” list is "
+            "approximate (a few may actually follow you) and the “fans” list was "
+            "skipped this time."
+        ),
+        "ar": (
+            "⚠️ صفحتك لديها عدد كبير من المتابِعين؛ لتوفير الرموز تم فحص جزء فقط من "
+            "قائمة المتابِعين. لذا قائمة «لا يتابعونك» تقريبية (قد يتابعك بعضهم فعلاً) "
+            "وتم تخطّي قائمة «المعجبين» هذه المرة."
+        ),
+    },
     "unfollowers_private_needs_advanced": {
         "fa": (
             "🔒 پیج تو خصوصی است. برای آنفالویاب روی پیج خصوصی، ابتدا با "

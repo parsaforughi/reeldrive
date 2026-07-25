@@ -127,6 +127,8 @@ async def send_unfollowers(message: Message, report) -> None:
             fans=len(report.fans),
         )
     )
+    if not report.followers_complete:
+        await message.answer(await tu(uid, "unfollowers_approximate"))
     if report.not_following_back:
         await message.answer(
             await tu(uid, "unfollowers_list_header", count=len(report.not_following_back))

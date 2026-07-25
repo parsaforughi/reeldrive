@@ -105,6 +105,7 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
         return
 
     from bot.handlers.download_helpers import send_unfollowers
+    from bot.services.advanced_instagram import advanced_instagram
     from bot.services.following_access import (
         get_credit_balance,
         grant_access,
@@ -116,24 +117,36 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
         UnfollowerAccessRequired,
         build_report,
         precheck_counts,
+        token_cost_units,
     )
 
     lang = await require_user_lang(uid)
     # The unfollower lookup is a separate, heavier operation than /following
-    # (it scrapes both the following AND the followers list), so it unlocks +
+    # (it scrapes the following list AND scans the followers), so it unlocks +
     # is priced under its own key, on the same shared token wallet.
     handle = conn.instagram_username.lstrip("@").lower()
     unlock_key = f"unfollowers:{handle}"
 
+    # One cheap profile call → counts + privacy. Reused for pricing AND the
+    # scrape strategy, so no extra request is spent inside build_report.
+    try:
+        following_count, follower_count, is_private = await precheck_counts(handle)
+    except ValueError as exc:
+        await message.answer(friendly_error(exc, lang))
+        return
+
+    # A private own-page can only be read via the user's own secure session —
+    # checked before charging so a blocked lookup never costs tokens.
+    if is_private and not await advanced_instagram.has_session(uid):
+        await message.answer(await tu(uid, "unfollowers_private_needs_advanced"))
+        return
+
     tokens_needed = 1
     if not await is_unlocked(uid, unlock_key):
-        try:
-            following_count, follower_count, _ = await precheck_counts(handle)
-        except ValueError as exc:
-            await message.answer(friendly_error(exc, lang))
-            return
-        # Priced on the total graph size scraped (following + followers).
-        tokens_needed = tokens_required_for_count(following_count + follower_count)
+        # Priced on what we actually scrape: following + the (capped) follower
+        # scan, so a mega-follower page isn't billed for its full count.
+        cost_units = token_cost_units(following_count, follower_count)
+        tokens_needed = tokens_required_for_count(cost_units)
         if not await has_access(uid, unlock_key, tokens_needed):
             await state.set_state(FollowingStates.waiting_token_count)
             await message.answer(
@@ -141,7 +154,7 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
                     uid,
                     "unfollowers_need_tokens",
                     username=handle,
-                    count=following_count + follower_count,
+                    count=cost_units,
                     tokens=tokens_needed,
                 )
             )
@@ -149,7 +162,13 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
 
     status = await message.answer(await tu(uid, "unfollowers_loading"))
     try:
-        report = await build_report(uid, handle)
+        report = await build_report(
+            uid,
+            handle,
+            following_count=following_count,
+            follower_count=follower_count,
+            is_private=is_private,
+        )
     except UnfollowerAccessRequired:
         await status.edit_text(await tu(uid, "unfollowers_private_needs_advanced"))
         return
