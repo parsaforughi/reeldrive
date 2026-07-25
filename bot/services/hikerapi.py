@@ -171,7 +171,7 @@ class HikerApiClient:
             # Primary: g1 legacy public GraphQL — one request per page, works
             # for normal public accounts where the paginated v2/g2 endpoints
             # return an empty list, and it is the cheapest (1 request/call).
-            users = await self._fetch_following_g1(session, user_id, limit)
+            users = await self._fetch_follow_g1(session, user_id, limit, "following")
             if not users:
                 # g1 came back empty — fall back to the paginated g2 endpoint
                 # before giving up, in case g1 is unavailable for this account.
@@ -179,11 +179,48 @@ class HikerApiClient:
                     "HikerAPI g1 following empty for @%s; trying g2 fallback",
                     handle,
                 )
-                users = await self._fetch_following_g2(session, user_id, limit)
+                users = await self._fetch_follow_g2(
+                    session, user_id, limit, "following"
+                )
         return users[:limit]
 
-    async def _fetch_following_g1(
-        self, session: aiohttp.ClientSession, user_id: str, limit: int
+    async def fetch_followers(self, username: str, limit: int) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+            profile = await self._fetch_user(session, username)
+            user_id = profile.get("pk") or profile.get("id")
+            if not user_id:
+                raise HikerNotFoundError("کاربر پیدا نشد / User not found")
+            if any(
+                bool(profile.get(key))
+                for key in ("is_private", "isPrivate", "private")
+            ):
+                raise HikerPrivateAccountError(
+                    "اکانت خصوصی است / private account"
+                )
+            user_id = str(user_id)
+            handle = self.normalize_username(username)
+            users = await self._fetch_follow_g1(
+                session, user_id, limit, "followers"
+            )
+            if not users:
+                logger.info(
+                    "HikerAPI g1 followers empty for @%s; trying g2 fallback",
+                    handle,
+                )
+                users = await self._fetch_follow_g2(
+                    session, user_id, limit, "followers"
+                )
+        return users[:limit]
+
+    async def _fetch_follow_g1(
+        self,
+        session: aiohttp.ClientSession,
+        user_id: str,
+        limit: int,
+        kind: str = "following",
     ) -> list[dict]:
         users: list[dict] = []
         cursor: str | None = None
@@ -191,7 +228,7 @@ class HikerApiClient:
             params: dict[str, object] = {"user_id": user_id}
             if cursor:
                 params["end_cursor"] = cursor
-            data = await self._get(session, "/g1/user/following", params)
+            data = await self._get(session, f"/g1/user/{kind}", params)
             if not isinstance(data, list) or len(data) != 2:
                 raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
             page_users = data[0] if isinstance(data[0], list) else []
@@ -201,8 +238,12 @@ class HikerApiClient:
                 break
         return users[:limit]
 
-    async def _fetch_following_g2(
-        self, session: aiohttp.ClientSession, user_id: str, limit: int
+    async def _fetch_follow_g2(
+        self,
+        session: aiohttp.ClientSession,
+        user_id: str,
+        limit: int,
+        kind: str = "following",
     ) -> list[dict]:
         users: list[dict] = []
         page_id: str | None = None
@@ -210,7 +251,7 @@ class HikerApiClient:
             params = {"user_id": user_id}
             if page_id:
                 params["page_id"] = page_id
-            data = await self._get(session, "/g2/user/following", params)
+            data = await self._get(session, f"/g2/user/{kind}", params)
             if not isinstance(data, dict):
                 raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
             page_response = data.get("response") or {}

@@ -112,6 +112,37 @@ async def send_following(message: Message, username: str, users: list[FollowUser
         await message.answer(chunk)
 
 
+async def send_unfollowers(message: Message, report) -> None:
+    """Render an UnfollowerReport: summary, then the non-mutual lists."""
+    uid = message.from_user.id
+    await message.answer(
+        await tu(
+            uid,
+            "unfollowers_summary",
+            username=escape(report.username),
+            following=report.following_count,
+            followers=report.followers_count,
+            mutual=report.mutual_count,
+            ghosts=len(report.not_following_back),
+            fans=len(report.fans),
+        )
+    )
+    if report.not_following_back:
+        await message.answer(
+            await tu(uid, "unfollowers_list_header", count=len(report.not_following_back))
+        )
+        for chunk in _chunk_lines(_following_lines(report.not_following_back)):
+            await message.answer(chunk)
+    else:
+        await message.answer(await tu(uid, "unfollowers_none"))
+    if report.fans:
+        await message.answer(
+            await tu(uid, "unfollowers_fans_header", count=len(report.fans))
+        )
+        for chunk in _chunk_lines(_following_lines(report.fans)):
+            await message.answer(chunk)
+
+
 async def _send_media_with_markup(
     bot: Bot,
     chat_id: int,

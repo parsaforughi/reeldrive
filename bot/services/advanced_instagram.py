@@ -484,6 +484,38 @@ class AdvancedInstagramService:
 
         return await self._run(telegram_id, operation)
 
+    async def fetch_own_follow_sets(
+        self, telegram_id: int, limit: int
+    ) -> tuple[list[dict], list[dict]]:
+        """Return (following, followers) of the *connected* account itself.
+
+        No private-access check is needed: the session owner may always read
+        their own follow graph, even for a private page. Both lists are read
+        in one session to avoid a second login round-trip.
+        """
+
+        def to_items(users: dict) -> list[dict]:
+            return [
+                {
+                    "username": str(user.username or ""),
+                    "full_name": str(user.full_name or ""),
+                    "is_private": bool(user.is_private),
+                    "is_verified": bool(user.is_verified),
+                }
+                for user in users.values()
+                if user.username
+            ][:limit]
+
+        def operation(
+            client: Client, row: AdvancedInstagramSession
+        ) -> tuple[list[dict], list[dict]]:
+            uid = row.instagram_user_id
+            following = client.user_following(uid, use_cache=False, amount=max(1, limit))
+            followers = client.user_followers(uid, use_cache=False, amount=max(1, limit))
+            return to_items(following), to_items(followers)
+
+        return await self._run(telegram_id, operation)
+
     async def fetch_following_count(self, telegram_id: int, username: str) -> int:
         handle = hiker_client.normalize_username(username)
 

@@ -91,13 +91,86 @@ async def cmd_search(message: Message, state: FSMContext) -> None:
 
 
 @router.message(Command("unfollowers"))
-async def cmd_unfollowers(message: Message) -> None:
+async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
     uid = message.from_user.id
     conn = await get_connection(uid)
-    extra = ""
     if not conn or conn.status != "connected":
         extra = await tu(uid, "unfollowers_need_connect")
-    await message.answer(await tu(uid, "help_unfollowers") + extra)
+        await message.answer(await tu(uid, "help_unfollowers") + extra)
+        return
+    if not await guard_channels(message, uid):
+        return
+    if not following_ready():
+        await message.answer(await tu(uid, "error_hikerapi"))
+        return
+
+    from bot.handlers.download_helpers import send_unfollowers
+    from bot.services.following_access import (
+        get_credit_balance,
+        grant_access,
+        has_access,
+        is_unlocked,
+        tokens_required_for_count,
+    )
+    from bot.services.unfollowers import (
+        UnfollowerAccessRequired,
+        build_report,
+        precheck_counts,
+    )
+
+    lang = await require_user_lang(uid)
+    # The unfollower lookup is a separate, heavier operation than /following
+    # (it scrapes both the following AND the followers list), so it unlocks +
+    # is priced under its own key, on the same shared token wallet.
+    handle = conn.instagram_username.lstrip("@").lower()
+    unlock_key = f"unfollowers:{handle}"
+
+    tokens_needed = 1
+    if not await is_unlocked(uid, unlock_key):
+        try:
+            following_count, follower_count, _ = await precheck_counts(handle)
+        except ValueError as exc:
+            await message.answer(friendly_error(exc, lang))
+            return
+        # Priced on the total graph size scraped (following + followers).
+        tokens_needed = tokens_required_for_count(following_count + follower_count)
+        if not await has_access(uid, unlock_key, tokens_needed):
+            await state.set_state(FollowingStates.waiting_token_count)
+            await message.answer(
+                await tu(
+                    uid,
+                    "unfollowers_need_tokens",
+                    username=handle,
+                    count=following_count + follower_count,
+                    tokens=tokens_needed,
+                )
+            )
+            return
+
+    status = await message.answer(await tu(uid, "unfollowers_loading"))
+    try:
+        report = await build_report(uid, handle)
+    except UnfollowerAccessRequired:
+        await status.edit_text(await tu(uid, "unfollowers_private_needs_advanced"))
+        return
+    except ValueError as exc:
+        await status.edit_text(friendly_error(exc, lang))
+        return
+    except Exception:  # noqa: BLE001 - surface a generic error, log the detail
+        logger.exception("Unfollower analysis failed for uid=%s", uid)
+        await status.edit_text(await tu(uid, "error_generic"))
+        return
+
+    # Spend tokens only after a successful fetch, so a failed/private lookup
+    # never costs the user anything (mirrors the /following flow).
+    await grant_access(uid, unlock_key, tokens_needed)
+    try:
+        await status.delete()
+    except TelegramBadRequest:
+        pass
+    await send_unfollowers(message, report)
+    tokens_left = await get_credit_balance(uid)
+    await message.answer(await tu(uid, "following_tokens_status", tokens=tokens_left))
 
 
 @router.message(Command("following"))

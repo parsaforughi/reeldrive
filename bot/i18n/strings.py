@@ -174,19 +174,76 @@ After /search send:
     "help_unfollowers": {
         "fa": """🚶‍♂️ <b>آنفالویاب</b>
 
-ابتدا /connect را انجام بده.
-
-به‌زودی: لیست آنفالوها.""",
+کسانی که دنبال می‌کنی ولی تو را دنبال نمی‌کنند را پیدا می‌کند.
+ابتدا پیجت را با /connect متصل کن، بعد /unfollowers را بزن.""",
         "en": """🚶‍♂️ <b>Unfollowers</b>
 
-Connect your page with /connect first.
-
-Coming soon: unfollowers list.""",
+Finds accounts you follow that don't follow you back.
+Connect your page with /connect first, then run /unfollowers.""",
         "ar": """🚶‍♂️ <b>من ألغى المتابعة</b>
 
-قم بـ /connect أولاً.
-
-قريباً: قائمة من ألغوا المتابعة.""",
+يجد الحسابات التي تتابعها ولا تتابعك.
+اربط صفحتك بـ /connect أولاً ثم نفّذ /unfollowers.""",
+    },
+    "unfollowers_loading": {
+        "fa": "⏳ در حال بررسی فالوورها و فالووینگ‌ها… کمی صبر کن.",
+        "en": "⏳ Checking your followers and following… hang tight.",
+        "ar": "⏳ جارٍ فحص المتابِعين والمتابَعين… انتظر قليلاً.",
+    },
+    "unfollowers_summary": {
+        "fa": (
+            "🚶‍♂️ <b>آنفالویاب — @{username}</b>\n\n"
+            "➡️ دنبال می‌کنی: <b>{following}</b>\n"
+            "⬅️ دنبالت می‌کنند: <b>{followers}</b>\n"
+            "🤝 متقابل: <b>{mutual}</b>\n\n"
+            "💔 فالوت نمی‌کنند: <b>{ghosts}</b>\n"
+            "⭐ فن‌ها (تو فالوشان نمی‌کنی): <b>{fans}</b>"
+        ),
+        "en": (
+            "🚶‍♂️ <b>Unfollowers — @{username}</b>\n\n"
+            "➡️ Following: <b>{following}</b>\n"
+            "⬅️ Followers: <b>{followers}</b>\n"
+            "🤝 Mutual: <b>{mutual}</b>\n\n"
+            "💔 Don't follow you back: <b>{ghosts}</b>\n"
+            "⭐ Fans (you don't follow back): <b>{fans}</b>"
+        ),
+        "ar": (
+            "🚶‍♂️ <b>من ألغى المتابعة — @{username}</b>\n\n"
+            "➡️ تتابع: <b>{following}</b>\n"
+            "⬅️ يتابعك: <b>{followers}</b>\n"
+            "🤝 متبادل: <b>{mutual}</b>\n\n"
+            "💔 لا يتابعونك: <b>{ghosts}</b>\n"
+            "⭐ معجبون (لا تتابعهم): <b>{fans}</b>"
+        ),
+    },
+    "unfollowers_list_header": {
+        "fa": "💔 <b>{count}</b> نفر که فالوت نمی‌کنند:",
+        "en": "💔 <b>{count}</b> accounts that don't follow you back:",
+        "ar": "💔 <b>{count}</b> حساب لا يتابعك:",
+    },
+    "unfollowers_fans_header": {
+        "fa": "⭐ <b>{count}</b> نفر که فالوت می‌کنند ولی تو فالوشان نمی‌کنی:",
+        "en": "⭐ <b>{count}</b> accounts that follow you but you don't follow back:",
+        "ar": "⭐ <b>{count}</b> حساب يتابعك ولا تتابعه:",
+    },
+    "unfollowers_none": {
+        "fa": "🎉 همه‌ی کسانی که دنبال می‌کنی، دنبالت می‌کنند.",
+        "en": "🎉 Everyone you follow follows you back.",
+        "ar": "🎉 كل من تتابعه يتابعك.",
+    },
+    "unfollowers_private_needs_advanced": {
+        "fa": (
+            "🔒 پیج تو خصوصی است. برای آنفالویاب روی پیج خصوصی، ابتدا با "
+            "/advancedconnect اتصال امن را انجام بده."
+        ),
+        "en": (
+            "🔒 Your page is private. To use the unfollower finder on a "
+            "private page, set up the secure connection with /advancedconnect first."
+        ),
+        "ar": (
+            "🔒 صفحتك خاصة. لاستخدام أداة من ألغى المتابعة على صفحة خاصة، قم "
+            "بالاتصال الآمن عبر /advancedconnect أولاً."
+        ),
     },
     "settings": {
         "fa": f"⚙️ <b>تنظیمات {NAME}</b>\n\nاز دکمه Menu دستورها را ببین.\n/language — تغییر زبان",
@@ -625,6 +682,24 @@ Coming soon: unfollowers list.""",
         "ar": (
             "🔒 لدى @{username} حوالي {count} متابَع — تحتاج {tokens} رمز لعرضها "
             "(رمز واحد لكل 400 متابَع) وليس لديك هذا العدد.\n\n"
+            "كم رمزاً تريد شراءه؟ أرسل رقماً (مثلاً {tokens}):"
+        ),
+    },
+    "unfollowers_need_tokens": {
+        "fa": (
+            "🔒 پیج @{username} حدود {count} فالوور و فالووینگ داره — آنفالویاب "
+            "{tokens} توکن لازم داره (هر ۴۰۰ نفر = ۱ توکن) و به این تعداد رو نداری.\n\n"
+            "چند تا توکن می‌خوای بخری؟ یه عدد بفرست (مثلاً {tokens}):"
+        ),
+        "en": (
+            "🔒 @{username} has ~{count} followers + followings — the unfollower "
+            "finder needs {tokens} token(s) (1 token per 400) and you don't have "
+            "that many.\n\n"
+            "How many tokens do you want to buy? Send a number (e.g. {tokens}):"
+        ),
+        "ar": (
+            "🔒 لدى @{username} حوالي {count} متابِع ومتابَع — تحتاج أداة من ألغى "
+            "المتابعة إلى {tokens} رمز (رمز واحد لكل 400) وليس لديك هذا العدد.\n\n"
             "كم رمزاً تريد شراءه؟ أرسل رقماً (مثلاً {tokens}):"
         ),
     },
