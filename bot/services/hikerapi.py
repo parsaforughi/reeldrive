@@ -81,17 +81,18 @@ class HikerApiClient:
                             "HikerAPI HTTP 404 on %s params=%s", path, params
                         )
                         raise HikerNotFoundError("پیدا نشد / Not found")
-                    if resp.status == 429 or resp.status >= 500:
-                        if attempt + 1 < attempts:
-                            logger.warning(
-                                "HikerAPI HTTP %s on %s; retrying (%s/%s)",
-                                resp.status,
-                                path,
-                                attempt + 1,
-                                attempts - 1,
-                            )
-                            await asyncio.sleep(0.5 * (2**attempt))
-                            continue
+                    if (resp.status == 429 or resp.status >= 500) and (
+                        attempt + 1 < attempts
+                    ):
+                        logger.warning(
+                            "HikerAPI HTTP %s on %s; retrying (%s/%s)",
+                            resp.status,
+                            path,
+                            attempt + 1,
+                            attempts - 1,
+                        )
+                        await asyncio.sleep(0.5 * (2**attempt))
+                        continue
                     if not (200 <= resp.status < 300):
                         logger.error(
                             "HikerAPI HTTP %s on %s params=%s: %s",
@@ -184,20 +185,14 @@ class HikerApiClient:
                 )
             user_id = str(user_id)
             handle = self.normalize_username(username)
-            # Primary: g1 legacy public GraphQL — one request per page, works
-            # for normal public accounts where the paginated v2/g2 endpoints
-            # return an empty list, and it is the cheapest (1 request/call).
-            users = await self._fetch_follow_g1(session, user_id, limit, "following")
-            if not users:
-                # g1 came back empty — fall back to the paginated g2 endpoint
-                # before giving up, in case g1 is unavailable for this account.
-                logger.info(
-                    "HikerAPI g1 following empty for @%s; trying g2 fallback",
-                    handle,
-                )
-                users = await self._fetch_follow_g2(
-                    session, user_id, limit, "following"
-                )
+            users = await self._fetch_public_follow_list(
+                session,
+                user_id,
+                limit,
+                "following",
+                handle,
+                self._profile_follow_count(profile, "following"),
+            )
         return users[:limit]
 
     async def fetch_followers(self, username: str, limit: int) -> list[dict]:
@@ -218,18 +213,108 @@ class HikerApiClient:
                 )
             user_id = str(user_id)
             handle = self.normalize_username(username)
-            users = await self._fetch_follow_g1(
-                session, user_id, limit, "followers"
+            users = await self._fetch_public_follow_list(
+                session,
+                user_id,
+                limit,
+                "followers",
+                handle,
+                self._profile_follow_count(profile, "followers"),
             )
-            if not users:
-                logger.info(
-                    "HikerAPI g1 followers empty for @%s; trying g2 fallback",
-                    handle,
-                )
-                users = await self._fetch_follow_g2(
-                    session, user_id, limit, "followers"
-                )
         return users[:limit]
+
+    @staticmethod
+    def _profile_follow_count(profile: dict, kind: str) -> int:
+        keys = (
+            ("following_count", "followingCount", "follows_count")
+            if kind == "following"
+            else (
+                "follower_count",
+                "followerCount",
+                "followers_count",
+                "followersCount",
+            )
+        )
+        for key in keys:
+            try:
+                return max(0, int(profile[key]))
+            except (KeyError, TypeError, ValueError):
+                continue
+        return 0
+
+    async def _fetch_public_follow_list(
+        self,
+        session: aiohttp.ClientSession,
+        user_id: str,
+        limit: int,
+        kind: str,
+        handle: str,
+        expected_count: int,
+    ) -> list[dict]:
+        """Fetch a public follow list, recovering from broken g1 cursors.
+
+        HikerAPI's legacy g1 endpoint can return a valid first page and then
+        404/429 on a later ``end_cursor``. That error describes the pagination
+        endpoint, not the already-resolved Instagram user, so retry the whole
+        list through g2 instead of aborting the user request as "not found".
+        """
+        g1_error: HikerApiError | None = None
+        try:
+            users = await self._fetch_follow_g1(session, user_id, limit, kind)
+        except HikerPrivateAccountError:
+            raise
+        except HikerApiError as exc:
+            g1_error = exc
+            logger.warning(
+                "HikerAPI g1 %s failed for @%s (%s); trying g2 fallback",
+                kind,
+                handle,
+                type(exc).__name__,
+            )
+        else:
+            if users or expected_count <= 0:
+                return users
+            logger.info(
+                "HikerAPI g1 %s empty for @%s; trying g2 fallback",
+                kind,
+                handle,
+            )
+
+        fallbacks = (
+            ("g2", self._fetch_follow_g2),
+            ("gql", self._fetch_follow_gql),
+            ("v2", self._fetch_follow_v2),
+        )
+        last_error = g1_error
+        for name, fetcher in fallbacks:
+            try:
+                users = await fetcher(session, user_id, limit, kind)
+            except HikerPrivateAccountError:
+                # Public profiles can still hide their follow graph. Treat
+                # that exactly like a private profile so callers can use the
+                # account owner's authenticated advanced session.
+                raise
+            except HikerApiError as exc:
+                last_error = exc
+                logger.warning(
+                    "HikerAPI %s %s failed for @%s (%s)",
+                    name,
+                    kind,
+                    handle,
+                    type(exc).__name__,
+                )
+                continue
+            if users:
+                return users
+            logger.info("HikerAPI %s %s empty for @%s", name, kind, handle)
+
+        if expected_count <= 0:
+            return users
+        if last_error:
+            raise last_error
+        raise HikerApiError(
+            f"HikerAPI returned an empty {kind} list for a non-empty profile"
+        )
 
     async def followers_follow_back(
         self, user_id: str, candidates: list[str], *, concurrency: int = 8
@@ -311,6 +396,57 @@ class HikerApiClient:
             if page_id:
                 params["page_id"] = page_id
             data = await self._get(session, f"/g2/user/{kind}", params)
+            if not isinstance(data, dict):
+                raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
+            page_response = data.get("response") or {}
+            page_users = (
+                page_response.get("users") if isinstance(page_response, dict) else []
+            ) or []
+            users.extend(item for item in page_users if isinstance(item, dict))
+            page_id = data.get("next_page_id")
+            if not page_id or len(users) >= limit:
+                break
+        return users[:limit]
+
+    async def _fetch_follow_gql(
+        self,
+        session: aiohttp.ClientSession,
+        user_id: str,
+        limit: int,
+        kind: str = "following",
+    ) -> list[dict]:
+        users: list[dict] = []
+        cursor: str | None = None
+        for _ in range(_MAX_PAGES):
+            params: dict[str, object] = {"user_id": user_id, "force": "true"}
+            if cursor:
+                params["end_cursor"] = cursor
+            data = await self._get(
+                session, f"/gql/user/{kind}/chunk", params
+            )
+            if not isinstance(data, list) or len(data) != 2:
+                raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
+            page_users = data[0] if isinstance(data[0], list) else []
+            users.extend(item for item in page_users if isinstance(item, dict))
+            cursor = str(data[1]) if data[1] else None
+            if not cursor or len(users) >= limit:
+                break
+        return users[:limit]
+
+    async def _fetch_follow_v2(
+        self,
+        session: aiohttp.ClientSession,
+        user_id: str,
+        limit: int,
+        kind: str = "following",
+    ) -> list[dict]:
+        users: list[dict] = []
+        page_id: str | None = None
+        for _ in range(_MAX_PAGES):
+            params = {"user_id": user_id}
+            if page_id:
+                params["page_id"] = page_id
+            data = await self._get(session, f"/v2/user/{kind}", params)
             if not isinstance(data, dict):
                 raise HikerApiError("پاسخ HikerAPI نامعتبر بود.")
             page_response = data.get("response") or {}

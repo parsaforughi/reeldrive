@@ -268,16 +268,18 @@ Connect your page with /connect first, then run /unfollowers.""",
     },
     "unfollowers_private_needs_advanced": {
         "fa": (
-            "🔒 پیج تو خصوصی است. برای آنفالویاب روی پیج خصوصی، ابتدا با "
-            "/advancedconnect اتصال امن را انجام بده."
+            "🔒 اینستاگرام لیست فالوهای پیج تو را مخفی کرده (این حالت برای بعضی "
+            "پیج‌های عمومی هم رخ می‌دهد). برای آنفالویاب ابتدا با /advancedconnect "
+            "اتصال امن را انجام بده."
         ),
         "en": (
-            "🔒 Your page is private. To use the unfollower finder on a "
-            "private page, set up the secure connection with /advancedconnect first."
+            "🔒 Instagram has hidden your page's follow list (this can also happen "
+            "on public pages). Set up the secure connection with /advancedconnect "
+            "before using the unfollower finder."
         ),
         "ar": (
-            "🔒 صفحتك خاصة. لاستخدام أداة من ألغى المتابعة على صفحة خاصة، قم "
-            "بالاتصال الآمن عبر /advancedconnect أولاً."
+            "🔒 أخفى إنستغرام قائمة المتابعة لصفحتك (قد يحدث هذا أيضاً للصفحات "
+            "العامة). قم بالاتصال الآمن عبر /advancedconnect أولاً لاستخدام الأداة."
         ),
     },
     "settings": {

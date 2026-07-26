@@ -24,7 +24,12 @@ class StubHikerClient(HikerApiClient):
 
     async def _fetch_user(self, session, username: str) -> dict:
         self.normalize_username(username)
-        return {"pk": "42", "is_private": self.private}
+        return {
+            "pk": "42",
+            "is_private": self.private,
+            "following_count": 10,
+            "follower_count": 10,
+        }
 
     async def _get(self, session, path: str, params: dict) -> object:
         self.calls.append((path, params))
@@ -106,6 +111,89 @@ class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([user["username"] for user in users], ["visible"])
         self.assertEqual(client.calls[0][0], "/g1/user/following")
         self.assertEqual(client.calls[1][0], "/g2/user/following")
+
+    async def test_g1_cursor_failure_falls_back_to_g2(self) -> None:
+        client = StubHikerClient(
+            [
+                [[{"username": "partial"}], "broken-cursor"],
+                HikerNotFoundError("cursor expired"),
+                {
+                    "response": {
+                        "users": [
+                            {"username": "complete-one"},
+                            {"username": "complete-two"},
+                        ]
+                    },
+                    "next_page_id": None,
+                },
+            ]
+        )
+
+        users = await client.fetch_following("valid.user", 10)
+
+        self.assertEqual(
+            [user["username"] for user in users],
+            ["complete-one", "complete-two"],
+        )
+        self.assertEqual(
+            [path for path, _ in client.calls],
+            [
+                "/g1/user/following",
+                "/g1/user/following",
+                "/g2/user/following",
+            ],
+        )
+
+    async def test_g1_follower_cursor_failure_falls_back_to_g2(self) -> None:
+        client = StubHikerClient(
+            [
+                [[{"username": "partial"}], "broken-cursor"],
+                HikerNotFoundError("cursor expired"),
+                {
+                    "response": {"users": [{"username": "complete-follower"}]},
+                    "next_page_id": None,
+                },
+            ]
+        )
+
+        users = await client.fetch_followers("valid.user", 10)
+
+        self.assertEqual(
+            [user["username"] for user in users], ["complete-follower"]
+        )
+        self.assertEqual(
+            [path for path, _ in client.calls],
+            [
+                "/g1/user/followers",
+                "/g1/user/followers",
+                "/g2/user/followers",
+            ],
+        )
+
+    async def test_hidden_follow_list_is_classified_as_private(self) -> None:
+        client = StubHikerClient(
+            [
+                [[{"username": "partial"}], "broken-cursor"],
+                HikerNotFoundError("cursor expired"),
+                {"response": {"users": []}, "next_page_id": None},
+                [[], None],
+                HikerPrivateAccountError("follow graph hidden"),
+            ]
+        )
+
+        with self.assertRaises(HikerPrivateAccountError):
+            await client.fetch_following("valid.user", 10)
+
+        self.assertEqual(
+            [path for path, _ in client.calls],
+            [
+                "/g1/user/following",
+                "/g1/user/following",
+                "/g2/user/following",
+                "/gql/user/following/chunk",
+                "/v2/user/following",
+            ],
+        )
 
     async def test_known_private_profile_does_not_call_following_endpoint(self) -> None:
         client = StubHikerClient([], private=True)
