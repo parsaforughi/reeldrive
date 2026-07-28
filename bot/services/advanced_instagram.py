@@ -12,18 +12,18 @@ import base64
 import hashlib
 import json
 import logging
+import re
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TypeVar
+from urllib.parse import unquote
 from uuid import UUID
 
 from cryptography.fernet import Fernet, InvalidToken
 from instagrapi import Client
 from instagrapi.exceptions import (
-    BadCredentials,
-    BadPassword,
     ChallengeRequired,
     ClientError,
     ClientForbiddenError,
@@ -34,8 +34,6 @@ from instagrapi.exceptions import (
     ProxyAddressIsBlocked,
     RateLimitError,
     SentryBlock,
-    TwoFactorRequired,
-    UnknownError,
 )
 
 from bot.config import settings
@@ -48,46 +46,11 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-def _safe_provider_error_type(exc: ClientError) -> str:
-    raw = str(getattr(exc, "error_type", "") or "").strip().lower()
-    if not raw:
-        return "missing"
-    if len(raw) > 64 or any(
-        char not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for char in raw
-    ):
-        return "other"
-    return raw
-
-
-def _provider_error_category(exc: ClientError) -> str:
-    signal = " ".join(
-        (
-            str(getattr(exc, "error_type", "") or ""),
-            str(getattr(exc, "message", "") or ""),
-        )
-    ).lower()
-    if "two_factor" in signal or "verification_code" in signal:
-        return "two_factor"
-    if "challenge" in signal or "checkpoint" in signal:
-        return "challenge"
-    if "sentry" in signal or "proxy" in signal or "ip_address" in signal:
-        return "proxy"
-    if "rate" in signal or "wait" in signal or "throttl" in signal:
-        return "rate_limited"
-    if "invalid_user" in signal:
-        return "invalid_user"
-    if "password" in signal or "credential" in signal:
-        return "bad_credentials"
-    if "invalid parameter" in signal:
-        return "invalid_parameters"
-    return "unknown"
-
-
-def _stable_login_settings(username: str) -> dict:
-    """Build a repeatable pre-login device identity without storing secrets."""
+def _stable_session_settings(account_key: str) -> dict:
+    """Build a repeatable device identity without including the session secret."""
 
     seed = hashlib.sha256(
-        f"reeldrive-instagram-device:{username.lstrip('@').lower()}".encode()
+        f"reeldrive-instagram-device:{account_key.lstrip('@').lower()}".encode()
     ).digest()
 
     def stable_uuid(label: str) -> str:
@@ -108,6 +71,23 @@ def _stable_login_settings(username: str) -> dict:
     }
 
 
+def _normalize_sessionid(value: str) -> tuple[str, str]:
+    """Return a safe decoded ``(sessionid, Instagram user id)`` pair."""
+
+    raw = unquote((value or "").strip())
+    if raw.lower().startswith("sessionid="):
+        raw = raw.split("=", 1)[1].strip()
+    if (
+        not 10 <= len(raw) <= 512
+        or any(char in raw for char in ("\r", "\n", ";"))
+    ):
+        raise AdvancedInvalidSession()
+    match = re.fullmatch(r"(\d+):[^\s]+", raw)
+    if not match:
+        raise AdvancedInvalidSession()
+    return raw, match.group(1)
+
+
 class AdvancedInstagramError(ValueError):
     key = "advanced_connect_error"
 
@@ -123,24 +103,16 @@ class AdvancedSessionExpired(AdvancedInstagramError):
     key = "advanced_session_expired"
 
 
+class AdvancedInvalidSession(AdvancedInstagramError):
+    key = "advanced_invalid_session"
+
+
 class AdvancedPrivateAccessDenied(AdvancedInstagramError):
     key = "advanced_private_access_denied"
 
 
-class AdvancedTwoFactorRequired(AdvancedInstagramError):
-    key = "advanced_two_factor_required"
-
-
 class AdvancedChallengeRequired(AdvancedInstagramError):
     key = "advanced_challenge_required"
-
-
-class AdvancedBadCredentials(AdvancedInstagramError):
-    key = "advanced_bad_credentials"
-
-
-class AdvancedInvalidUser(AdvancedInstagramError):
-    key = "advanced_invalid_user"
 
 
 class AdvancedRateLimited(AdvancedInstagramError):
@@ -233,7 +205,7 @@ class AdvancedInstagramService:
     ) -> Client:
         initial_settings = stored_settings
         if initial_settings is None and username:
-            initial_settings = _stable_login_settings(username)
+            initial_settings = _stable_session_settings(username)
         client = Client(
             settings=initial_settings or {},
             proxy=self.proxy or None,
@@ -242,27 +214,27 @@ class AdvancedInstagramService:
         )
         return client
 
-    def _login_sync(
-        self, username: str, password: str, verification_code: str
-    ) -> tuple[Client, str, str]:
-        client = self._new_client(username=username)
+    def _session_client_sync(self, sessionid: str) -> tuple[Client, str, str]:
+        """Validate a user-supplied sessionid and resolve its owning account.
+
+        The raw cookie is never logged. It only lives in the request, the
+        in-memory client, and the encrypted settings blob persisted by
+        ``connect_with_sessionid``.
+        """
+        sid, session_user_id = _normalize_sessionid(sessionid)
+        client = self._new_client(username=session_user_id)
         try:
-            logged_in = client.login(
-                username,
-                password,
-                verification_code=verification_code.strip(),
-            )
-            if not logged_in:
-                raise AdvancedInstagramError()
-        except TwoFactorRequired as exc:
-            raise AdvancedTwoFactorRequired() from exc
-        except BadPassword as exc:
-            # Instagram also returns ``bad_password`` when the datacenter IP
-            # is blacklisted. Log only the class; never log its response text.
-            logger.warning("Advanced Instagram login rejected error_type=BadPassword")
-            raise AdvancedBadCredentials() from exc
-        except BadCredentials as exc:
-            raise AdvancedBadCredentials() from exc
+            client.settings["cookies"] = {"sessionid": sid}
+            client.init()
+            client.authorization_data = {
+                "ds_user_id": session_user_id,
+                "sessionid": sid,
+                "should_use_header_over_cookies": True,
+            }
+            client.cookie_dict["ds_user_id"] = session_user_id
+            account = client.account_info()
+        except LoginRequired as exc:
+            raise AdvancedInvalidSession() from exc
         except ChallengeRequired as exc:
             raise AdvancedChallengeRequired() from exc
         except (
@@ -282,65 +254,31 @@ class AdvancedInstagramService:
             ClientThrottledError,
         ) as exc:
             raise AdvancedRateLimited() from exc
-        except UnknownError as exc:
-            category = _provider_error_category(exc)
-            response = getattr(client, "last_response", None)
-            logger.warning(
-                "Advanced Instagram login rejected error_type=UnknownError "
-                "provider_error_type=%s category=%s http_status=%s",
-                _safe_provider_error_type(exc),
-                category,
-                getattr(response, "status_code", "unknown"),
-            )
-            if category == "two_factor":
-                raise AdvancedTwoFactorRequired() from exc
-            if category == "challenge":
-                raise AdvancedChallengeRequired() from exc
-            if category == "proxy":
-                raise AdvancedProxyRequired() from exc
-            if category == "rate_limited":
-                raise AdvancedRateLimited() from exc
-            if category == "bad_credentials":
-                raise AdvancedBadCredentials() from exc
-            if category == "invalid_user":
-                raise AdvancedInvalidUser() from exc
-            raise AdvancedInstagramError() from exc
         except ClientError as exc:
-            # Log only the exception class. Instagram response messages may
-            # contain account details and must not enter production logs.
             logger.warning(
-                "Advanced Instagram login rejected error_type=%s",
+                "Advanced Instagram session rejected error_type=%s",
                 type(exc).__name__,
             )
-            raise AdvancedInstagramError() from exc
-        finally:
-            # instagrapi keeps the supplied password on the Client instance;
-            # it is never needed after login and must not enter the cache.
-            client.password = None
+            raise AdvancedInvalidSession() from exc
 
-        account_username = str(client.username or username).lstrip("@").lower()
-        account_id = str(client.user_id or "")
-        if not account_id:
-            raise AdvancedInstagramError()
+        account_username = str(account.username or "").lstrip("@").lower()
+        account_id = str(account.pk or "")
+        if not account_username or not account_id or account_id != session_user_id:
+            raise AdvancedInvalidSession()
+        client.username = account_username
+        client.user_id = int(account_id)
         return client, account_username, account_id
 
-    async def connect(
-        self,
-        telegram_id: int,
-        username: str,
-        password: str,
-        verification_code: str = "",
+    async def connect_with_sessionid(
+        self, telegram_id: int, sessionid: str
     ) -> AdvancedSessionInfo:
         if not self.ready:
             raise AdvancedFeatureDisabled()
-        handle = hiker_client.normalize_username(username)
 
         async with self._lock(telegram_id):
             client, account_username, account_id = await asyncio.to_thread(
-                self._login_sync,
-                handle,
-                password,
-                verification_code,
+                self._session_client_sync,
+                sessionid,
             )
             encrypted = self._encrypt_settings(client.get_settings())
             now = utc_now()
@@ -375,7 +313,7 @@ class AdvancedInstagramService:
                 await session.commit()
             self._cache_client(telegram_id, client)
             logger.info(
-                "Advanced Instagram session connected telegram=%s username=@%s",
+                "Advanced Instagram session imported telegram=%s username=@%s",
                 telegram_id,
                 account_username,
             )
@@ -406,7 +344,7 @@ class AdvancedInstagramService:
             self._clients.move_to_end(telegram_id)
             return client, row
         stored = self._decrypt_settings(row.encrypted_settings)
-        client = self._new_client(stored)
+        client = self._new_client(stored_settings=stored)
         client.username = row.instagram_username
         self._cache_client(telegram_id, client)
         return client, row
@@ -484,15 +422,16 @@ class AdvancedInstagramService:
 
         return await self._run(telegram_id, operation)
 
-    async def fetch_own_follow_sets(
-        self, telegram_id: int, limit: int
+    async def fetch_follow_sets(
+        self, telegram_id: int, username: str, limit: int
     ) -> tuple[list[dict], list[dict]]:
-        """Return (following, followers) of the *connected* account itself.
+        """Return (following, followers) visible to the connected session.
 
-        No private-access check is needed: the session owner may always read
-        their own follow graph, even for a private page. Both lists are read
-        in one session to avoid a second login round-trip.
+        The target may be the session owner or a private account that this
+        session is allowed to view. Both lists are read in one session and
+        private data is never placed in the shared HikerAPI cache.
         """
+        handle = hiker_client.normalize_username(username)
 
         def to_items(users: dict) -> list[dict]:
             return [
@@ -509,7 +448,9 @@ class AdvancedInstagramService:
         def operation(
             client: Client, row: AdvancedInstagramSession
         ) -> tuple[list[dict], list[dict]]:
-            uid = row.instagram_user_id
+            target = client.user_info_by_username_v1(handle)
+            self._ensure_private_access(client, row, target)
+            uid = str(target.pk)
             following = client.user_following(uid, use_cache=False, amount=max(1, limit))
             followers = client.user_followers(uid, use_cache=False, amount=max(1, limit))
             return to_items(following), to_items(followers)
@@ -555,7 +496,7 @@ class AdvancedInstagramService:
 
     async def disconnect(self, telegram_id: int) -> bool:
         async with self._lock(telegram_id):
-            client = self._clients.pop(telegram_id, None)
+            self._clients.pop(telegram_id, None)
             async with async_session() as session:
                 row = await session.get(AdvancedInstagramSession, telegram_id)
                 if not row:
@@ -570,14 +511,9 @@ class AdvancedInstagramService:
                     )
                 )
                 await session.commit()
-            if client:
-                try:
-                    await asyncio.to_thread(client.logout)
-                except Exception:  # noqa: BLE001 - remote logout is best-effort
-                    logger.info(
-                        "Instagram logout failed after local session deletion telegram=%s",
-                        telegram_id,
-                    )
+            # Remove only ReelDrive's encrypted copy. Calling Instagram logout
+            # here would invalidate the browser sessionid the user deliberately
+            # imported and could sign them out of their own device.
             return True
 
 

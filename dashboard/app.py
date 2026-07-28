@@ -27,14 +27,12 @@ from bot.db.models import ActivityLog, BotUser, UserConnection, WatchlistEntry
 from bot.handlers.payments import PRO_PAYLOAD, _payload
 from bot.i18n import require_user_lang, t, tu
 from bot.services.advanced_instagram import (
-    AdvancedBadCredentials,
     AdvancedChallengeRequired,
     AdvancedFeatureDisabled,
-    AdvancedInvalidUser,
     AdvancedInstagramError,
+    AdvancedInvalidSession,
     AdvancedProxyRequired,
     AdvancedRateLimited,
-    AdvancedTwoFactorRequired,
     advanced_instagram,
 )
 from bot.services.client_pool import client_pool
@@ -645,11 +643,9 @@ def _check_advanced_login_rate(telegram_id: int) -> None:
     _advanced_login_attempts[telegram_id] = recent
 
 
-class AdvancedConnectBody(BaseModel):
+class AdvancedSessionBody(BaseModel):
     init_data: str
-    username: str = Field(min_length=1, max_length=64)
-    password: str = Field(min_length=1, max_length=256)
-    verification_code: str = Field(default="", max_length=16)
+    sessionid: str = Field(min_length=10, max_length=512)
 
 
 @app.get("/instagram-connect")
@@ -675,32 +671,19 @@ async def api_instagram_connect_info(body: WebAppBody):
     }
 
 
-@app.post("/api/instagram-connect/login")
-async def api_instagram_connect_login(body: AdvancedConnectBody):
+@app.post("/api/instagram-connect/session")
+async def api_instagram_connect_session(body: AdvancedSessionBody):
     tg_user = _advanced_user_from_init(body.init_data)
     telegram_id = int(tg_user["id"])
     _check_advanced_login_rate(telegram_id)
     try:
-        info = await advanced_instagram.connect(
-            telegram_id,
-            body.username,
-            body.password,
-            body.verification_code,
+        info = await advanced_instagram.connect_with_sessionid(
+            telegram_id, body.sessionid
         )
-    except AdvancedTwoFactorRequired:
-        return JSONResponse(
-            status_code=409,
-            content={"ok": False, "code": "two_factor_required"},
-        )
-    except AdvancedBadCredentials:
+    except AdvancedInvalidSession:
         return JSONResponse(
             status_code=401,
-            content={"ok": False, "code": "bad_credentials"},
-        )
-    except AdvancedInvalidUser:
-        return JSONResponse(
-            status_code=401,
-            content={"ok": False, "code": "invalid_user"},
+            content={"ok": False, "code": "invalid_session"},
         )
     except AdvancedChallengeRequired:
         return JSONResponse(
@@ -723,7 +706,7 @@ async def api_instagram_connect_login(body: AdvancedConnectBody):
             content={"ok": False, "code": "feature_disabled"},
         )
     except AdvancedInstagramError:
-        logger.warning("Advanced Instagram login failed telegram=%s", telegram_id)
+        logger.warning("Advanced Instagram session import failed telegram=%s", telegram_id)
         return JSONResponse(
             status_code=502,
             content={"ok": False, "code": "instagram_error"},

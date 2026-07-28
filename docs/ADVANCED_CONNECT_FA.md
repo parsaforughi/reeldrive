@@ -29,17 +29,19 @@ INSTAGRAM_SESSION_ENCRYPTION_KEY=<random-hex-value>
 ADVANCED_INSTAGRAM_PROXY=http://user:pass@host:port
 ```
 
-اگر Instagram با وجود اطلاعات ورود صحیح خطای `bad_password` برگرداند، طبق
-رفتار خود `instagrapi` ممکن است IP دیتاسنتری blacklist شده باشد؛ در این حالت
-پراکسی sticky/residential عملاً الزامی است و تکرار ورود با همان IP توصیه نمی‌شود.
+اتصال پیشرفته هیچ یوزرنیم یا پسوردی دریافت نمی‌کند. کاربر مقدار Cookie با نام
+`sessionid` را از مرورگری که داخل Instagram وارد است در Mini App می‌گذارد.
+اگر Instagram درخواست‌های session را از IP دیتاسنتر رد کند، پراکسی
+sticky/residential لازم می‌شود.
 
 کلید رمزگذاری را بعداً عوض نکن؛ با تغییر آن sessionهای قبلی قابل خواندن نیستند و کاربران باید دوباره متصل شوند.
 
 ## تست دستی
 
 1. در ربات `/advancedconnect` را بزن.
-2. Mini App را باز و با یک اکانت آزمایشی وارد شو.
-3. اگر 2FA فعال است، کد را در همان فرم وارد کن.
+2. در مرورگر وارد Instagram شو و از Cookies دامنه `instagram.com` فقط مقدار
+   `sessionid` را کپی کن.
+3. Mini App را باز کن و sessionid را در فرم بگذار.
 4. اکانت آزمایشی باید یک پیج خصوصی را Follow داشته باشد و درخواستش پذیرفته شده باشد.
 5. در ربات بفرست: `story private_username`
 6. سپس بفرست: `following private_username`
@@ -48,9 +50,12 @@ ADVANCED_INSTAGRAM_PROXY=http://user:pass@host:port
 
 ## امنیت و محدودیت
 
-- پسورد داخل Telegram chat دریافت و در دیتابیس ذخیره نمی‌شود.
-- session، cookie و device state با رمزگذاری authenticated در PostgreSQL نگهداری می‌شوند.
+- یوزرنیم، پسورد و کد دومرحله‌ای برای اتصال پیشرفته دریافت نمی‌شود.
+- sessionid را داخل Telegram chat نفرست؛ این Cookie عملاً دسترسی کامل به حساب است.
+- sessionid، cookie و device state با رمزگذاری authenticated در PostgreSQL نگهداری می‌شوند.
 - داده خصوصی وارد cache مشترک HikerAPI نمی‌شود.
 - هر کاربر Client و قفل درخواست جدا دارد.
-- ورود غیررسمی ممکن است باعث 2FA، Challenge یا محدودیت موقت Instagram شود.
+- استفاده از session غیررسمی ممکن است باعث Challenge یا محدودیت موقت Instagram شود.
 - اگر session منقضی شود، وضعیت `reconnect_required` ثبت می‌شود و کاربر باید دوباره متصل شود.
+- «قطع اتصال پیشرفته» فقط نسخه رمزگذاری‌شده ReelDrive را حذف می‌کند و session
+  مرورگر کاربر را از Instagram logout نمی‌کند.

@@ -60,9 +60,9 @@ class UserConnection(Base):
 
 class AdvancedInstagramSession(Base):
     """Per-user Instagram session used only for explicitly authorized
-    private-account reads. Passwords are never stored; ``encrypted_settings``
-    contains an authenticated-encryption blob of instagrapi session/device
-    settings and cookies.
+    private-account reads. Username/password login is not accepted;
+    ``encrypted_settings`` contains an authenticated-encryption blob of the
+    user-supplied sessionid plus instagrapi device settings and cookies.
     """
 
     __tablename__ = "advanced_instagram_sessions"

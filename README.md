@@ -10,7 +10,7 @@
 
 - **دایرکت دانلود:** لینک پست/ریل/کاروسel، استوری، هایلایت، پروفایل HD
 - **اتصال پیج:** `/connect` → کد → DM به اکانت bridge در IG → دریافت لینک‌ها در تلگرام
-- **اتصال پیشرفته:** `/advancedconnect` → Mini App امن → استوری و Following پیج‌های خصوصی‌ای که اکانت متصل دنبال می‌کند
+- **اتصال پیشرفته:** `/advancedconnect` → ورود مستقیم sessionid در Mini App امن → Following/Followers و استوری خصوصی مجاز
 - **زیپ:** `zip stories user` | `zip posts user`
 - **فالووینگ:** `/following` یا `following user` — عمومی از HikerAPI؛ خصوصی فقط از session همان کاربر و بدون استفاده از session اکانت bridge.
 - **هشتگ:** `#tag` یا `hashtag name`

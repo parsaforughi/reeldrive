@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 from bot.services.hikerapi import HikerPrivateAccountError
 from bot.services.instagram import FollowUser
-from bot.services.unfollowers import build_report
+from bot.services.unfollowers import build_report, followers_scan_limit
 
 
 class UnfollowerReportTests(unittest.IsolatedAsyncioTestCase):
@@ -41,7 +41,9 @@ class UnfollowerReportTests(unittest.IsolatedAsyncioTestCase):
                 user_id="42",
             )
 
-        session_fetch.assert_awaited_once()
+        session_fetch.assert_awaited_once_with(
+            123, "public.page", 200, followers_scan_limit()
+        )
         self.assertEqual(report.mutual_count, 1)
         self.assertEqual(
             [user.username for user in report.not_following_back], ["ghost"]

@@ -7,28 +7,17 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from urllib.parse import urlencode
 
-from instagrapi.exceptions import (
-    BadCredentials,
-    BadPassword,
-    SentryBlock,
-    TwoFactorRequired,
-    UnknownError,
-)
+from instagrapi.exceptions import LoginRequired
 
 from bot.config import settings
 from bot.services import following
 from bot.services.advanced_instagram import (
-    AdvancedBadCredentials,
-    AdvancedChallengeRequired,
     AdvancedFeatureDisabled,
-    AdvancedInvalidUser,
-    AdvancedInstagramError,
     AdvancedInstagramService,
+    AdvancedInvalidSession,
     AdvancedPrivateAccessDenied,
-    AdvancedProxyRequired,
-    AdvancedTwoFactorRequired,
-    _provider_error_category,
-    _stable_login_settings,
+    _normalize_sessionid,
+    _stable_session_settings,
 )
 from bot.services.hikerapi import HikerNotFoundError, HikerPrivateAccountError
 from bot.services.instagram import InstagramDownloader
@@ -36,56 +25,76 @@ from bot.webapp_auth import validate_init_data
 
 
 class AdvancedSessionEncryptionTests(unittest.TestCase):
-    def test_prelogin_device_identity_is_stable_per_instagram_account(self):
-        first = _stable_login_settings("@Example.User")
-        second = _stable_login_settings("example.user")
-        other = _stable_login_settings("other.user")
+    def test_session_device_identity_is_stable_per_instagram_account(self):
+        first = _stable_session_settings("12345")
+        second = _stable_session_settings("12345")
+        other = _stable_session_settings("67890")
 
         self.assertEqual(first, second)
         self.assertNotEqual(first, other)
-        self.assertNotIn("example.user", json.dumps(first))
+        self.assertNotIn("12345", json.dumps(first))
         self.assertTrue(first["uuids"]["android_device_id"].startswith("android-"))
 
-    def test_login_client_uses_proxy_friendly_timeout(self):
+    def test_session_client_uses_proxy_friendly_timeout(self):
         service = AdvancedInstagramService()
         with patch.object(
             type(service), "proxy", new_callable=PropertyMock, return_value=""
         ):
-            client = service._new_client(username="example.user")
+            client = service._new_client(username="12345")
 
         self.assertEqual(client.request_timeout, 10)
         self.assertEqual(
             client.get_settings()["uuids"],
-            _stable_login_settings("example.user")["uuids"],
+            _stable_session_settings("12345")["uuids"],
         )
 
-    def test_invalid_parameters_gets_a_safe_diagnostic_category(self):
-        exc = UnknownError("Invalid Parameters")
-        self.assertEqual(_provider_error_category(exc), "invalid_parameters")
+    def test_sessionid_normalization_accepts_cookie_value_and_url_encoding(self):
+        self.assertEqual(
+            _normalize_sessionid("sessionid=12345%3Aabc_DEF-9"),
+            ("12345:abc_DEF-9", "12345"),
+        )
 
-    def test_invalid_user_response_is_classified_separately(self):
+    def test_sessionid_normalization_rejects_cookie_injection(self):
+        for value in ("", "not-a-session", "12345:abc; csrftoken=bad", "12345:abc\nX"):
+            with self.subTest(value=value), self.assertRaises(AdvancedInvalidSession):
+                _normalize_sessionid(value)
+
+    def test_sessionid_resolves_account_without_username_or_password(self):
         service = AdvancedInstagramService()
         client = MagicMock()
-        client.last_response = SimpleNamespace(status_code=400)
-        client.login.side_effect = UnknownError(
-            "sensitive provider response",
-            error_type="invalid_user",
+        client.settings = {}
+        client.cookie_dict = {}
+        client.account_info.return_value = SimpleNamespace(
+            username="Resolved_User", pk=12345
         )
+
+        with patch.object(service, "_new_client", return_value=client):
+            result_client, username, account_id = service._session_client_sync(
+                "12345%3Asecret-token"
+            )
+
+        self.assertIs(result_client, client)
+        self.assertEqual(username, "resolved_user")
+        self.assertEqual(account_id, "12345")
+        client.login.assert_not_called()
+        client.init.assert_called_once()
+        self.assertEqual(client.settings["cookies"]["sessionid"], "12345:secret-token")
+        self.assertEqual(client.authorization_data["ds_user_id"], "12345")
+
+    def test_expired_sessionid_is_rejected_without_exposing_cookie(self):
+        service = AdvancedInstagramService()
+        client = MagicMock()
+        client.settings = {}
+        client.cookie_dict = {}
+        client.account_info.side_effect = LoginRequired("12345:secret-token")
 
         with (
             patch.object(service, "_new_client", return_value=client),
-            self.assertLogs(
-                "bot.services.advanced_instagram", level="WARNING"
-            ) as captured,
-            self.assertRaises(AdvancedInvalidUser),
+            self.assertRaises(AdvancedInvalidSession) as raised,
         ):
-            service._login_sync("user", "password", "")
+            service._session_client_sync("12345:secret-token")
 
-        logs = "\n".join(captured.output)
-        self.assertIn("provider_error_type=invalid_user", logs)
-        self.assertIn("category=invalid_user", logs)
-        self.assertNotIn("sensitive provider response", logs)
-        self.assertIsNone(client.password)
+        self.assertNotIn("secret-token", str(raised.exception))
 
     def test_short_encryption_key_keeps_feature_disabled(self):
         service = AdvancedInstagramService()
@@ -126,121 +135,72 @@ class AdvancedSessionEncryptionTests(unittest.TestCase):
         client.user_friendship_v1.return_value = SimpleNamespace(following=True)
         service._ensure_private_access(client, row, target)
 
-    def test_password_is_removed_from_client_after_two_factor_prompt(self):
+
+class AdvancedStoredSessionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_encrypted_settings_are_restored_after_worker_restart(self):
         service = AdvancedInstagramService()
-        client = MagicMock()
-        client.login.side_effect = TwoFactorRequired("2FA required")
+        row = SimpleNamespace(
+            instagram_username="owner", encrypted_settings="encrypted-token"
+        )
+        stored = {"cookies": {"sessionid": "12345:secret-token"}}
+        restored_client = MagicMock()
+
         with (
-            patch.object(service, "_new_client", return_value=client),
-            self.assertRaises(AdvancedTwoFactorRequired),
+            patch.object(
+                type(service), "ready", new_callable=PropertyMock, return_value=True
+            ),
+            patch.object(service, "_session_row", new=AsyncMock(return_value=row)),
+            patch.object(service, "_decrypt_settings", return_value=stored),
+            patch.object(service, "_new_client", return_value=restored_client) as new_client,
         ):
-            service._login_sync("user", "password", "")
-        self.assertIsNone(client.password)
+            client, returned_row = await service._client_for(101)
 
-    def test_bad_credentials_are_classified_without_storing_password(self):
+        self.assertIs(client, restored_client)
+        self.assertIs(returned_row, row)
+        new_client.assert_called_once_with(stored_settings=stored)
+
+    async def test_follow_sets_are_read_from_requested_private_target(self):
         service = AdvancedInstagramService()
+        target = SimpleNamespace(pk=222, is_private=True)
+        row = SimpleNamespace(instagram_user_id="111")
         client = MagicMock()
-        client.login.side_effect = BadCredentials("bad credentials")
-        with (
-            patch.object(service, "_new_client", return_value=client),
-            self.assertRaises(AdvancedBadCredentials),
-        ):
-            service._login_sync("user", "password", "")
-        self.assertIsNone(client.password)
+        client.user_info_by_username_v1.return_value = target
+        client.user_friendship_v1.return_value = SimpleNamespace(following=True)
+        client.user_following.return_value = {
+            1: SimpleNamespace(
+                username="following_one",
+                full_name="",
+                is_private=False,
+                is_verified=False,
+            )
+        }
+        client.user_followers.return_value = {
+            2: SimpleNamespace(
+                username="follower_one",
+                full_name="",
+                is_private=False,
+                is_verified=False,
+            )
+        }
 
-    def test_bad_password_response_is_classified_without_logging_details(self):
-        service = AdvancedInstagramService()
-        client = MagicMock()
-        client.login.side_effect = BadPassword("sensitive provider response")
-        with (
-            patch.object(service, "_new_client", return_value=client),
-            self.assertLogs(
-                "bot.services.advanced_instagram", level="WARNING"
-            ) as captured,
-            self.assertRaises(AdvancedBadCredentials),
-        ):
-            service._login_sync("user", "password", "")
+        async def run(_telegram_id, operation):
+            return operation(client, row)
 
-        self.assertNotIn("sensitive provider response", "\n".join(captured.output))
-        self.assertIsNone(client.password)
-
-    def test_blocked_server_ip_requests_residential_proxy(self):
-        service = AdvancedInstagramService()
-        client = MagicMock()
-        client.login.side_effect = SentryBlock("blocked")
-        with (
-            patch.object(service, "_new_client", return_value=client),
-            self.assertRaises(AdvancedProxyRequired),
-        ):
-            service._login_sync("user", "password", "")
-        self.assertIsNone(client.password)
-
-    def test_success_uses_login_session_without_extra_account_info_request(self):
-        service = AdvancedInstagramService()
-        client = MagicMock()
-        client.login.return_value = True
-        client.username = "Resolved_User"
-        client.user_id = 12345
-
-        with patch.object(service, "_new_client", return_value=client):
-            result_client, username, account_id = service._login_sync(
-                "input_user", "password", ""
+        with patch.object(service, "_run", side_effect=run):
+            following_items, follower_items = await service.fetch_follow_sets(
+                101, "private_target", 50
             )
 
-        self.assertIs(result_client, client)
-        self.assertEqual(username, "resolved_user")
-        self.assertEqual(account_id, "12345")
-        client.account_info.assert_not_called()
-        self.assertIsNone(client.password)
-
-    def test_unknown_challenge_is_classified_without_logging_response(self):
-        service = AdvancedInstagramService()
-        client = MagicMock()
-        client.last_response = SimpleNamespace(status_code=400)
-        client.login.side_effect = UnknownError(
-            "sensitive account response",
-            error_type="checkpoint_required",
+        client.user_info_by_username_v1.assert_called_once_with("private_target")
+        client.user_friendship_v1.assert_called_once_with("222")
+        client.user_following.assert_called_once_with(
+            "222", use_cache=False, amount=50
         )
-
-        with (
-            patch.object(service, "_new_client", return_value=client),
-            self.assertLogs(
-                "bot.services.advanced_instagram", level="WARNING"
-            ) as captured,
-            self.assertRaises(AdvancedChallengeRequired),
-        ):
-            service._login_sync("user", "password", "")
-
-        logs = "\n".join(captured.output)
-        self.assertIn("provider_error_type=checkpoint_required", logs)
-        self.assertIn("category=challenge", logs)
-        self.assertNotIn("sensitive account response", logs)
-        self.assertIsNone(client.password)
-
-    def test_unclassified_unknown_error_logs_only_sanitized_metadata(self):
-        service = AdvancedInstagramService()
-        client = MagicMock()
-        client.last_response = SimpleNamespace(status_code=400)
-        client.login.side_effect = UnknownError(
-            "sensitive account response",
-            error_type="unsafe value with spaces",
+        client.user_followers.assert_called_once_with(
+            "222", use_cache=False, amount=50
         )
-
-        with (
-            patch.object(service, "_new_client", return_value=client),
-            self.assertLogs(
-                "bot.services.advanced_instagram", level="WARNING"
-            ) as captured,
-            self.assertRaises(AdvancedInstagramError),
-        ):
-            service._login_sync("user", "password", "")
-
-        logs = "\n".join(captured.output)
-        self.assertIn("provider_error_type=other", logs)
-        self.assertIn("category=unknown", logs)
-        self.assertNotIn("sensitive account response", logs)
-        self.assertNotIn("unsafe value with spaces", logs)
-        self.assertIsNone(client.password)
+        self.assertEqual(following_items[0]["username"], "following_one")
+        self.assertEqual(follower_items[0]["username"], "follower_one")
 
 
 class PrivateFollowingFallbackTests(unittest.IsolatedAsyncioTestCase):

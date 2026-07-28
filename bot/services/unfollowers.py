@@ -128,9 +128,9 @@ def _diff(a: list[FollowUser], b: list[FollowUser]) -> list[FollowUser]:
 
 
 async def _fetch_via_session(
-    telegram_id: int, follower_count: int, limit: int
+    telegram_id: int, username: str, follower_count: int, limit: int
 ) -> tuple[list[FollowUser], list[FollowUser], bool]:
-    """Private own-page path: read both lists from the user's own session."""
+    """Read both target lists through the requesting user's private session."""
     from bot.services.advanced_instagram import (
         AdvancedConnectRequired,
         advanced_instagram,
@@ -139,8 +139,8 @@ async def _fetch_via_session(
     if not await advanced_instagram.has_session(telegram_id):
         raise UnfollowerAccessRequired() from None
     try:
-        f_items, fl_items = await advanced_instagram.fetch_own_follow_sets(
-            telegram_id, limit
+        f_items, fl_items = await advanced_instagram.fetch_follow_sets(
+            telegram_id, username, limit
         )
     except AdvancedConnectRequired:
         raise UnfollowerAccessRequired() from None
@@ -177,7 +177,7 @@ async def build_report(
             )
         except HikerPrivateAccountError:
             following, followers, complete = await _fetch_via_session(
-                telegram_id, follower_count, limit
+                telegram_id, handle, follower_count, limit
             )
         else:
             not_back = [u for u in following if u.username not in follow_back]
@@ -202,7 +202,7 @@ async def build_report(
         # --- Bulk strategy: fetch both lists and diff. ---
         if is_private:
             following, followers, complete = await _fetch_via_session(
-                telegram_id, follower_count, limit
+                telegram_id, handle, follower_count, limit
             )
         else:
             try:
@@ -220,7 +220,7 @@ async def build_report(
                     )
             except HikerPrivateAccountError:
                 following, followers, complete = await _fetch_via_session(
-                    telegram_id, follower_count, limit
+                    telegram_id, handle, follower_count, limit
                 )
 
     mutual = len({u.username for u in following} & {u.username for u in followers})

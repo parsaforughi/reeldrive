@@ -290,7 +290,7 @@ Connect your page with /connect first, then run /unfollowers.""",
     "privacy": {
         "fa": f"""📜 <b>حریم خصوصی — {NAME}</b>
 
-• پسورد اینستاگرام ذخیره نمی‌شود.
+• در اتصال پیشرفته یوزرنیم و پسورد دریافت نمی‌شود؛ فقط sessionid را خودت وارد می‌کنی.
 • در اتصال عادی فقط یوزرنیم متصل و شناسه تلگرام نگه داشته می‌شود.
 • در اتصال پیشرفته، session و مشخصات دستگاه به‌صورت رمزگذاری‌شده تا زمان قطع اتصال نگه داشته می‌شود.
 • /disconnect — قطع اتصال
@@ -298,7 +298,7 @@ Connect your page with /connect first, then run /unfollowers.""",
 • محتوا فقط برای تحویل به خودت پردازش می‌شود.""",
         "en": f"""📜 <b>Privacy — {NAME}</b>
 
-• We never store your Instagram password.
+• Advanced connect never asks for your username or password; you provide a sessionid directly.
 • Basic connect stores only the connected username and Telegram ID.
 • Advanced connect stores encrypted session/device data until you disconnect.
 • /disconnect — disconnect anytime
@@ -306,7 +306,7 @@ Connect your page with /connect first, then run /unfollowers.""",
 • Content is processed only to deliver downloads to you.""",
         "ar": f"""📜 <b>الخصوصية — {NAME}</b>
 
-• لا نحفظ كلمة مرور إنستغرام.
+• لا يطلب الربط المتقدم اسم المستخدم أو كلمة المرور؛ بل تدخل sessionid مباشرة.
 • الربط العادي يحفظ اسم المستخدم ومعرف تيليجرام فقط.
 • الربط المتقدم يحفظ بيانات الجلسة والجهاز مشفرة حتى إلغاء الربط.
 • /disconnect — إلغاء الربط
@@ -322,20 +322,23 @@ Connect your page with /connect first, then run /unfollowers.""",
         "fa": (
             "🔓 <b>اتصال پیشرفته</b>\n\n"
             "برای دانلود استوری و دیدن Following پیج‌های خصوصی‌ای که اکانتت "
-            "واقعاً دنبال می‌کند. پسورد ذخیره نمی‌شود؛ session رمزگذاری‌شده است.\n\n"
+            "واقعاً دنبال می‌کند. فقط sessionid را داخل Mini App وارد می‌کنی؛ "
+            "یوزرنیم و پسورد دریافت نمی‌شود و session رمزگذاری‌شده است.\n\n"
             "⚠️ این اتصال از API غیررسمی استفاده می‌کند و ممکن است اینستاگرام "
             "تأیید امنیتی بخواهد."
         ),
         "en": (
             "🔓 <b>Advanced connect</b>\n\n"
             "Use your own Instagram permissions for private stories and following "
-            "lists you are allowed to see. Passwords are not stored; the session is encrypted.\n\n"
+            "lists you are allowed to see. Enter only your sessionid in the Mini App; "
+            "no username or password is collected, and the session is encrypted.\n\n"
             "⚠️ This uses an unofficial API and Instagram may request a security check."
         ),
         "ar": (
             "🔓 <b>الربط المتقدم</b>\n\n"
             "لاستخدام صلاحيات حسابك للقصص وقوائم المتابعة الخاصة المسموح لك بها. "
-            "لا نحفظ كلمة المرور والجلسة مشفرة.\n\n"
+            "أدخل sessionid فقط داخل Mini App؛ لا نطلب اسم المستخدم أو كلمة المرور "
+            "وتُحفظ الجلسة مشفرة.\n\n"
             "⚠️ قد يطلب إنستغرام تحققاً أمنياً."
         ),
     },
@@ -349,30 +352,20 @@ Connect your page with /connect first, then run /unfollowers.""",
         "en": "🔐 Your Instagram session expired; reconnect with /advancedconnect.",
         "ar": "🔐 انتهت جلسة إنستغرام؛ أعد الربط عبر /advancedconnect.",
     },
+    "advanced_invalid_session": {
+        "fa": "sessionid نامعتبر یا منقضی است؛ از مرورگر یک sessionid تازه بگیر.",
+        "en": "The sessionid is invalid or expired; copy a fresh one from your browser.",
+        "ar": "sessionid غير صالح أو منتهي؛ انسخ sessionid جديداً من المتصفح.",
+    },
     "advanced_private_access_denied": {
         "fa": "❌ اکانت متصل این پیج خصوصی را فالو ندارد یا درخواستش هنوز پذیرفته نشده.",
         "en": "❌ The connected account does not follow this private account, or its request is pending.",
         "ar": "❌ الحساب المرتبط لا يتابع هذا الحساب الخاص أو أن الطلب ما زال معلقاً.",
     },
-    "advanced_two_factor_required": {
-        "fa": "کد ورود دومرحله‌ای لازم است؛ /advancedconnect را باز کن.",
-        "en": "A two-factor code is required; open /advancedconnect.",
-        "ar": "رمز التحقق بخطوتين مطلوب؛ افتح /advancedconnect.",
-    },
     "advanced_challenge_required": {
         "fa": "اینستاگرام تأیید امنیتی خواسته؛ داخل اپ تأیید کن و دوباره /advancedconnect را بزن.",
         "en": "Instagram requested a security check; approve it in the app and reconnect.",
         "ar": "طلب إنستغرام تحققاً أمنياً؛ وافق عليه في التطبيق ثم أعد الربط.",
-    },
-    "advanced_bad_credentials": {
-        "fa": "اینستاگرام نام کاربری یا رمز را رد کرد. ورود در اپ رسمی را بررسی کن؛ اگر درست بود، مسیر ورود یا IP رد شده است.",
-        "en": "Instagram rejected the username or password. Verify the official app; if they are correct, the login path or IP was rejected.",
-        "ar": "رفض إنستغرام اسم المستخدم أو كلمة المرور. تحقق عبر التطبيق الرسمي؛ إن كانت صحيحة فقد رُفض مسار الدخول أو عنوان IP.",
-    },
-    "advanced_invalid_user": {
-        "fa": "اینستاگرام این نام کاربری را برای ورود معتبر ندانست. نام کاربری فعلی حساب را در اپ رسمی بررسی کن.",
-        "en": "Instagram did not accept this username for login. Check the account's current username in the official app.",
-        "ar": "لم يقبل إنستغرام اسم المستخدم هذا لتسجيل الدخول. تحقق من اسم الحساب الحالي في التطبيق الرسمي.",
     },
     "advanced_rate_limited": {
         "fa": "اینستاگرام موقتاً درخواست‌ها را محدود کرده؛ چند دقیقه بعد امتحان کن.",
