@@ -1,20 +1,35 @@
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from bot.handlers.commands import cmd_unfollowers
-from bot.states import FollowingStates
+from bot.handlers.admin import approve_unfollowers_purchase
+from bot.handlers.commands import (
+    _start_unfollowers_payment,
+    _unfollowers_price,
+    cmd_unfollowers,
+    receive_unfollowers_username,
+    start_unfollowers_connect,
+)
+from bot.states import UnfollowersStates
 
 
-def _message(telegram_id: int = 123) -> SimpleNamespace:
+def _message(telegram_id: int = 123, text: str = "") -> SimpleNamespace:
+    bot = SimpleNamespace(send_message=AsyncMock())
     return SimpleNamespace(
-        from_user=SimpleNamespace(id=telegram_id),
+        from_user=SimpleNamespace(id=telegram_id, username="telegram_user"),
+        chat=SimpleNamespace(id=telegram_id),
+        text=text,
+        bot=bot,
         answer=AsyncMock(),
     )
 
 
 def _state() -> SimpleNamespace:
-    return SimpleNamespace(set_state=AsyncMock())
+    return SimpleNamespace(
+        set_state=AsyncMock(),
+        update_data=AsyncMock(),
+        clear=AsyncMock(),
+    )
 
 
 async def _translated(_uid: int, key: str, **_kwargs) -> str:
@@ -22,9 +37,10 @@ async def _translated(_uid: int, key: str, **_kwargs) -> str:
 
 
 class UnfollowersGateOrderTests(unittest.IsolatedAsyncioTestCase):
-    async def test_new_user_is_sent_to_token_purchase_before_connect(self) -> None:
+    async def test_new_user_gets_connect_button_before_payment(self) -> None:
         message = _message()
         state = _state()
+        markup = MagicMock()
 
         with (
             patch(
@@ -33,140 +49,186 @@ class UnfollowersGateOrderTests(unittest.IsolatedAsyncioTestCase):
             ),
             patch("bot.handlers.commands.following_ready", return_value=True),
             patch("bot.handlers.commands.get_connection", new=AsyncMock(return_value=None)),
+            patch("bot.handlers.commands.require_user_lang", new=AsyncMock(return_value="fa")),
             patch("bot.handlers.commands.tu", side_effect=_translated),
-            patch(
-                "bot.services.following_access.get_credit_balance",
-                new=AsyncMock(return_value=0),
-            ),
+            patch("bot.handlers.commands.unfollowers_connect_kb", return_value=markup),
         ):
             await cmd_unfollowers(message, state)
 
-        state.set_state.assert_awaited_once_with(FollowingStates.waiting_token_count)
-        message.answer.assert_awaited_once_with("unfollowers_buy_tokens_first")
+        state.clear.assert_awaited_once()
+        message.answer.assert_awaited_once_with(
+            "unfollowers_connect_intro", reply_markup=markup
+        )
 
-    async def test_user_with_tokens_is_sent_to_basic_connect(self) -> None:
-        message = _message()
+    async def test_connect_button_then_asks_for_instagram_id(self) -> None:
+        state = _state()
+        callback = SimpleNamespace(
+            from_user=SimpleNamespace(id=123),
+            message=SimpleNamespace(edit_text=AsyncMock()),
+            answer=AsyncMock(),
+        )
+
+        with patch("bot.handlers.commands.tu", side_effect=_translated):
+            await start_unfollowers_connect(callback, state)
+
+        state.set_state.assert_awaited_once_with(UnfollowersStates.waiting_username)
+        callback.message.edit_text.assert_awaited_once_with(
+            "unfollowers_ask_username"
+        )
+
+    async def test_quote_is_based_on_double_following(self) -> None:
+        with patch(
+            "bot.services.unfollowers.precheck_counts",
+            new=AsyncMock(return_value=(198, 10_000, False, "42")),
+        ):
+            following, followers, private, user_id, units, tokens = (
+                await _unfollowers_price("target.page")
+            )
+
+        self.assertEqual((following, followers), (198, 10_000))
+        self.assertFalse(private)
+        self.assertEqual(user_id, "42")
+        self.assertEqual(units, 396)
+        self.assertEqual(tokens, 1)
+
+    async def test_entered_id_starts_exact_unfollower_payment(self) -> None:
+        message = _message(text="target.page")
         state = _state()
 
         with (
+            patch("bot.handlers.commands.require_user_lang", new=AsyncMock(return_value="fa")),
             patch(
-                "bot.handlers.commands.guard_channels",
+                "bot.handlers.commands._unfollowers_price",
+                new=AsyncMock(return_value=(801, 50_000, False, "42", 1602, 5)),
+            ),
+            patch(
+                "bot.services.following_access.has_paid_access",
+                new=AsyncMock(return_value=False),
+            ),
+            patch(
+                "bot.handlers.commands._start_unfollowers_payment",
+                new=AsyncMock(),
+            ) as start_payment,
+        ):
+            await receive_unfollowers_username(message, state)
+
+        start_payment.assert_awaited_once_with(
+            message,
+            state,
+            username="target.page",
+            following_count=801,
+            cost_units=1602,
+            tokens_needed=5,
+        )
+
+    async def test_existing_tokens_send_connection_code(self) -> None:
+        message = _message(text="target.page")
+        state = _state()
+
+        with (
+            patch("bot.handlers.commands.require_user_lang", new=AsyncMock(return_value="fa")),
+            patch(
+                "bot.handlers.commands._unfollowers_price",
+                new=AsyncMock(return_value=(198, 1000, False, "42", 396, 1)),
+            ),
+            patch(
+                "bot.services.following_access.has_paid_access",
                 new=AsyncMock(return_value=True),
             ),
-            patch("bot.handlers.commands.following_ready", return_value=True),
-            patch("bot.handlers.commands.get_connection", new=AsyncMock(return_value=None)),
-            patch("bot.handlers.commands.tu", side_effect=_translated),
+            patch(
+                "bot.handlers.commands.send_connection_code",
+                new=AsyncMock(),
+            ) as send_code,
+        ):
+            await receive_unfollowers_username(message, state)
+
+        state.clear.assert_awaited_once()
+        send_code.assert_awaited_once_with(
+            message.bot, message.chat.id, 123, "target.page"
+        )
+
+    async def test_payment_buys_only_the_exact_token_shortage(self) -> None:
+        message = _message()
+        state = _state()
+        markup = MagicMock()
+        translate = AsyncMock(return_value="unfollowers_token_pay_prompt")
+
+        with (
             patch(
                 "bot.services.following_access.get_credit_balance",
                 new=AsyncMock(return_value=2),
             ),
+            patch(
+                "bot.handlers.commands.current_support_card",
+                new=AsyncMock(return_value="1234"),
+            ),
+            patch(
+                "bot.handlers.commands.current_card_holder_name",
+                new=AsyncMock(return_value="Holder"),
+            ),
+            patch("bot.handlers.commands.token_price", return_value=30_000),
+            patch("bot.handlers.commands.require_user_lang", new=AsyncMock(return_value="fa")),
+            patch("bot.handlers.commands.tu", translate),
+            patch("bot.handlers.commands.following_token_pay_kb", return_value=markup),
         ):
-            await cmd_unfollowers(message, state)
+            await _start_unfollowers_payment(
+                message,
+                state,
+                username="target.page",
+                following_count=801,
+                cost_units=1602,
+                tokens_needed=5,
+            )
 
-        state.set_state.assert_not_awaited()
-        message.answer.assert_awaited_once_with("help_unfollowersunfollowers_need_connect")
+        state.set_state.assert_awaited_once_with(
+            UnfollowersStates.waiting_receipt_photo
+        )
+        state.update_data.assert_awaited_once_with(
+            unfollowers_username="target.page",
+            unfollowers_purchase_count=3,
+            unfollowers_token_amount=30_000,
+            unfollowers_token_card="1234",
+        )
+        self.assertEqual(translate.await_args.kwargs["count"], 3)
+        self.assertEqual(translate.await_args.kwargs["total_tokens"], 5)
+        message.answer.assert_awaited_once_with(
+            "unfollowers_token_pay_prompt", reply_markup=markup
+        )
 
-    async def test_missing_tokens_are_requested_before_private_session(self) -> None:
-        message = _message()
-        state = _state()
-        connection = SimpleNamespace(
-            instagram_username="private.page", status="connected"
+
+class UnfollowersApprovalTests(unittest.IsolatedAsyncioTestCase):
+    async def test_payment_approval_activates_tokens_and_sends_connection_code(
+        self,
+    ) -> None:
+        bot = SimpleNamespace(send_message=AsyncMock())
+        callback = SimpleNamespace(
+            from_user=SimpleNamespace(id=999),
+            data="unfollowers:approve:123:2:target.page",
+            message=SimpleNamespace(
+                caption="receipt",
+                edit_caption=AsyncMock(),
+            ),
+            bot=bot,
+            answer=AsyncMock(),
         )
 
         with (
+            patch("bot.handlers.admin.is_admin", return_value=True),
+            patch("bot.handlers.admin.grant_credits", new=AsyncMock(return_value=2)),
             patch(
-                "bot.handlers.commands.guard_channels",
-                new=AsyncMock(return_value=True),
+                "bot.services.verification.get_connection",
+                new=AsyncMock(return_value=None),
             ),
-            patch("bot.handlers.commands.following_ready", return_value=True),
+            patch("bot.handlers.admin.tu", side_effect=_translated),
             patch(
-                "bot.handlers.commands.get_connection",
-                new=AsyncMock(return_value=connection),
-            ),
-            patch("bot.handlers.commands.require_user_lang", new=AsyncMock(return_value="fa")),
-            patch("bot.handlers.commands.tu", side_effect=_translated),
-            patch(
-                "bot.services.following_access.get_credit_balance",
-                new=AsyncMock(return_value=1),
-            ),
-            patch(
-                "bot.services.following_access.is_unlocked",
-                new=AsyncMock(side_effect=[False, False]),
-            ),
-            patch(
-                "bot.services.following_access.has_access",
-                new=AsyncMock(return_value=False),
-            ),
-            patch(
-                "bot.services.following_access.tokens_required_for_count",
-                return_value=3,
-            ),
-            patch(
-                "bot.services.unfollowers.precheck_counts",
-                new=AsyncMock(return_value=(500, 500, True, "42")),
-            ),
-            patch("bot.services.unfollowers.token_cost_units", return_value=1000),
-            patch(
-                "bot.services.advanced_instagram.advanced_instagram.has_session",
-                new=AsyncMock(return_value=False),
-            ) as has_session,
+                "bot.handlers.connect.send_connection_code",
+                new=AsyncMock(),
+            ) as send_code,
         ):
-            await cmd_unfollowers(message, state)
+            await approve_unfollowers_purchase(callback)
 
-        state.set_state.assert_awaited_once_with(FollowingStates.waiting_token_count)
-        message.answer.assert_awaited_once_with("unfollowers_need_tokens")
-        has_session.assert_not_awaited()
-
-    async def test_private_session_is_requested_after_token_access(self) -> None:
-        message = _message()
-        state = _state()
-        connection = SimpleNamespace(
-            instagram_username="private.page", status="connected"
-        )
-
-        with (
-            patch(
-                "bot.handlers.commands.guard_channels",
-                new=AsyncMock(return_value=True),
-            ),
-            patch("bot.handlers.commands.following_ready", return_value=True),
-            patch(
-                "bot.handlers.commands.get_connection",
-                new=AsyncMock(return_value=connection),
-            ),
-            patch("bot.handlers.commands.require_user_lang", new=AsyncMock(return_value="fa")),
-            patch("bot.handlers.commands.tu", side_effect=_translated),
-            patch(
-                "bot.services.following_access.get_credit_balance",
-                new=AsyncMock(return_value=3),
-            ),
-            patch(
-                "bot.services.following_access.is_unlocked",
-                new=AsyncMock(side_effect=[False, False]),
-            ),
-            patch(
-                "bot.services.following_access.has_access",
-                new=AsyncMock(return_value=True),
-            ),
-            patch(
-                "bot.services.following_access.tokens_required_for_count",
-                return_value=3,
-            ),
-            patch(
-                "bot.services.unfollowers.precheck_counts",
-                new=AsyncMock(return_value=(500, 500, True, "42")),
-            ),
-            patch("bot.services.unfollowers.token_cost_units", return_value=1000),
-            patch(
-                "bot.services.advanced_instagram.advanced_instagram.has_session",
-                new=AsyncMock(return_value=False),
-            ) as has_session,
-        ):
-            await cmd_unfollowers(message, state)
-
-        state.set_state.assert_not_awaited()
-        message.answer.assert_awaited_once_with("unfollowers_private_needs_advanced")
-        has_session.assert_awaited_once_with(123)
+        bot.send_message.assert_awaited_once_with(123, "unfollowers_payment_approved")
+        send_code.assert_awaited_once_with(bot, 123, 123, "target.page")
 
 
 if __name__ == "__main__":

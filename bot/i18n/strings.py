@@ -175,15 +175,15 @@ After /search send:
         "fa": """🚶‍♂️ <b>آنفالویاب</b>
 
 کسانی که دنبال می‌کنی ولی تو را دنبال نمی‌کنند را پیدا می‌کند.
-ابتدا توکن تهیه کن؛ بعد پیجت را با /connect متصل کن و /unfollowers را بزن.""",
+روی «اتصال پیج» بزن، آیدی پیج را وارد کن، هزینه بر اساس دو برابر Following محاسبه می‌شود و بعد از تأیید پرداخت کد اتصال می‌آید.""",
         "en": """🚶‍♂️ <b>Unfollowers</b>
 
 Finds accounts you follow that don't follow you back.
-Buy tokens first, then connect your page with /connect and run /unfollowers.""",
+Tap “Connect page”, enter the page username, pay the quote based on twice its Following count, then receive the connection code.""",
         "ar": """🚶‍♂️ <b>من ألغى المتابعة</b>
 
 يجد الحسابات التي تتابعها ولا تتابعك.
-اشتر الرموز أولاً، ثم اربط صفحتك بـ /connect ونفّذ /unfollowers.""",
+اضغط «ربط الصفحة»، أدخل المعرّف، ادفع التكلفة المحسوبة من ضعف عدد المتابَعين، ثم يصلك رمز الربط.""",
     },
     "unfollowers_loading": {
         "fa": "⏳ در حال بررسی فالوورها و فالووینگ‌ها… کمی صبر کن.",
@@ -715,40 +715,82 @@ Buy tokens first, then connect your page with /connect and run /unfollowers.""",
             "كم رمزاً تريد شراءه؟ أرسل رقماً (مثلاً {tokens}):"
         ),
     },
-    "unfollowers_need_tokens": {
+    "unfollowers_connect_intro": {
         "fa": (
-            "🔒 پیج @{username} حدود {count} فالوور و فالووینگ داره — آنفالویاب "
-            "{tokens} توکن لازم داره (هر ۴۰۰ نفر = ۱ توکن) و به این تعداد رو نداری.\n\n"
-            "چند تا توکن می‌خوای بخری؟ یه عدد بفرست (مثلاً {tokens}):"
+            "🚶‍♂️ <b>آنفالویاب</b>\n\n"
+            "برای شروع روی دکمه اتصال پیج بزن و آیدی اینستاگرامت را وارد کن. "
+            "بعد هزینه دقیق توکن همان پیج نمایش داده می‌شود."
         ),
         "en": (
-            "🔒 @{username} has ~{count} followers + followings — the unfollower "
-            "finder needs {tokens} token(s) (1 token per 400) and you don't have "
-            "that many.\n\n"
-            "How many tokens do you want to buy? Send a number (e.g. {tokens}):"
+            "🚶‍♂️ <b>Unfollower finder</b>\n\n"
+            "Tap Connect page and enter your Instagram username. The exact token "
+            "quote for that page will be shown next."
         ),
         "ar": (
-            "🔒 لدى @{username} حوالي {count} متابِع ومتابَع — تحتاج أداة من ألغى "
-            "المتابعة إلى {tokens} رمز (رمز واحد لكل 400) وليس لديك هذا العدد.\n\n"
-            "كم رمزاً تريد شراءه؟ أرسل رقماً (مثلاً {tokens}):"
+            "🚶‍♂️ <b>أداة إلغاء المتابعة</b>\n\n"
+            "اضغط ربط الصفحة وأدخل معرّف إنستغرام. ستظهر بعدها تكلفة الرموز "
+            "الدقيقة لهذه الصفحة."
         ),
     },
-    "unfollowers_buy_tokens_first": {
+    "unfollowers_connect_button": {
+        "fa": "🔗 اتصال پیج",
+        "en": "🔗 Connect page",
+        "ar": "🔗 ربط الصفحة",
+    },
+    "unfollowers_ask_username": {
+        "fa": "آیدی پیج اینستاگرامت را بفرست (مثلاً <code>myshop</code>):",
+        "en": "Send your Instagram page username (e.g. <code>myshop</code>):",
+        "ar": "أرسل معرّف صفحة إنستغرام (مثلاً <code>myshop</code>):",
+    },
+    "unfollowers_token_pay_prompt": {
         "fa": (
-            "🪙 برای استفاده از آنفالویاب اول باید توکن داشته باشی. بعد از فعال‌شدن "
-            "توکن، مرحله اتصال پیج نمایش داده می‌شه.\n\n"
-            "چند تا توکن می‌خوای بخری؟ یک عدد بین ۱ تا ۵۰ بفرست:"
+            "🪙 <b>هزینه آنفالویاب @{username}</b>\n\n"
+            "Following پیج: {following}\n"
+            "مبنای محاسبه: {following} × ۲ = {doubled}\n"
+            "توکن لازم: {total_tokens}\n"
+            "موجودی فعلی: {balance}\n"
+            "توکن موردنیاز برای خرید: {count}\n\n"
+            "مبلغ واریزی: <b>{amount} ریال</b>\n"
+            "شماره کارت: <code>{card}</code>\n"
+            "به نام: {holder}\n\n"
+            "بعد از پرداخت عکس رسید را همینجا بفرست. پس از تأیید، کد اتصال پیج خودکار برایت ارسال می‌شود."
         ),
         "en": (
-            "🪙 You need tokens before setting up your page for the unfollower "
-            "finder. Once activated, the page-connection step will be shown.\n\n"
-            "How many tokens do you want to buy? Send a number from 1 to 50:"
+            "🪙 <b>Unfollower quote for @{username}</b>\n\n"
+            "Following: {following}\nCalculation: {following} × 2 = {doubled}\n"
+            "Required tokens: {total_tokens}\nCurrent balance: {balance}\n"
+            "Tokens to buy: {count}\n\nPayment: <b>{amount} Rial</b>\n"
+            "Card: <code>{card}</code>\nHolder: {holder}\n\n"
+            "Send the receipt photo here. Your connection code will be sent automatically after approval."
         ),
         "ar": (
-            "🪙 تحتاج إلى رموز قبل إعداد صفحتك لأداة إلغاء المتابعة. بعد تفعيلها "
-            "ستظهر خطوة ربط الصفحة.\n\n"
-            "كم رمزاً تريد شراءه؟ أرسل رقماً من 1 إلى 50:"
+            "🪙 <b>تكلفة الأداة للصفحة @{username}</b>\n\n"
+            "المتابَعون: {following}\nالحساب: {following} × 2 = {doubled}\n"
+            "الرموز المطلوبة: {total_tokens}\nالرصيد الحالي: {balance}\n"
+            "الرموز المطلوب شراؤها: {count}\n\nالمبلغ: <b>{amount} ریال</b>\n"
+            "البطاقة: <code>{card}</code>\nالاسم: {holder}\n\n"
+            "أرسل صورة الإيصال هنا وسيصلك رمز الربط تلقائياً بعد التأكيد."
         ),
+    },
+    "unfollowers_receipt_received": {
+        "fa": "✅ رسید آنفالویاب دریافت شد. بعد از تأیید پرداخت، کد اتصال همین پیج خودکار برات میاد.",
+        "en": "✅ Your unfollower payment receipt was received. The page connection code will be sent automatically after approval.",
+        "ar": "✅ تم استلام إيصال أداة إلغاء المتابعة. سيصلك رمز ربط الصفحة تلقائياً بعد التأكيد.",
+    },
+    "unfollowers_payment_approved": {
+        "fa": "✅ پرداخت تأیید شد و {count} توکن فعال شد (موجودی: {balance}). حالا کد اتصال @{username}:",
+        "en": "✅ Payment approved and {count} token(s) activated (balance: {balance}). Here is the connection code for @{username}:",
+        "ar": "✅ تم تأكيد الدفع وتفعيل {count} رمز (الرصيد: {balance}). هذا رمز ربط @{username}:",
+    },
+    "unfollowers_tokens_granted": {
+        "fa": "✅ پرداخت تأیید شد و {count} توکن فعال شد (موجودی: {balance}). پیجت از قبل متصله؛ حالا /unfollowers رو بزن.",
+        "en": "✅ Payment approved and {count} token(s) activated (balance: {balance}). Your page is already connected; run /unfollowers now.",
+        "ar": "✅ تم تأكيد الدفع وتفعيل {count} رمز (الرصيد: {balance}). صفحتك مرتبطة؛ نفّذ /unfollowers الآن.",
+    },
+    "unfollowers_connection_pending": {
+        "fa": "⏳ اتصال @{username} هنوز تأیید نشده. کد <code>{code}</code> را در Bio بگذار و /verify را بزن.",
+        "en": "⏳ @{username} is not verified yet. Put <code>{code}</code> in the bio and run /verify.",
+        "ar": "⏳ لم يتم تأكيد @{username} بعد. ضع <code>{code}</code> في السيرة ونفّذ /verify.",
     },
     "following_invalid_token_count": {
         "fa": "عدد نامعتبره. یک عدد بین ۱ تا ۵۰ بفرست.",
@@ -798,15 +840,20 @@ Buy tokens first, then connect your page with /connect and run /unfollowers.""",
         "en": "Please send a photo of the receipt (not text).",
         "ar": "الرجاء إرسال صورة الإيصال (وليس نصاً).",
     },
+    "following_session_expired": {
+        "fa": "این مرحله خرید منقضی شده؛ لطفاً دوباره از اول شروع کن.",
+        "en": "This purchase step expired; please start again.",
+        "ar": "انتهت صلاحية خطوة الشراء؛ ابدأ من جديد.",
+    },
     "following_receipt_received": {
         "fa": "✅ رسید دریافت شد و برای بررسی برای پشتیبانی فرستاده شد. بعد از تأیید، توکن‌هات فعال می‌شه و بهت خبر می‌دیم.",
         "en": "✅ Receipt received and sent for review. Your tokens will be activated once confirmed.",
         "ar": "✅ تم استلام الإيصال وإرساله للمراجعة. سيتم تفعيل الرموز بعد التأكيد.",
     },
     "following_tokens_granted_notify": {
-        "fa": "✅ {count} تا توکن برات فعال شد (مجموع: {balance}). برای آنفالویاب /unfollowers و برای لیست فالووینگ /following رو بزن.",
-        "en": "✅ {count} token(s) activated (balance: {balance}). Run /unfollowers for the unfollower finder or /following for a following list.",
-        "ar": "✅ تم تفعيل {count} رمز (الرصيد: {balance}). نفّذ /unfollowers لأداة إلغاء المتابعة أو /following لقائمة المتابَعين.",
+        "fa": "✅ {count} تا توکن برات فعال شد (مجموع: {balance}). حالا /following رو بزن و اسم پیج مورد نظرت رو بفرست.",
+        "en": "✅ {count} token(s) activated (balance: {balance}). Run /following now and send the page you want.",
+        "ar": "✅ تم تفعيل {count} رمز (الرصيد: {balance}). نفّذ /following الآن وأرسل الصفحة المطلوبة.",
     },
     "following_tokens_status": {
         "fa": "🪙 توکن باقی‌مونده: {tokens}",
@@ -817,11 +864,6 @@ Buy tokens first, then connect your page with /connect and run /unfollowers.""",
         "fa": "📖 {count} استوری",
         "en": "📖 {count} stories",
         "ar": "📖 {count} قصة",
-    },
-    "unfollowers_need_connect": {
-        "fa": "\n\n✅ توکن آماده‌ست؛ حالا /connect را انجام بده.",
-        "en": "\n\n✅ Your tokens are ready; now run /connect.",
-        "ar": "\n\n✅ الرموز جاهزة؛ نفّذ الآن /connect.",
     },
     "status_body": {
         "fa": (

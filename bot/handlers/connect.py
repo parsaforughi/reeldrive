@@ -1,4 +1,4 @@
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -14,6 +14,33 @@ from bot.states import ConnectStates
 from bot.utils import parse_media_url, parse_username
 
 router = Router()
+
+
+async def send_connection_code(
+    bot: Bot, chat_id: int, telegram_id: int, username: str
+) -> None:
+    """Start verification and send its instructions to the target user."""
+    code = await start_verification(telegram_id, username)
+    bridge = settings.bridge_ig_handle
+    ttl = settings.verification_code_ttl_minutes
+
+    extra = ""
+    if not client_pool.bridge_ready:
+        lang = await require_user_lang(telegram_id)
+        extra = "\n" + t("connect_bridge_offline", lang, bridge=bridge)
+
+    await bot.send_message(
+        chat_id,
+        await tu(
+            telegram_id,
+            "connect_code",
+            username=username,
+            code=code,
+            bridge=bridge,
+            ttl=ttl,
+        )
+        + extra,
+    )
 
 
 @router.message(Command("advancedconnect"))
@@ -60,27 +87,8 @@ async def receive_username(message: Message, state: FSMContext) -> None:
         await message.answer(await tu(uid, "connect_invalid_username"))
         return
 
-    code = await start_verification(uid, username)
-    bridge = settings.bridge_ig_handle
-    ttl = settings.verification_code_ttl_minutes
-
-    extra = ""
-    if not client_pool.bridge_ready:
-        lang = await require_user_lang(uid)
-        extra = "\n" + t("connect_bridge_offline", lang, bridge=bridge)
-
     await state.clear()
-    await message.answer(
-        await tu(
-            uid,
-            "connect_code",
-            username=username,
-            code=code,
-            bridge=bridge,
-            ttl=ttl,
-        )
-        + extra
-    )
+    await send_connection_code(message.bot, message.chat.id, uid, username)
 
 
 @router.message(Command("verify"))

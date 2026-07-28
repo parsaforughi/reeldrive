@@ -7,7 +7,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from bot.config import settings
-from bot.handlers.admin import send_receipt_to_admins
+from bot.handlers.admin import (
+    send_receipt_to_admins,
+    send_unfollowers_receipt_to_admins,
+)
+from bot.handlers.connect import send_connection_code
 from bot.handlers.following_shared import guard_channels, start_following_lookup
 from bot.handlers.status_helpers import (
     build_feed_text,
@@ -16,7 +20,12 @@ from bot.handlers.status_helpers import (
     build_status_text,
 )
 from bot.i18n import friendly_error, get_user_lang, require_user_lang, t, tu
-from bot.keyboards import following_cancel_kb, following_token_pay_kb, language_kb
+from bot.keyboards import (
+    following_cancel_kb,
+    following_token_pay_kb,
+    language_kb,
+    unfollowers_connect_kb,
+)
 from bot.services.following import following_ready
 from bot.services.following_access import (
     current_card_holder_name,
@@ -27,7 +36,7 @@ from bot.services.following_access import (
 )
 from bot.services.subscription import has_direct_link_download_access
 from bot.services.verification import get_connection
-from bot.states import FollowingStates, SearchStates
+from bot.states import FollowingStates, SearchStates, UnfollowersStates
 from bot.utils import parse_username
 
 router = Router()
@@ -99,81 +108,157 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
         await message.answer(await tu(uid, "error_hikerapi"))
         return
 
+    conn = await get_connection(uid)
+    if conn and conn.status == "connected":
+        await _run_unfollowers_report(
+            message, state, conn.instagram_username.lstrip("@").lower()
+        )
+        return
+
+    if conn and conn.status == "pending" and conn.verification_code:
+        await message.answer(
+            await tu(
+                uid,
+                "unfollowers_connection_pending",
+                username=conn.instagram_username,
+                code=conn.verification_code,
+            )
+        )
+        return
+
+    await state.clear()
+    lang = await require_user_lang(uid)
+    await message.answer(
+        await tu(uid, "unfollowers_connect_intro"),
+        reply_markup=unfollowers_connect_kb(lang),
+    )
+
+
+async def _unfollowers_price(username: str) -> tuple[int, int, bool, str, int, int]:
+    from bot.services.following_access import tokens_required_for_count
+    from bot.services.unfollowers import precheck_counts, token_cost_units
+
+    following_count, follower_count, is_private, user_id = await precheck_counts(
+        username
+    )
+    cost_units = token_cost_units(following_count, follower_count)
+    tokens_needed = tokens_required_for_count(cost_units)
+    return (
+        following_count,
+        follower_count,
+        is_private,
+        user_id,
+        cost_units,
+        tokens_needed,
+    )
+
+
+async def _start_unfollowers_payment(
+    message: Message,
+    state: FSMContext,
+    *,
+    username: str,
+    following_count: int,
+    cost_units: int,
+    tokens_needed: int,
+) -> None:
+    import urllib.parse
+
+    from bot.services.following_access import get_credit_balance
+
+    uid = message.from_user.id
+    balance = await get_credit_balance(uid)
+    purchase_count = max(1, tokens_needed - balance)
+    amount = token_price(purchase_count, uid)
+    amount_rial = to_rial(amount)
+    card = await current_support_card()
+    holder = await current_card_holder_name()
+
+    await state.set_state(UnfollowersStates.waiting_receipt_photo)
+    await state.update_data(
+        unfollowers_username=username,
+        unfollowers_purchase_count=purchase_count,
+        unfollowers_token_amount=amount,
+        unfollowers_token_card=card,
+    )
+
+    support = settings.payment_support_username.lstrip("@")
+    prefill = (
+        "سلام، درخواست توکن آنفالویاب\n"
+        f"پیج: @{username}\n"
+        f"تعداد: {purchase_count}\n"
+        f"مبلغ واریزی: {amount_rial:,} ریال\n"
+        f"شناسه: {uid}"
+    )
+    support_url = f"https://t.me/{support}?text={urllib.parse.quote(prefill)}"
+    lang = await require_user_lang(uid)
+    await message.answer(
+        await tu(
+            uid,
+            "unfollowers_token_pay_prompt",
+            username=username,
+            following=following_count,
+            doubled=cost_units,
+            total_tokens=tokens_needed,
+            count=purchase_count,
+            balance=balance,
+            amount=f"{amount_rial:,}",
+            card=card,
+            holder=holder,
+        ),
+        reply_markup=following_token_pay_kb(
+            support_url,
+            lang,
+            card=card,
+            amount_rial=amount_rial,
+        ),
+    )
+
+
+async def _run_unfollowers_report(
+    message: Message, state: FSMContext, handle: str
+) -> None:
     from bot.handlers.download_helpers import send_unfollowers
     from bot.services.advanced_instagram import advanced_instagram
     from bot.services.following_access import (
         get_credit_balance,
-        grant_access,
-        has_access,
+        grant_paid_access,
+        has_paid_access,
         is_unlocked,
-        tokens_required_for_count,
     )
     from bot.services.unfollowers import (
         UnfollowerAccessRequired,
         build_report,
-        precheck_counts,
-        token_cost_units,
     )
 
-    # Purchase comes before either connection step. A prior unfollower unlock
-    # is also valid access, even if the user has since spent the rest of their
-    # wallet. We only inspect an existing connection here to identify that
-    # unlock; a new user is never asked to connect before seeing token payment.
-    conn = await get_connection(uid)
-    existing_handle = (
-        conn.instagram_username.lstrip("@").lower()
-        if conn and conn.instagram_username
-        else ""
-    )
-    already_unlocked = bool(
-        existing_handle
-        and await is_unlocked(uid, f"unfollowers:{existing_handle}")
-    )
-    if not already_unlocked and await get_credit_balance(uid) <= 0:
-        await state.set_state(FollowingStates.waiting_token_count)
-        await message.answer(await tu(uid, "unfollowers_buy_tokens_first"))
-        return
-
-    if not conn or conn.status != "connected":
-        extra = await tu(uid, "unfollowers_need_connect")
-        await message.answer(await tu(uid, "help_unfollowers") + extra)
-        return
-
+    uid = message.from_user.id
     lang = await require_user_lang(uid)
-    # The unfollower lookup is a separate, heavier operation than /following
-    # (it scrapes the following list AND scans the followers), so it unlocks +
-    # is priced under its own key, on the same shared token wallet.
-    handle = conn.instagram_username.lstrip("@").lower()
     unlock_key = f"unfollowers:{handle}"
-
-    # One cheap profile call → counts + privacy. Reused for pricing AND the
-    # scrape strategy, so no extra request is spent inside build_report.
     try:
-        following_count, follower_count, is_private, user_id = await precheck_counts(
-            handle
-        )
+        (
+            following_count,
+            follower_count,
+            is_private,
+            user_id,
+            cost_units,
+            tokens_needed,
+        ) = await _unfollowers_price(handle)
     except ValueError as exc:
         await message.answer(friendly_error(exc, lang))
         return
 
-    tokens_needed = 1
-    if not await is_unlocked(uid, unlock_key):
-        # Priced on what we actually scrape: following + the (capped) follower
-        # scan, so a mega-follower page isn't billed for its full count.
-        cost_units = token_cost_units(following_count, follower_count)
-        tokens_needed = tokens_required_for_count(cost_units)
-        if not await has_access(uid, unlock_key, tokens_needed):
-            await state.set_state(FollowingStates.waiting_token_count)
-            await message.answer(
-                await tu(
-                    uid,
-                    "unfollowers_need_tokens",
-                    username=handle,
-                    count=cost_units,
-                    tokens=tokens_needed,
-                )
-            )
-            return
+    if not await is_unlocked(uid, unlock_key) and not await has_paid_access(
+        uid, unlock_key, tokens_needed
+    ):
+        await _start_unfollowers_payment(
+            message,
+            state,
+            username=handle,
+            following_count=following_count,
+            cost_units=cost_units,
+            tokens_needed=tokens_needed,
+        )
+        return
 
     # Only after token access is ready do we ask for the sensitive private
     # session. No token is consumed until the report itself succeeds below.
@@ -204,7 +289,7 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
 
     # Spend tokens only after a successful fetch, so a failed/private lookup
     # never costs the user anything (mirrors the /following flow).
-    await grant_access(uid, unlock_key, tokens_needed)
+    await grant_paid_access(uid, unlock_key, tokens_needed)
     try:
         await status.delete()
     except TelegramBadRequest:
@@ -212,6 +297,85 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
     await send_unfollowers(message, report)
     tokens_left = await get_credit_balance(uid)
     await message.answer(await tu(uid, "following_tokens_status", tokens=tokens_left))
+
+
+@router.callback_query(F.data == "unfollowers:connect")
+async def start_unfollowers_connect(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
+    uid = callback.from_user.id
+    await state.set_state(UnfollowersStates.waiting_username)
+    await callback.message.edit_text(await tu(uid, "unfollowers_ask_username"))
+    await callback.answer()
+
+
+@router.message(
+    StateFilter(UnfollowersStates.waiting_username), ~F.text.startswith("/")
+)
+async def receive_unfollowers_username(message: Message, state: FSMContext) -> None:
+    uid = message.from_user.id
+    lang = await require_user_lang(uid)
+    username = parse_username((message.text or "").strip())
+    if not username:
+        await message.answer(await tu(uid, "connect_invalid_username"))
+        return
+
+    try:
+        following_count, _, _, _, cost_units, tokens_needed = (
+            await _unfollowers_price(username)
+        )
+    except ValueError as exc:
+        await message.answer(friendly_error(exc, lang))
+        return
+
+    from bot.services.following_access import has_paid_access
+
+    unlock_key = f"unfollowers:{username}"
+    if await has_paid_access(uid, unlock_key, tokens_needed):
+        await state.clear()
+        await send_connection_code(message.bot, message.chat.id, uid, username)
+        return
+
+    await _start_unfollowers_payment(
+        message,
+        state,
+        username=username,
+        following_count=following_count,
+        cost_units=cost_units,
+        tokens_needed=tokens_needed,
+    )
+
+
+@router.message(StateFilter(UnfollowersStates.waiting_receipt_photo), F.photo)
+async def receive_unfollowers_receipt(message: Message, state: FSMContext) -> None:
+    uid = message.from_user.id
+    data = await state.get_data()
+    username = data.get("unfollowers_username")
+    count = data.get("unfollowers_purchase_count")
+    amount = data.get("unfollowers_token_amount")
+    card = data.get("unfollowers_token_card")
+    await state.clear()
+
+    if not username or not count or not amount:
+        await message.answer(await tu(uid, "following_session_expired"))
+        return
+
+    await send_unfollowers_receipt_to_admins(
+        message.bot,
+        uid,
+        message.from_user.username,
+        username,
+        count,
+        amount,
+        card,
+        message.photo[-1].file_id,
+    )
+    await message.answer(await tu(uid, "unfollowers_receipt_received"))
+
+
+@router.message(StateFilter(UnfollowersStates.waiting_receipt_photo))
+async def receive_unfollowers_receipt_invalid(message: Message) -> None:
+    await message.answer(await tu(message.from_user.id, "following_receipt_need_photo"))
 
 
 @router.message(Command("following"))
@@ -334,7 +498,7 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
 
     support = settings.payment_support_username.lstrip("@")
     prefill = (
-        f"سلام، درخواست توکن Following/آنفالویاب\n"
+        f"سلام، درخواست توکن فالووینگ\n"
         f"تعداد: {count}\n"
         f"مبلغ واریزی: {amount_rial:,} ریال\n"
         f"شناسه: {uid}"
@@ -395,8 +559,8 @@ async def cmd_help_watchlist(message: Message) -> None:
 
 
 @router.message(Command("help_unfollowers"))
-async def cmd_help_unfollowers_legacy(message: Message) -> None:
-    await cmd_unfollowers(message)
+async def cmd_help_unfollowers_legacy(message: Message, state: FSMContext) -> None:
+    await cmd_unfollowers(message, state)
 
 
 @router.message(Command("settings"))

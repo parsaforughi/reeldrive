@@ -284,6 +284,31 @@ async def grant_access(telegram_id: int, target_username: str, tokens_needed: in
     return False
 
 
+async def has_paid_access(
+    telegram_id: int, target_username: str, tokens_needed: int = 1
+) -> bool:
+    """Paid-only gate used by the unfollower finder.
+
+    Unlike ``has_access``, this deliberately does not apply the Following
+    feature's free-page allowance. An existing unlock remains valid.
+    """
+    if await is_unlocked(telegram_id, target_username):
+        return True
+    return await get_credit_balance(telegram_id) >= tokens_needed
+
+
+async def grant_paid_access(
+    telegram_id: int, target_username: str, tokens_needed: int = 1
+) -> bool:
+    """Consume paid tokens and unlock an unfollower target after success."""
+    if await is_unlocked(telegram_id, target_username):
+        return True
+    if await _consume_credit(telegram_id, tokens_needed):
+        await _unlock_account(telegram_id, target_username)
+        return True
+    return False
+
+
 async def grant_credits(
     telegram_id: int, tokens: int, *, granted_by: int | None = None
 ) -> int:

@@ -94,7 +94,7 @@ async def send_receipt_to_admins(
     admin's proof to check against the bank account before approving."""
     who = f"@{username}" if username else str(target_id)
     caption = (
-        "🧾 رسید خرید توکن Following/آنفالویاب\n\n"
+        "🧾 رسید خرید توکن فالووینگ\n\n"
         f"کاربر: {who}\n"
         f"شناسه: {target_id}\n"
         f"تعداد: {count}\n"
@@ -111,6 +111,124 @@ async def send_receipt_to_admins(
             logger.warning(
                 "Could not send receipt to admin %s for token purchase", admin_id, exc_info=True
             )
+
+
+def _unfollowers_approve_kb(
+    target_id: int, count: int, instagram_username: str
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ تأیید پرداخت و ارسال کد اتصال",
+            callback_data=(
+                f"unfollowers:approve:{target_id}:{count}:{instagram_username}"
+            ),
+        )
+    )
+    return builder.as_markup()
+
+
+async def send_unfollowers_receipt_to_admins(
+    bot: Bot,
+    target_id: int,
+    telegram_username: str | None,
+    instagram_username: str,
+    count: int,
+    amount: int,
+    card: str,
+    photo_id: str,
+) -> None:
+    who = f"@{telegram_username}" if telegram_username else str(target_id)
+    caption = (
+        "🧾 رسید خرید توکن آنفالویاب\n\n"
+        f"کاربر: {who}\n"
+        f"شناسه: {target_id}\n"
+        f"پیج اینستاگرام: @{instagram_username}\n"
+        f"تعداد توکن: {count}\n"
+        f"مبلغ: {to_rial(amount):,} ریال\n"
+        f"کارت مقصد: {card}\n\n"
+        "بعد از چک کردن واریزی، روی دکمه زیر بزن:"
+    )
+    markup = _unfollowers_approve_kb(target_id, count, instagram_username)
+    for admin_id in notify_ids():
+        try:
+            await bot.send_photo(
+                admin_id,
+                photo_id,
+                caption=caption,
+                reply_markup=markup,
+            )
+        except Exception:
+            logger.warning(
+                "Could not send unfollower receipt to admin %s",
+                admin_id,
+                exc_info=True,
+            )
+
+
+@router.callback_query(F.data.startswith("unfollowers:approve:"))
+async def approve_unfollowers_purchase(callback: CallbackQuery) -> None:
+    admin_uid = callback.from_user.id
+    if not is_admin(admin_uid):
+        await callback.answer()
+        return
+
+    try:
+        _, _, target_raw, count_raw, instagram_username = callback.data.split(
+            ":", 4
+        )
+        target_id = int(target_raw)
+        count = int(count_raw)
+    except ValueError:
+        await callback.answer()
+        return
+
+    balance = await grant_credits(target_id, count, granted_by=admin_uid)
+    confirmed_line = f"\n\n✅ تأیید شد — موجودی جدید: {balance}"
+    base_caption = callback.message.caption or ""
+    await callback.message.edit_caption(
+        caption=base_caption + confirmed_line,
+        reply_markup=None,
+    )
+    await callback.answer("تأیید شد")
+
+    from bot.handlers.connect import send_connection_code
+    from bot.services.verification import get_connection
+
+    connection = await get_connection(target_id)
+    if (
+        connection
+        and connection.status == "connected"
+        and connection.instagram_username.lstrip("@").lower()
+        == instagram_username.lower()
+    ):
+        await callback.bot.send_message(
+            target_id,
+            await tu(
+                target_id,
+                "unfollowers_tokens_granted",
+                count=count,
+                balance=balance,
+            ),
+        )
+        return
+
+    await callback.bot.send_message(
+        target_id,
+        await tu(
+            target_id,
+            "unfollowers_payment_approved",
+            count=count,
+            balance=balance,
+            username=instagram_username,
+        ),
+    )
+    await send_connection_code(
+        callback.bot,
+        target_id,
+        target_id,
+        instagram_username,
+    )
 
 
 @router.callback_query(F.data.startswith("following:approve:"))

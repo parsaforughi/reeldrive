@@ -105,6 +105,18 @@ def following_token_pay_kb(
     return builder.as_markup()
 
 
+def unfollowers_connect_kb(lang: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=t("unfollowers_connect_button", lang),
+            callback_data="unfollowers:connect",
+            style=ButtonStyle.PRIMARY,
+        )
+    )
+    return builder.as_markup()
+
+
 def subscription_shop_kb(lang: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(

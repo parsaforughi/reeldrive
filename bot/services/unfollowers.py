@@ -117,8 +117,15 @@ def _choose_strategy(following_count: int, follower_count: int) -> tuple[str, in
 
 
 def token_cost_units(following_count: int, follower_count: int) -> int:
-    """Pricing basis — the accounts/requests the chosen strategy will spend."""
-    return _choose_strategy(following_count, follower_count)[1]
+    """Pricing basis requested by product: twice the Following count.
+
+    The unfollower finder compares both sides of the relationship, so its
+    displayed token quote is based on ``2 × following`` regardless of which
+    provider optimization is selected internally. ``follower_count`` remains
+    in the signature because callers already have both profile counts.
+    """
+    del follower_count
+    return max(0, following_count) * 2
 
 
 def _diff(a: list[FollowUser], b: list[FollowUser]) -> list[FollowUser]:

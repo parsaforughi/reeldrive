@@ -15,5 +15,10 @@ class FollowingStates(StatesGroup):
     waiting_receipt_photo = State()
 
 
+class UnfollowersStates(StatesGroup):
+    waiting_username = State()
+    waiting_receipt_photo = State()
+
+
 class ProStates(StatesGroup):
     waiting_receipt_photo = State()
