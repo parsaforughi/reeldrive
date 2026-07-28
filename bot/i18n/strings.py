@@ -175,15 +175,15 @@ After /search send:
         "fa": """🚶‍♂️ <b>آنفالویاب</b>
 
 کسانی که دنبال می‌کنی ولی تو را دنبال نمی‌کنند را پیدا می‌کند.
-ابتدا پیجت را با /connect متصل کن، بعد /unfollowers را بزن.""",
+ابتدا توکن تهیه کن؛ بعد پیجت را با /connect متصل کن و /unfollowers را بزن.""",
         "en": """🚶‍♂️ <b>Unfollowers</b>
 
 Finds accounts you follow that don't follow you back.
-Connect your page with /connect first, then run /unfollowers.""",
+Buy tokens first, then connect your page with /connect and run /unfollowers.""",
         "ar": """🚶‍♂️ <b>من ألغى المتابعة</b>
 
 يجد الحسابات التي تتابعها ولا تتابعك.
-اربط صفحتك بـ /connect أولاً ثم نفّذ /unfollowers.""",
+اشتر الرموز أولاً، ثم اربط صفحتك بـ /connect ونفّذ /unfollowers.""",
     },
     "unfollowers_loading": {
         "fa": "⏳ در حال بررسی فالوورها و فالووینگ‌ها… کمی صبر کن.",
@@ -733,6 +733,23 @@ Connect your page with /connect first, then run /unfollowers.""",
             "كم رمزاً تريد شراءه؟ أرسل رقماً (مثلاً {tokens}):"
         ),
     },
+    "unfollowers_buy_tokens_first": {
+        "fa": (
+            "🪙 برای استفاده از آنفالویاب اول باید توکن داشته باشی. بعد از فعال‌شدن "
+            "توکن، مرحله اتصال پیج نمایش داده می‌شه.\n\n"
+            "چند تا توکن می‌خوای بخری؟ یک عدد بین ۱ تا ۵۰ بفرست:"
+        ),
+        "en": (
+            "🪙 You need tokens before setting up your page for the unfollower "
+            "finder. Once activated, the page-connection step will be shown.\n\n"
+            "How many tokens do you want to buy? Send a number from 1 to 50:"
+        ),
+        "ar": (
+            "🪙 تحتاج إلى رموز قبل إعداد صفحتك لأداة إلغاء المتابعة. بعد تفعيلها "
+            "ستظهر خطوة ربط الصفحة.\n\n"
+            "كم رمزاً تريد شراءه؟ أرسل رقماً من 1 إلى 50:"
+        ),
+    },
     "following_invalid_token_count": {
         "fa": "عدد نامعتبره. یک عدد بین ۱ تا ۵۰ بفرست.",
         "en": "Invalid number. Send a number between 1 and 50.",
@@ -787,9 +804,9 @@ Connect your page with /connect first, then run /unfollowers.""",
         "ar": "✅ تم استلام الإيصال وإرساله للمراجعة. سيتم تفعيل الرموز بعد التأكيد.",
     },
     "following_tokens_granted_notify": {
-        "fa": "✅ {count} تا توکن برات فعال شد (مجموع: {balance}). حالا /following رو بزن و اسم پیج مورد نظرت رو بفرست.",
-        "en": "✅ {count} token(s) activated (balance: {balance}). Run /following now and send the page you want.",
-        "ar": "✅ تم تفعيل {count} رمز (الرصيد: {balance}). نفّذ /following الآن وأرسل الصفحة المطلوبة.",
+        "fa": "✅ {count} تا توکن برات فعال شد (مجموع: {balance}). برای آنفالویاب /unfollowers و برای لیست فالووینگ /following رو بزن.",
+        "en": "✅ {count} token(s) activated (balance: {balance}). Run /unfollowers for the unfollower finder or /following for a following list.",
+        "ar": "✅ تم تفعيل {count} رمز (الرصيد: {balance}). نفّذ /unfollowers لأداة إلغاء المتابعة أو /following لقائمة المتابَعين.",
     },
     "following_tokens_status": {
         "fa": "🪙 توکن باقی‌مونده: {tokens}",
@@ -802,9 +819,9 @@ Connect your page with /connect first, then run /unfollowers.""",
         "ar": "📖 {count} قصة",
     },
     "unfollowers_need_connect": {
-        "fa": "\n\n⚠️ ابتدا /connect را انجام بده.",
-        "en": "\n\n⚠️ Run /connect first.",
-        "ar": "\n\n⚠️ نفّذ /connect أولاً.",
+        "fa": "\n\n✅ توکن آماده‌ست؛ حالا /connect را انجام بده.",
+        "en": "\n\n✅ Your tokens are ready; now run /connect.",
+        "ar": "\n\n✅ الرموز جاهزة؛ نفّذ الآن /connect.",
     },
     "status_body": {
         "fa": (

@@ -4,11 +4,21 @@ import logging
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.i18n import tu
-from bot.services.following_access import grant_credits, is_admin, notify_ids, to_rial
+from bot.services.following_access import (
+    grant_credits,
+    is_admin,
+    notify_ids,
+    to_rial,
+)
 from bot.services.subscription import grant_pro
 
 router = Router()
@@ -84,7 +94,7 @@ async def send_receipt_to_admins(
     admin's proof to check against the bank account before approving."""
     who = f"@{username}" if username else str(target_id)
     caption = (
-        "🧾 رسید خرید توکن فالووینگ\n\n"
+        "🧾 رسید خرید توکن Following/آنفالویاب\n\n"
         f"کاربر: {who}\n"
         f"شناسه: {target_id}\n"
         f"تعداد: {count}\n"

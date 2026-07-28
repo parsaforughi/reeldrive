@@ -93,11 +93,6 @@ async def cmd_search(message: Message, state: FSMContext) -> None:
 @router.message(Command("unfollowers"))
 async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
     uid = message.from_user.id
-    conn = await get_connection(uid)
-    if not conn or conn.status != "connected":
-        extra = await tu(uid, "unfollowers_need_connect")
-        await message.answer(await tu(uid, "help_unfollowers") + extra)
-        return
     if not await guard_channels(message, uid):
         return
     if not following_ready():
@@ -120,6 +115,30 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
         token_cost_units,
     )
 
+    # Purchase comes before either connection step. A prior unfollower unlock
+    # is also valid access, even if the user has since spent the rest of their
+    # wallet. We only inspect an existing connection here to identify that
+    # unlock; a new user is never asked to connect before seeing token payment.
+    conn = await get_connection(uid)
+    existing_handle = (
+        conn.instagram_username.lstrip("@").lower()
+        if conn and conn.instagram_username
+        else ""
+    )
+    already_unlocked = bool(
+        existing_handle
+        and await is_unlocked(uid, f"unfollowers:{existing_handle}")
+    )
+    if not already_unlocked and await get_credit_balance(uid) <= 0:
+        await state.set_state(FollowingStates.waiting_token_count)
+        await message.answer(await tu(uid, "unfollowers_buy_tokens_first"))
+        return
+
+    if not conn or conn.status != "connected":
+        extra = await tu(uid, "unfollowers_need_connect")
+        await message.answer(await tu(uid, "help_unfollowers") + extra)
+        return
+
     lang = await require_user_lang(uid)
     # The unfollower lookup is a separate, heavier operation than /following
     # (it scrapes the following list AND scans the followers), so it unlocks +
@@ -135,12 +154,6 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
         )
     except ValueError as exc:
         await message.answer(friendly_error(exc, lang))
-        return
-
-    # A private own-page can only be read via the user's own secure session —
-    # checked before charging so a blocked lookup never costs tokens.
-    if is_private and not await advanced_instagram.has_session(uid):
-        await message.answer(await tu(uid, "unfollowers_private_needs_advanced"))
         return
 
     tokens_needed = 1
@@ -162,6 +175,12 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
             )
             return
 
+    # Only after token access is ready do we ask for the sensitive private
+    # session. No token is consumed until the report itself succeeds below.
+    if is_private and not await advanced_instagram.has_session(uid):
+        await message.answer(await tu(uid, "unfollowers_private_needs_advanced"))
+        return
+
     status = await message.answer(await tu(uid, "unfollowers_loading"))
     try:
         report = await build_report(
@@ -178,7 +197,7 @@ async def cmd_unfollowers(message: Message, state: FSMContext) -> None:
     except ValueError as exc:
         await status.edit_text(friendly_error(exc, lang))
         return
-    except Exception:  # noqa: BLE001 - surface a generic error, log the detail
+    except Exception:
         logger.exception("Unfollower analysis failed for uid=%s", uid)
         await status.edit_text(await tu(uid, "error_generic"))
         return
@@ -315,7 +334,7 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
 
     support = settings.payment_support_username.lstrip("@")
     prefill = (
-        f"سلام، درخواست توکن فالووینگ\n"
+        f"سلام، درخواست توکن Following/آنفالویاب\n"
         f"تعداد: {count}\n"
         f"مبلغ واریزی: {amount_rial:,} ریال\n"
         f"شناسه: {uid}"
