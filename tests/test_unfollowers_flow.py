@@ -116,8 +116,6 @@ class UnfollowersGateOrderTests(unittest.IsolatedAsyncioTestCase):
             message,
             state,
             username="target.page",
-            following_count=801,
-            cost_units=1602,
             tokens_needed=5,
         )
 
@@ -175,8 +173,6 @@ class UnfollowersGateOrderTests(unittest.IsolatedAsyncioTestCase):
                 message,
                 state,
                 username="target.page",
-                following_count=801,
-                cost_units=1602,
                 tokens_needed=5,
             )
 
@@ -190,7 +186,9 @@ class UnfollowersGateOrderTests(unittest.IsolatedAsyncioTestCase):
             unfollowers_token_card="1234",
         )
         self.assertEqual(translate.await_args.kwargs["count"], 3)
-        self.assertEqual(translate.await_args.kwargs["total_tokens"], 5)
+        self.assertNotIn("following", translate.await_args.kwargs)
+        self.assertNotIn("doubled", translate.await_args.kwargs)
+        self.assertNotIn("total_tokens", translate.await_args.kwargs)
         message.answer.assert_awaited_once_with(
             "unfollowers_token_pay_prompt", reply_markup=markup
         )

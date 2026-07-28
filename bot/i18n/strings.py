@@ -175,15 +175,15 @@ After /search send:
         "fa": """🚶‍♂️ <b>آنفالویاب</b>
 
 کسانی که دنبال می‌کنی ولی تو را دنبال نمی‌کنند را پیدا می‌کند.
-روی «اتصال پیج» بزن، آیدی پیج را وارد کن، هزینه بر اساس دو برابر Following محاسبه می‌شود و بعد از تأیید پرداخت کد اتصال می‌آید.""",
+روی «اتصال پیج» بزن، آیدی پیج را وارد کن و بعد از پرداخت کد اتصال را بگیر.""",
         "en": """🚶‍♂️ <b>Unfollowers</b>
 
 Finds accounts you follow that don't follow you back.
-Tap “Connect page”, enter the page username, pay the quote based on twice its Following count, then receive the connection code.""",
+Tap “Connect page”, enter the page username, pay, then receive the connection code.""",
         "ar": """🚶‍♂️ <b>من ألغى المتابعة</b>
 
 يجد الحسابات التي تتابعها ولا تتابعك.
-اضغط «ربط الصفحة»، أدخل المعرّف، ادفع التكلفة المحسوبة من ضعف عدد المتابَعين، ثم يصلك رمز الربط.""",
+اضغط «ربط الصفحة»، أدخل المعرّف، ادفع ثم استلم رمز الربط.""",
     },
     "unfollowers_loading": {
         "fa": "⏳ در حال بررسی فالوورها و فالووینگ‌ها… کمی صبر کن.",
@@ -745,11 +745,7 @@ Tap “Connect page”, enter the page username, pay the quote based on twice it
     "unfollowers_token_pay_prompt": {
         "fa": (
             "🪙 <b>هزینه آنفالویاب @{username}</b>\n\n"
-            "Following پیج: {following}\n"
-            "مبنای محاسبه: {following} × ۲ = {doubled}\n"
-            "توکن لازم: {total_tokens}\n"
-            "موجودی فعلی: {balance}\n"
-            "توکن موردنیاز برای خرید: {count}\n\n"
+            "توکن موردنیاز: <b>{count}</b>\n\n"
             "مبلغ واریزی: <b>{amount} ریال</b>\n"
             "شماره کارت: <code>{card}</code>\n"
             "به نام: {holder}\n\n"
@@ -757,17 +753,13 @@ Tap “Connect page”, enter the page username, pay the quote based on twice it
         ),
         "en": (
             "🪙 <b>Unfollower quote for @{username}</b>\n\n"
-            "Following: {following}\nCalculation: {following} × 2 = {doubled}\n"
-            "Required tokens: {total_tokens}\nCurrent balance: {balance}\n"
-            "Tokens to buy: {count}\n\nPayment: <b>{amount} Rial</b>\n"
+            "Required tokens: <b>{count}</b>\n\nPayment: <b>{amount} Rial</b>\n"
             "Card: <code>{card}</code>\nHolder: {holder}\n\n"
             "Send the receipt photo here. Your connection code will be sent automatically after approval."
         ),
         "ar": (
             "🪙 <b>تكلفة الأداة للصفحة @{username}</b>\n\n"
-            "المتابَعون: {following}\nالحساب: {following} × 2 = {doubled}\n"
-            "الرموز المطلوبة: {total_tokens}\nالرصيد الحالي: {balance}\n"
-            "الرموز المطلوب شراؤها: {count}\n\nالمبلغ: <b>{amount} ریال</b>\n"
+            "الرموز المطلوبة: <b>{count}</b>\n\nالمبلغ: <b>{amount} ریال</b>\n"
             "البطاقة: <code>{card}</code>\nالاسم: {holder}\n\n"
             "أرسل صورة الإيصال هنا وسيصلك رمز الربط تلقائياً بعد التأكيد."
         ),

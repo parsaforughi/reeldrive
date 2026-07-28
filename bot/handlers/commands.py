@@ -158,8 +158,6 @@ async def _start_unfollowers_payment(
     state: FSMContext,
     *,
     username: str,
-    following_count: int,
-    cost_units: int,
     tokens_needed: int,
 ) -> None:
     import urllib.parse
@@ -197,11 +195,7 @@ async def _start_unfollowers_payment(
             uid,
             "unfollowers_token_pay_prompt",
             username=username,
-            following=following_count,
-            doubled=cost_units,
-            total_tokens=tokens_needed,
             count=purchase_count,
-            balance=balance,
             amount=f"{amount_rial:,}",
             card=card,
             holder=holder,
@@ -240,7 +234,7 @@ async def _run_unfollowers_report(
             follower_count,
             is_private,
             user_id,
-            cost_units,
+            _cost_units,
             tokens_needed,
         ) = await _unfollowers_price(handle)
     except ValueError as exc:
@@ -254,8 +248,6 @@ async def _run_unfollowers_report(
             message,
             state,
             username=handle,
-            following_count=following_count,
-            cost_units=cost_units,
             tokens_needed=tokens_needed,
         )
         return
@@ -321,7 +313,7 @@ async def receive_unfollowers_username(message: Message, state: FSMContext) -> N
         return
 
     try:
-        following_count, _, _, _, cost_units, tokens_needed = (
+        _following_count, _, _, _, _cost_units, tokens_needed = (
             await _unfollowers_price(username)
         )
     except ValueError as exc:
@@ -340,8 +332,6 @@ async def receive_unfollowers_username(message: Message, state: FSMContext) -> N
         message,
         state,
         username=username,
-        following_count=following_count,
-        cost_units=cost_units,
         tokens_needed=tokens_needed,
     )
 
