@@ -195,6 +195,34 @@ class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
+    async def test_follower_search_forces_privacy_check_and_matches_exactly(self) -> None:
+        client = StubHikerClient(
+            [
+                {"response": {"users": [{"username": "Mutual.User"}]}},
+                [],
+            ]
+        )
+
+        found = await client.followers_follow_back(
+            "42", ["mutual.user", "ghost.user"], concurrency=1
+        )
+
+        self.assertEqual(found, {"mutual.user"})
+        self.assertEqual(
+            [params["force"] for _, params in client.calls], ["true", "true"]
+        )
+        self.assertEqual(
+            [params["query"] for _, params in client.calls],
+            ["mutual.user", "ghost.user"],
+        )
+
+    async def test_all_empty_large_search_is_not_reported_as_all_ghosts(self) -> None:
+        candidates = [f"candidate{index}" for index in range(20)]
+        client = StubHikerClient([[] for _ in candidates])
+
+        with self.assertRaises(HikerPrivateAccountError):
+            await client.followers_follow_back("42", candidates, concurrency=1)
+
     async def test_known_private_profile_does_not_call_following_endpoint(self) -> None:
         client = StubHikerClient([], private=True)
 

@@ -332,21 +332,38 @@ class HikerApiClient:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
         found: set[str] = set()
         semaphore = asyncio.Semaphore(max(1, concurrency))
+        completed = 0
+        nonempty = 0
 
         async with aiohttp.ClientSession(timeout=self._timeout()) as session:
 
             async def check(name: str) -> None:
+                nonlocal completed, nonempty
                 target = name.lstrip("@").lower()
                 async with semaphore:
                     try:
                         data = await self._get(
                             session,
                             "/v1/user/search/followers",
-                            {"user_id": user_id, "query": target},
+                            {
+                                "user_id": user_id,
+                                "query": target,
+                                # Public profiles may still hide their follow
+                                # graph. HikerAPI documents this flag for the
+                                # search endpoint specifically; without it the
+                                # endpoint can return an empty 200 response for
+                                # every real follower.
+                                "force": "true",
+                            },
                         )
                     except HikerNotFoundError:
+                        completed += 1
                         return
-                for item in _iter_search_users(data):
+                users = _iter_search_users(data)
+                completed += 1
+                if users:
+                    nonempty += 1
+                for item in users:
                     handle = (
                         str(item.get("username") or item.get("user_name") or "")
                         .lstrip("@")
@@ -357,6 +374,27 @@ class HikerApiClient:
                         return
 
             await asyncio.gather(*(check(n) for n in candidates))
+        logger.info(
+            "HikerAPI follower search: candidates=%d completed=%d "
+            "nonempty=%d matched=%d",
+            len(candidates),
+            completed,
+            nonempty,
+            len(found),
+        )
+        if len(candidates) >= 20 and completed == len(candidates) and nonempty == 0:
+            # A fully empty batch on a sizeable real following list is the
+            # response HikerAPI gives when follower search is privacy-blocked.
+            # It is not evidence that every candidate is a non-follower. Route
+            # the report through the owner's authenticated session instead of
+            # publishing a confidently wrong all-ghost result.
+            logger.warning(
+                "HikerAPI follower search was inconclusive: all %d responses empty",
+                len(candidates),
+            )
+            raise HikerPrivateAccountError(
+                "Follower search is privacy-blocked / inconclusive"
+            )
         return found
 
     async def _fetch_follow_g1(
