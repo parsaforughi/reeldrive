@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/og.png" alt="Reeldrive — Instagram, in Telegram" width="100%" />
+  <img src="docs/og.png" alt="NOURI — Reeldrive" width="100%" />
 </p>
 
 <p align="center">
