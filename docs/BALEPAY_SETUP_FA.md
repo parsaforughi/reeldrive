@@ -1,5 +1,5 @@
-# (حذف شد) پرداخت آنلاین Pro با بله‌پی
+# Removed: online Pro payment via BalePay
 
-این قابلیت به‌طور کامل از پروژه حذف شد. اشتراک Pro فقط از طریق Telegram Stars و کارت‌به‌کارت دستی (پشتیبانی) فعال می‌شود.
+This feature is gone. Pro is activated with Telegram Stars or a manual card-to-card receipt through support.
 
-اگر وردپرس/ووکامرسی که برای این قابلیت راه‌اندازی شده بود هنوز روی Railway فعال است، دیگر به آن نیازی نیست و می‌توان آن سرویس را حذف کرد.
+If a WordPress/WooCommerce service was left running for BalePay, it is unused and can be removed.

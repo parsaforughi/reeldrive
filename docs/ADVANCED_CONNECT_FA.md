@@ -1,61 +1,54 @@
-# اتصال پیشرفته اینستاگرام
+# Advanced Instagram connect
 
-این قابلیت فقط برای خواندن محتوایی است که اکانت متصل واقعاً اجازه دیدنش را دارد:
+This path only reads content the connected account is already allowed to see:
 
-- استوری پیج خصوصی‌ای که درخواست Follow اکانت متصل را پذیرفته است.
-- فهرست Following همان پیج خصوصی.
-- پیج‌های عمومی همچنان از HikerAPI خوانده می‌شوند.
-- session مشترک bridge هرگز برای درخواست کاربر استفاده نمی‌شود.
+- Stories on a private page that accepted a Follow from the connected account
+- The following list of that private page
+- Public pages still go through HikerAPI
+- The shared bridge session is never used for the user request
 
-## راه‌اندازی
+## Setup
 
-روی همه سرویس‌هایی که bot یا dashboard را اجرا می‌کنند یک کلید یکسان و قوی تنظیم کن:
+Set the same high-entropy key on every process that runs the bot or the dashboard:
 
 ```bash
 openssl rand -hex 32
 ```
 
-خروجی را با نام زیر در Railway بگذار:
-
 ```text
 INSTAGRAM_SESSION_ENCRYPTION_KEY=<random-hex-value>
 ```
 
-مقدار این کلید باید حداقل ۳۲ کاراکتر باشد؛ خروجی دستور بالا ۶۴ کاراکتر است.
+The key must be at least 32 characters. The command above yields 64.
 
-اختیاری، برای کاهش Challenge روی IP دیتاسنتر:
+Optional, to reduce Instagram Challenge on datacenter IPs:
 
 ```text
 ADVANCED_INSTAGRAM_PROXY=http://user:pass@host:port
 ```
 
-اتصال پیشرفته هیچ یوزرنیم یا پسوردی دریافت نمی‌کند. کاربر مقدار Cookie با نام
-`sessionid` را از مرورگری که داخل Instagram وارد است در Mini App می‌گذارد.
-اگر Instagram درخواست‌های session را از IP دیتاسنتر رد کند، پراکسی
-sticky/residential لازم می‌شود.
+Advanced connect does not take a username or password. The user pastes the `sessionid` cookie from a browser already logged into Instagram into the Mini App. If Instagram rejects the session from a datacenter IP, a sticky/residential proxy is required.
 
-کلید رمزگذاری را بعداً عوض نکن؛ با تغییر آن sessionهای قبلی قابل خواندن نیستند و کاربران باید دوباره متصل شوند.
+Do not rotate the encryption key later. Old sessions become unreadable and users must connect again.
 
-## تست دستی
+## Manual test
 
-1. در ربات `/advancedconnect` را بزن.
-2. در مرورگر وارد Instagram شو و از Cookies دامنه `instagram.com` فقط مقدار
-   `sessionid` را کپی کن.
-3. Mini App را باز کن و sessionid را در فرم بگذار.
-4. اکانت آزمایشی باید یک پیج خصوصی را Follow داشته باشد و درخواستش پذیرفته شده باشد.
-5. در ربات بفرست: `story private_username`
-6. سپس بفرست: `following private_username`
-7. همان دستورها را برای پیج عمومی تست کن تا مطمئن شوی مسیر HikerAPI تغییر نکرده است.
-8. از Mini App «قطع اتصال پیشرفته» را بزن و دوباره دستور خصوصی را امتحان کن؛ ربات باید درخواست اتصال پیشرفته بدهد.
+1. In the bot, run `/advancedconnect`.
+2. In a browser logged into Instagram, copy only the `sessionid` cookie for `instagram.com`.
+3. Open the Mini App and paste that value.
+4. The test account must Follow a private page that has accepted the request.
+5. In the bot, send `story private_username`.
+6. Then send `following private_username`.
+7. Repeat both on a public page to confirm the HikerAPI path is unchanged.
+8. In the Mini App, disconnect advanced connect and retry a private command. The bot should ask to connect again.
 
-## امنیت و محدودیت
+## Security and limits
 
-- یوزرنیم، پسورد و کد دومرحله‌ای برای اتصال پیشرفته دریافت نمی‌شود.
-- sessionid را داخل Telegram chat نفرست؛ این Cookie عملاً دسترسی کامل به حساب است.
-- sessionid، cookie و device state با رمزگذاری authenticated در PostgreSQL نگهداری می‌شوند.
-- داده خصوصی وارد cache مشترک HikerAPI نمی‌شود.
-- هر کاربر Client و قفل درخواست جدا دارد.
-- استفاده از session غیررسمی ممکن است باعث Challenge یا محدودیت موقت Instagram شود.
-- اگر session منقضی شود، وضعیت `reconnect_required` ثبت می‌شود و کاربر باید دوباره متصل شود.
-- «قطع اتصال پیشرفته» فقط نسخه رمزگذاری‌شده ReelDrive را حذف می‌کند و session
-  مرورگر کاربر را از Instagram logout نمی‌کند.
+- Username, password, and 2FA are not accepted for advanced connect.
+- Do not send `sessionid` in a Telegram chat. That cookie is full account access.
+- `sessionid`, cookies, and device state are stored with authenticated encryption in PostgreSQL.
+- Private data does not enter the shared HikerAPI cache.
+- Each user has a separate client and request lock.
+- An unofficial session can trigger an Instagram Challenge or a temporary limit.
+- If the session expires, status becomes `reconnect_required` and the user must connect again.
+- Disconnecting advanced connect deletes only Reeldrive's encrypted copy. It does not log the user's browser out of Instagram.

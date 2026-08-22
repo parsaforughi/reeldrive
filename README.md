@@ -19,7 +19,7 @@ Telegram bot for Instagram. Send a post or Reel. Connect a page. Download what t
 
 Also in chat: `following user` · `zip stories user` · `zip posts user` · `#tag` · `/search` · `/language`
 
-Persian, English, Arabic. Pro is Telegram Stars or a card receipt. Optional AI analysis of posts and uploaded video is Pro-gated. Admin dashboard and shop Mini App share one FastAPI app.
+The bot UI is English, Persian, and Arabic. Pro is Telegram Stars or a card receipt. Optional AI analysis of posts and uploaded video is Pro-gated. Admin dashboard and shop Mini App share one FastAPI app.
 
 ```bash
 python3.13 -m venv .venv && source .venv/bin/activate
