@@ -17,7 +17,7 @@ from bot.services.hikerapi import (
     hiker_client,
 )
 from bot.services.post_cache import CachedPost, cache_post
-from bot.utils import is_story_media_url, parse_story_ref
+from bot.utils import StoryRef, is_story_media_url, parse_story_ref
 
 logger = logging.getLogger(__name__)
 TMP = Path("/tmp/reeldrive")
@@ -219,18 +219,24 @@ class InstagramDownloader:
         highlights = await hiker_client.fetch_user_highlights(username)
         if index < 1 or index > len(highlights):
             raise ValueError(f"هایلایت #{index} وجود ندارد. تعداد: {len(highlights)}")
-        return await self._download_story_items(
-            highlights[index - 1].get("items") or []
-        )
+        highlight = highlights[index - 1]
+        items = extract_story_items(highlight.get("items") or [])
+        if not items:
+            pk = str(highlight.get("pk") or highlight.get("id") or "")
+            if pk:
+                items = await hiker_client.fetch_highlight_by_id(pk)
+        if not items:
+            raise ValueError("empty_highlight")
+        return await self._download_story_items(items)
 
     async def _media_result_from_story_items(
-        self, items: list[dict], url: str
+        self, items: list[dict], url: str, *, empty_key: str = "no_stories"
     ) -> MediaResult:
         if not items:
-            raise ValueError("no_stories")
+            raise ValueError(empty_key)
         downloaded = await self._download_story_items(items)
         if not downloaded:
-            raise ValueError("no_stories")
+            raise ValueError(empty_key)
         first = downloaded[0]
         if len(downloaded) > 1:
             media_type = "album"
@@ -255,10 +261,10 @@ class InstagramDownloader:
         pk = str(share.get("pk") or share.get("id") or "")
         if not pk:
             raise ValueError("story_not_found")
-        if share_type == "highlight":
+        if share_type in {"highlight", "highlights"}:
             items = await hiker_client.fetch_highlight_by_id(pk)
             if not items:
-                raise ValueError("story_not_found")
+                raise ValueError("highlight_not_found")
             return items
         try:
             return await hiker_client.fetch_story_by_id(pk)
@@ -267,6 +273,22 @@ class InstagramDownloader:
             if items:
                 return items
             raise ValueError("story_not_found") from None
+
+    async def _resolve_highlight_dicts(self, ref: StoryRef) -> list[dict]:
+        items: list[dict] = []
+        if ref.media_id:
+            try:
+                items = await hiker_client.fetch_highlight_by_id(ref.media_id)
+            except HikerNotFoundError:
+                items = []
+        if not items:
+            try:
+                items = await hiker_client.fetch_highlight_by_url(ref.url)
+            except HikerNotFoundError:
+                items = []
+        if not items:
+            raise ValueError("highlight_not_found")
+        return items
 
     async def _resolve_story_dicts(
         self, url: str, telegram_id: int | None
@@ -279,20 +301,7 @@ class InstagramDownloader:
             return await self._resolve_share_url(ref.url)
 
         if ref.kind == "highlight":
-            items: list[dict] = []
-            if ref.media_id:
-                try:
-                    items = await hiker_client.fetch_highlight_by_id(ref.media_id)
-                except HikerNotFoundError:
-                    items = []
-            if not items:
-                try:
-                    items = await hiker_client.fetch_highlight_by_url(ref.url)
-                except HikerNotFoundError:
-                    items = []
-            if not items:
-                raise ValueError("story_not_found")
-            return items
+            return await self._resolve_highlight_dicts(ref)
 
         if ref.media_id:
             try:
@@ -327,8 +336,16 @@ class InstagramDownloader:
         self, url: str, telegram_id: int | None = None
     ) -> MediaResult:
         if is_story_media_url(url):
+            ref = parse_story_ref(url)
             items = await self._resolve_story_dicts(url, telegram_id)
-            return await self._media_result_from_story_items(items, url)
+            empty_key = (
+                "highlight_not_found"
+                if ref and ref.kind == "highlight"
+                else "no_stories"
+            )
+            return await self._media_result_from_story_items(
+                items, url, empty_key=empty_key
+            )
 
         media = await hiker_client.fetch_media_by_url(url)
         if not media:

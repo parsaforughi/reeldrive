@@ -32,6 +32,8 @@ _KNOWN_VALUE_KEYS = frozenset(
         "advanced_connect_error",
         "no_stories",
         "story_not_found",
+        "empty_highlight",
+        "highlight_not_found",
     }
 )
 

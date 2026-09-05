@@ -65,7 +65,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
         "fa": f"""💬 <b>امکانات {NAME}</b>
 
 <b>⚡ دایرکت دانلود:</b> ۳ لینک رایگان، بعد Pro
-• پست / ریل / کاروسel / استوری
+• پست / ریل / کاروسel / استوری / هایلایت
 🛒 /subscribe
 
 <b>⭐ Pro:</b> دانلود نامحدود + AI — ۲۰ ستاره/ماه
@@ -78,7 +78,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
         "en": f"""💬 <b>{NAME} features</b>
 
 <b>⚡ Direct download:</b> 3 free links, then Pro
-• Post / Reel / carousel / story
+• Post / Reel / carousel / story / highlight
 🛒 /subscribe
 
 <b>⭐ Pro:</b> unlimited download + AI — 20 Stars/month
@@ -91,7 +91,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
         "ar": f"""💬 <b>ميزات {NAME}</b>
 
 <b>⚡ تحميل مباشر:</b> ٣ روابط مجاناً ثم Pro
-• منشور / ريل / كاروسel / قصة
+• منشور / ريل / كاروسel / قصة / هايلايت
 🛒 /subscribe
 
 <b>⭐ Pro:</b> تحميل غير محدود + AI — 20 نجمة/شهر
@@ -105,7 +105,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
     "help_direct": {
         "fa": f"""⚡ <b>دایرکت دانلود</b>
 
-<b>لینک</b> پست / ریل / استوری را بفرست — <b>۳ بار رایگان</b> با لینک مستقیم.
+<b>لینک</b> پست / ریل / استوری / هایلایت را بفرست — <b>۳ بار رایگان</b> با لینک مستقیم.
 بعد از آن: اشتراک Pro (۲۰ ⭐/ماه) — /subscribe
 
 پروفایل/استوری (اختیاری):
@@ -115,7 +115,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 <b>اتصال پیج:</b> /connect → کد را به {BRIDGE} بفرست.""",
         "en": f"""⚡ <b>Direct download</b>
 
-Send a <b>post / Reel / story link</b> — <b>3 free</b> direct-link downloads.
+Send a <b>post / Reel / story / highlight link</b> — <b>3 free</b> direct-link downloads.
 Then: Pro (20 ⭐/month) — /subscribe
 
 Profile/stories (optional):
@@ -125,7 +125,7 @@ Profile/stories (optional):
 <b>Connect:</b> /connect → send code to {BRIDGE}.""",
         "ar": f"""⚡ <b>تحميل مباشر</b>
 
-أرسل <b>رابط منشور / ريل / قصة</b> — <b>٣ مجاناً</b> برابط مباشر.
+أرسل <b>رابط منشور / ريل / قصة / هايلايت</b> — <b>٣ مجاناً</b> برابط مباشر.
 ثم: Pro (20 ⭐/شهر) — /subscribe
 
 الملف/القصص (اختياري):
@@ -640,6 +640,11 @@ Tap “Connect page”, enter the page username, pay, then receive the connectio
         "fa": "خالی بود.",
         "en": "Empty.",
         "ar": "فارغ.",
+    },
+    "highlight_not_found": {
+        "fa": "این هایلایت پیدا نشد یا خالی است.",
+        "en": "This highlight was not found or is empty.",
+        "ar": "هذا الهايلايت غير موجود أو فارغ.",
     },
     "no_stories": {
         "fa": "استوری فعالی نیست.",

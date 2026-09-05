@@ -2,9 +2,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from bot.services.hikerapi import extract_story_items
+from bot.services.hikerapi import extract_highlight_tray, extract_story_items
 from bot.services.instagram import InstagramDownloader, _story_id_matches
 from bot.utils import (
+    decode_instagram_share_code,
     is_story_media_url,
     parse_command,
     parse_media_url,
@@ -62,6 +63,15 @@ class StoryUrlParsingTests(unittest.TestCase):
             "https://www.instagram.com/s/aGlnaGxpZ2h0OjE4MTQ2MjE2Njk4MDIyMTc0/",
         )
         self.assertTrue(is_story_media_url(share or ""))
+        share_ref = parse_story_ref(share or "")
+        self.assertIsNotNone(share_ref)
+        assert share_ref is not None
+        self.assertEqual(share_ref.kind, "highlight")
+        self.assertEqual(
+            decode_instagram_share_code("aGlnaGxpZ2h0OjE4MTQ2MjE2Njk4MDIyMTc0"),
+            ("highlight", share_ref.media_id),
+        )
+        self.assertTrue((share_ref.media_id or "").isdigit())
 
     def test_redirect_and_reel_links_still_work(self) -> None:
         wrapped = (
@@ -104,6 +114,24 @@ class StoryPayloadTests(unittest.TestCase):
     def test_story_id_matches_pk_and_compound_id(self) -> None:
         self.assertTrue(_story_id_matches({"pk": 99, "id": "99_1"}, "99"))
         self.assertFalse(_story_id_matches({"pk": 11}, "99"))
+
+    def test_extract_highlight_tray_unwraps_response(self) -> None:
+        tray = extract_highlight_tray(
+            {
+                "response": {
+                    "tray": [{"pk": "1790", "title": "Travel", "items": []}],
+                    "status": "ok",
+                }
+            }
+        )
+        self.assertEqual(len(tray), 1)
+        self.assertEqual(tray[0]["title"], "Travel")
+
+    def test_extract_story_items_unwraps_nested_media(self) -> None:
+        items = extract_story_items(
+            [{"media": {"pk": "8", "media_type": 1, "thumbnail_url": "https://x/b.jpg"}}]
+        )
+        self.assertEqual(items[0]["pk"], "8")
 
 
 class StoryDownloadRoutingTests(unittest.IsolatedAsyncioTestCase):
@@ -177,6 +205,77 @@ class StoryDownloadRoutingTests(unittest.IsolatedAsyncioTestCase):
                     "https://www.instagram.com/stories/nasa/123/"
                 )
         self.assertEqual(str(ctx.exception), "story_not_found")
+
+    async def test_highlight_link_uses_highlight_endpoint(self) -> None:
+        downloader = InstagramDownloader()
+        item = {
+            "pk": "88",
+            "media_type": 1,
+            "thumbnail_url": "https://cdn.example/hl.jpg",
+        }
+        fake_path = Path("/tmp/reeldrive/hl.jpg")
+        with (
+            patch(
+                "bot.services.instagram.hiker_client.fetch_highlight_by_id",
+                new=AsyncMock(return_value=[item]),
+            ) as highlight_fetch,
+            patch(
+                "bot.services.instagram.hiker_client.fetch_media_by_url",
+                new=AsyncMock(),
+            ) as media_fetch,
+            patch.object(
+                downloader,
+                "_download_story_items",
+                new=AsyncMock(
+                    return_value=[
+                        type(
+                            "Item",
+                            (),
+                            {
+                                "path": fake_path,
+                                "is_video": False,
+                                "taken_at": "",
+                                "direct_url": "https://cdn.example/hl.jpg",
+                            },
+                        )()
+                    ]
+                ),
+            ),
+        ):
+            result = await downloader.download_media_url(
+                "https://www.instagram.com/stories/highlights/17901234567890123/"
+            )
+
+        highlight_fetch.assert_awaited_once_with("17901234567890123")
+        media_fetch.assert_not_awaited()
+        self.assertEqual(result.media_type, "photo")
+
+    async def test_highlight_index_fetches_items_by_id_when_tray_empty(self) -> None:
+        downloader = InstagramDownloader()
+        media = {
+            "pk": "9",
+            "media_type": 1,
+            "thumbnail_url": "https://cdn.example/c.jpg",
+        }
+        with (
+            patch(
+                "bot.services.instagram.hiker_client.fetch_user_highlights",
+                new=AsyncMock(return_value=[{"pk": "1790", "title": "X", "items": []}]),
+            ),
+            patch(
+                "bot.services.instagram.hiker_client.fetch_highlight_by_id",
+                new=AsyncMock(return_value=[media]),
+            ) as by_id,
+            patch.object(
+                downloader,
+                "_download_story_items",
+                new=AsyncMock(return_value=["downloaded"]),
+            ),
+        ):
+            result = await downloader.download_highlight_by_index("nasa", 1)
+
+        by_id.assert_awaited_once_with("1790")
+        self.assertEqual(result, ["downloaded"])
 
 
 if __name__ == "__main__":

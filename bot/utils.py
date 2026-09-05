@@ -1,3 +1,4 @@
+import base64
 import re
 from dataclasses import dataclass
 from urllib.parse import parse_qs, unquote, urlparse
@@ -12,7 +13,13 @@ INSTAGRAM_URL_RE = re.compile(
 
 STORY_URL_RE = re.compile(
     r"(?:https?://)?(?:www\.)?instagram\.com/"
-    r"stories/([a-zA-Z0-9._]{1,30})(?:/(\d+))?",
+    r"stories/([a-zA-Z0-9._]{1,30})(?:/(?:highlight:)?(\d+))?",
+    re.IGNORECASE,
+)
+
+HIGHLIGHT_URL_RE = re.compile(
+    r"(?:https?://)?(?:www\.)?instagram\.com/"
+    r"highlights?/(?:highlight:)?(\d+)",
     re.IGNORECASE,
 )
 
@@ -101,10 +108,33 @@ def _normalize_found_url(text: str, match: re.Match[str]) -> str:
     return snippet.split("?")[0].rstrip("/") + "/"
 
 
+def decode_instagram_share_code(code: str) -> tuple[str, str] | None:
+    """Decode /s/<base64> share codes like highlight:1814… or story:99."""
+    raw = (code or "").strip().rstrip("/")
+    if not raw:
+        return None
+    padded = raw + "=" * ((4 - len(raw) % 4) % 4)
+    decoded = ""
+    for decoder in (base64.urlsafe_b64decode, base64.b64decode):
+        try:
+            decoded = decoder(padded.encode()).decode("utf-8")
+            break
+        except (ValueError, UnicodeDecodeError):
+            continue
+    if ":" not in decoded:
+        return None
+    kind, pk = decoded.split(":", 1)
+    kind = kind.strip().lower()
+    pk = pk.strip()
+    if not kind or not pk:
+        return None
+    return kind, pk
+
+
 def parse_media_url(text: str) -> str | None:
-    """Find post/reel/story URL even if the message has extra text around it."""
+    """Find post/reel/story/highlight URL even if the message has extra text."""
     text = _unwrap_instagram_text(text)
-    for pattern in (INSTAGRAM_URL_RE, STORY_URL_RE, SHARE_URL_RE):
+    for pattern in (INSTAGRAM_URL_RE, STORY_URL_RE, HIGHLIGHT_URL_RE, SHARE_URL_RE):
         match = pattern.search(text)
         if match:
             return _normalize_found_url(text, match)
@@ -113,7 +143,11 @@ def parse_media_url(text: str) -> str | None:
 
 def is_story_media_url(url: str) -> bool:
     url = _unwrap_instagram_text(url)
-    return bool(STORY_URL_RE.search(url) or SHARE_URL_RE.search(url))
+    return bool(
+        STORY_URL_RE.search(url)
+        or HIGHLIGHT_URL_RE.search(url)
+        or SHARE_URL_RE.search(url)
+    )
 
 
 def parse_story_ref(url: str) -> StoryRef | None:
@@ -129,13 +163,22 @@ def parse_story_ref(url: str) -> StoryRef | None:
             username=None if kind == "highlight" else username,
             media_id=media_id,
         )
-    match = SHARE_URL_RE.search(normalized)
+    match = HIGHLIGHT_URL_RE.search(normalized)
     if match:
         return StoryRef(
-            kind="share",
+            kind="highlight",
             url=_normalize_found_url(normalized, match),
             media_id=match.group(1),
         )
+    match = SHARE_URL_RE.search(normalized)
+    if match:
+        share_url = _normalize_found_url(normalized, match)
+        decoded = decode_instagram_share_code(match.group(1))
+        if decoded and decoded[0] in {"highlight", "highlights"}:
+            return StoryRef(kind="highlight", url=share_url, media_id=decoded[1])
+        if decoded and decoded[0] in {"story", "stories"}:
+            return StoryRef(kind="story", url=share_url, media_id=decoded[1])
+        return StoryRef(kind="share", url=share_url, media_id=match.group(1))
     return None
 
 

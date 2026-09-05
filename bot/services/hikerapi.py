@@ -41,10 +41,27 @@ def _looks_like_media(item: dict) -> bool:
     )
 
 
+def flatten_media_items(items: list[dict]) -> list[dict]:
+    """Prefer nested `media` when a highlight/story wrapper has no CDN fields."""
+    result: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if _looks_like_media(item):
+            result.append(item)
+            continue
+        media = item.get("media")
+        if isinstance(media, dict) and _looks_like_media(media):
+            result.append(media)
+            continue
+        result.append(item)
+    return result
+
+
 def extract_story_items(data: object) -> list[dict]:
     """Normalize Hiker story/highlight payloads into a list of media dicts."""
     if isinstance(data, list):
-        return [item for item in data if isinstance(item, dict)]
+        return flatten_media_items([item for item in data if isinstance(item, dict)])
     if not isinstance(data, dict) or not data:
         return []
     if _looks_like_media(data):
@@ -52,17 +69,44 @@ def extract_story_items(data: object) -> list[dict]:
     for key in ("reel", "response", "story"):
         inner = data.get(key)
         if isinstance(inner, list):
-            return [item for item in inner if isinstance(item, dict)]
+            return flatten_media_items(
+                [item for item in inner if isinstance(item, dict)]
+            )
         if isinstance(inner, dict):
             items = inner.get("items")
             if isinstance(items, list):
-                return [item for item in items if isinstance(item, dict)]
+                return flatten_media_items(
+                    [item for item in items if isinstance(item, dict)]
+                )
             if _looks_like_media(inner):
                 return [inner]
     items = data.get("items")
     if isinstance(items, list):
-        return [item for item in items if isinstance(item, dict)]
+        return flatten_media_items([item for item in items if isinstance(item, dict)])
     return []
+
+
+def extract_highlight_tray(data: object) -> list[dict]:
+    """Normalize Hiker highlight-list payloads into tray highlight dicts."""
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if not isinstance(data, dict) or not data:
+        return []
+    for key in ("tray", "highlights"):
+        val = data.get(key)
+        if isinstance(val, list):
+            return [item for item in val if isinstance(item, dict)]
+    response = data.get("response")
+    if response is not None and response is not data:
+        return extract_highlight_tray(response)
+    return []
+
+
+def normalize_highlight_id(value: str) -> str:
+    text = str(value or "").strip()
+    if text.lower().startswith("highlight:"):
+        return text.split(":", 1)[1].strip()
+    return text
 
 
 def _iter_search_users(data: object) -> list[dict]:
@@ -599,11 +643,52 @@ class HikerApiClient:
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
+        hid = normalize_highlight_id(highlight_id)
+        candidates = [hid]
+        raw = str(highlight_id).strip()
+        if raw and raw not in candidates:
+            candidates.append(raw)
+
         async with aiohttp.ClientSession(timeout=self._timeout()) as session:
-            data = await self._get(
-                session, "/v2/highlight/by/id", {"id": highlight_id}
-            )
-        return extract_story_items(data)
+            for candidate in candidates:
+                try:
+                    data = await self._get(
+                        session, "/v1/highlight/by/id", {"id": candidate}
+                    )
+                except HikerNotFoundError:
+                    data = None
+                items = extract_story_items(data) if data is not None else []
+                if items:
+                    return items
+
+            last_error: HikerNotFoundError | None = None
+            for candidate in candidates:
+                items: list[dict] = []
+                page_id: str | None = None
+                try:
+                    for _ in range(_MAX_PAGES):
+                        params = {"id": candidate}
+                        if page_id:
+                            params["page_id"] = page_id
+                        data = await self._get(
+                            session, "/v2/highlight/by/id", params
+                        )
+                        items.extend(extract_story_items(data))
+                        page_id = (
+                            data.get("next_page_id")
+                            if isinstance(data, dict)
+                            else None
+                        )
+                        if not page_id:
+                            break
+                except HikerNotFoundError as exc:
+                    last_error = exc
+                    continue
+                if items:
+                    return items
+            if last_error is not None and not items:
+                raise last_error
+        return []
 
     async def fetch_highlight_by_url(self, url: str) -> list[dict]:
         if not self.ready:
@@ -614,7 +699,7 @@ class HikerApiClient:
         return extract_story_items(data)
 
     async def fetch_user_highlights(self, username: str) -> list[dict]:
-        """Highlight dicts, each already including its `items` (Story list)."""
+        """Highlight tray dicts. Media items are often missing until by-id."""
         if not self.ready:
             raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
 
@@ -623,7 +708,7 @@ class HikerApiClient:
             data = await self._get(
                 session, "/v1/user/highlights/by/username", {"username": handle}
             )
-        return data if isinstance(data, list) else []
+        return extract_highlight_tray(data)
 
     async def fetch_user_medias(self, username: str, limit: int) -> list[dict]:
         if not self.ready:
