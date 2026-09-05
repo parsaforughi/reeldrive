@@ -28,6 +28,43 @@ class HikerPrivateAccountError(HikerApiError):
     pass
 
 
+def _looks_like_media(item: dict) -> bool:
+    return any(
+        key in item
+        for key in (
+            "media_type",
+            "video_url",
+            "image_versions2",
+            "image_versions",
+            "thumbnail_url",
+        )
+    )
+
+
+def extract_story_items(data: object) -> list[dict]:
+    """Normalize Hiker story/highlight payloads into a list of media dicts."""
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if not isinstance(data, dict) or not data:
+        return []
+    if _looks_like_media(data):
+        return [data]
+    for key in ("reel", "response", "story"):
+        inner = data.get(key)
+        if isinstance(inner, list):
+            return [item for item in inner if isinstance(item, dict)]
+        if isinstance(inner, dict):
+            items = inner.get("items")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+            if _looks_like_media(inner):
+                return [inner]
+    items = data.get("items")
+    if isinstance(items, list):
+        return [item for item in items if isinstance(item, dict)]
+    return []
+
+
 def _iter_search_users(data: object) -> list[dict]:
     """Normalize the /user/search/followers response into a list of user dicts,
     tolerating the list / {"users": [...]} / {"response": {"users": [...]}}
@@ -524,7 +561,57 @@ class HikerApiClient:
             data = await self._get(
                 session, "/v1/user/stories/by/username", {"username": handle}
             )
-        return data if isinstance(data, list) else []
+        return extract_story_items(data)
+
+    async def fetch_story_by_url(self, url: str) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+            data = await self._get(session, "/v1/story/by/url", {"url": url})
+        items = extract_story_items(data)
+        if not items:
+            raise HikerNotFoundError("استوری پیدا نشد / Story not found")
+        return items
+
+    async def fetch_story_by_id(self, story_id: str) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+            data = await self._get(session, "/v1/story/by/id", {"id": story_id})
+        items = extract_story_items(data)
+        if not items:
+            raise HikerNotFoundError("استوری پیدا نشد / Story not found")
+        return items
+
+    async def fetch_share_by_url(self, url: str) -> dict:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+            data = await self._get(session, "/v1/share/by/url", {"url": url})
+        if not isinstance(data, dict) or not data:
+            raise HikerNotFoundError("لینک اشتراک پیدا نشد / Share link not found")
+        return data
+
+    async def fetch_highlight_by_id(self, highlight_id: str) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+            data = await self._get(
+                session, "/v2/highlight/by/id", {"id": highlight_id}
+            )
+        return extract_story_items(data)
+
+    async def fetch_highlight_by_url(self, url: str) -> list[dict]:
+        if not self.ready:
+            raise ValueError("HikerAPI تنظیم نشده / HikerAPI not configured")
+
+        async with aiohttp.ClientSession(timeout=self._timeout()) as session:
+            data = await self._get(session, "/v1/highlight/by/url", {"url": url})
+        return extract_story_items(data)
 
     async def fetch_user_highlights(self, username: str) -> list[dict]:
         """Highlight dicts, each already including its `items` (Story list)."""

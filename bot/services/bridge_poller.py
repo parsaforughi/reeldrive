@@ -317,7 +317,7 @@ class BridgePoller:
     ) -> None:
         if url:
             try:
-                result = await download_media_url(url)
+                result = await download_media_url(url, telegram_id=chat_id)
                 label = f"@{ig_username}" if ig_username else str(chat_id)
                 await record_download(chat_id, url, user_label=label)
                 await deliver_media_result(self._bot, chat_id, result)

@@ -1,12 +1,23 @@
 import re
 from dataclasses import dataclass
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 USERNAME_RE = re.compile(r"^@?([a-zA-Z0-9._]{1,30})$")
 
 INSTAGRAM_URL_RE = re.compile(
     r"(?:https?://)?(?:www\.)?instagram\.com/"
     r"(?:p|reel|reels|tv)/([A-Za-z0-9_-]+)",
+    re.IGNORECASE,
+)
+
+STORY_URL_RE = re.compile(
+    r"(?:https?://)?(?:www\.)?instagram\.com/"
+    r"stories/([a-zA-Z0-9._]{1,30})(?:/(\d+))?",
+    re.IGNORECASE,
+)
+
+SHARE_URL_RE = re.compile(
+    r"(?:https?://)?(?:www\.)?instagram\.com/s/([A-Za-z0-9_=+-]+)",
     re.IGNORECASE,
 )
 
@@ -39,6 +50,14 @@ class ParsedCommand:
     raw: str = ""
 
 
+@dataclass(frozen=True)
+class StoryRef:
+    kind: str
+    url: str
+    username: str | None = None
+    media_id: str | None = None
+
+
 def parse_username(text: str) -> str | None:
     text = text.strip()
     if not text or " " in text:
@@ -63,18 +82,61 @@ def parse_username(text: str) -> str | None:
     return None
 
 
-def parse_media_url(text: str) -> str | None:
-    """Find post/reel URL even if the message has extra text around it."""
+def _unwrap_instagram_text(text: str) -> str:
     text = (text or "").strip()
-    match = INSTAGRAM_URL_RE.search(text)
-    if not match:
-        return None
-    start = match.start()
-    snippet = text[start:].split()[0].rstrip(".,;)")
+    raw = text if "://" in text else f"https://{text.lstrip('/')}"
+    parsed = urlparse(raw)
+    host = parsed.netloc.lower()
+    if host in {"l.instagram.com", "www.l.instagram.com"}:
+        target = (parse_qs(parsed.query).get("u") or [None])[0]
+        if target:
+            return unquote(target)
+    return text
+
+
+def _normalize_found_url(text: str, match: re.Match[str]) -> str:
+    snippet = text[match.start() :].split()[0].rstrip(".,;)")
     if not snippet.lower().startswith("http"):
         snippet = "https://" + snippet.lstrip("/")
-    base = snippet.split("?")[0].rstrip("/")
-    return base + "/"
+    return snippet.split("?")[0].rstrip("/") + "/"
+
+
+def parse_media_url(text: str) -> str | None:
+    """Find post/reel/story URL even if the message has extra text around it."""
+    text = _unwrap_instagram_text(text)
+    for pattern in (INSTAGRAM_URL_RE, STORY_URL_RE, SHARE_URL_RE):
+        match = pattern.search(text)
+        if match:
+            return _normalize_found_url(text, match)
+    return None
+
+
+def is_story_media_url(url: str) -> bool:
+    url = _unwrap_instagram_text(url)
+    return bool(STORY_URL_RE.search(url) or SHARE_URL_RE.search(url))
+
+
+def parse_story_ref(url: str) -> StoryRef | None:
+    normalized = parse_media_url(url) or _unwrap_instagram_text(url)
+    match = STORY_URL_RE.search(normalized)
+    if match:
+        username = match.group(1).lower()
+        media_id = match.group(2)
+        kind = "highlight" if username == "highlights" else "story"
+        return StoryRef(
+            kind=kind,
+            url=_normalize_found_url(normalized, match),
+            username=None if kind == "highlight" else username,
+            media_id=media_id,
+        )
+    match = SHARE_URL_RE.search(normalized)
+    if match:
+        return StoryRef(
+            kind="share",
+            url=_normalize_found_url(normalized, match),
+            media_id=match.group(1),
+        )
+    return None
 
 
 def normalize_instagram_url(text: str) -> str:

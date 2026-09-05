@@ -149,7 +149,7 @@ async def _dispatch(
             uid,
             cmd.url,
         )
-        result = await download_media_url(cmd.url)
+        result = await download_media_url(cmd.url, telegram_id=uid)
         await record_download(
             uid,
             cmd.url,
