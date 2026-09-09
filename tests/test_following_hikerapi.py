@@ -4,10 +4,14 @@ import unittest
 from unittest.mock import AsyncMock, PropertyMock, patch
 
 from bot.services import following
+from bot.services.following import FollowingListUnavailable
 from bot.services.hikerapi import (
     HikerApiClient,
+    HikerEndpointDeprecatedError,
+    HikerHiddenFollowListError,
     HikerNotFoundError,
     HikerPrivateAccountError,
+    extract_follow_page,
 )
 from bot.utils import parse_command, parse_username
 
@@ -77,12 +81,36 @@ class FakeSession:
         return FakeRequest(self.outcomes.pop(0))
 
 
+class FollowPageParseTests(unittest.TestCase):
+    def test_gql_tuple_and_v2_items_shapes(self) -> None:
+        users, cursor = extract_follow_page(
+            [[{"username": "one"}], "cursor-2"]
+        )
+        self.assertEqual([user["username"] for user in users], ["one"])
+        self.assertEqual(cursor, "cursor-2")
+
+        users, cursor = extract_follow_page(
+            {
+                "response": {"items": [{"username": "two"}], "has_more": False},
+                "next_page_id": "ignored-when-has-more-false",
+            }
+        )
+        self.assertEqual([user["username"] for user in users], ["two"])
+        self.assertIsNone(cursor)
+
+
 class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
-    async def test_g1_paginates_without_fallback(self) -> None:
+    async def test_g2_paginates_without_fallback(self) -> None:
         client = StubHikerClient(
             [
-                [[{"username": "one"}], "cursor-2"],
-                [[{"username": "two"}], None],
+                {
+                    "response": {"users": [{"username": "one"}]},
+                    "next_page_id": "page-2",
+                },
+                {
+                    "response": {"users": [{"username": "two"}]},
+                    "next_page_id": None,
+                },
             ]
         )
 
@@ -91,41 +119,34 @@ class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([user["username"] for user in users], ["one", "two"])
         self.assertEqual(
             [path for path, _ in client.calls],
-            ["/g1/user/following", "/g1/user/following"],
+            ["/g2/user/following", "/g2/user/following"],
         )
-        self.assertEqual(client.calls[1][1]["end_cursor"], "cursor-2")
+        self.assertEqual(client.calls[1][1]["page_id"], "page-2")
+        self.assertNotIn("/g1/user/following", [path for path, _ in client.calls])
 
-    async def test_empty_g1_falls_back_to_g2(self) -> None:
+    async def test_empty_g2_falls_back_to_v1_chunk(self) -> None:
         client = StubHikerClient(
             [
-                [[], None],
-                {
-                    "response": {"users": [{"username": "visible"}]},
-                    "next_page_id": None,
-                },
+                {"response": {"users": []}, "next_page_id": None},
+                [[{"username": "visible"}], None],
             ]
         )
 
         users = await client.fetch_following("valid.user", 10)
 
         self.assertEqual([user["username"] for user in users], ["visible"])
-        self.assertEqual(client.calls[0][0], "/g1/user/following")
-        self.assertEqual(client.calls[1][0], "/g2/user/following")
+        self.assertEqual(client.calls[0][0], "/g2/user/following")
+        self.assertEqual(client.calls[1][0], "/v1/user/following/chunk")
 
-    async def test_g1_cursor_failure_falls_back_to_g2(self) -> None:
+    async def test_g2_cursor_failure_falls_back_to_v1(self) -> None:
         client = StubHikerClient(
             [
-                [[{"username": "partial"}], "broken-cursor"],
-                HikerNotFoundError("cursor expired"),
                 {
-                    "response": {
-                        "users": [
-                            {"username": "complete-one"},
-                            {"username": "complete-two"},
-                        ]
-                    },
-                    "next_page_id": None,
+                    "response": {"users": [{"username": "partial"}]},
+                    "next_page_id": "broken-cursor",
                 },
+                HikerNotFoundError("cursor expired"),
+                [[{"username": "complete-one"}, {"username": "complete-two"}], None],
             ]
         )
 
@@ -138,21 +159,21 @@ class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             [path for path, _ in client.calls],
             [
-                "/g1/user/following",
-                "/g1/user/following",
                 "/g2/user/following",
+                "/g2/user/following",
+                "/v1/user/following/chunk",
             ],
         )
 
-    async def test_g1_follower_cursor_failure_falls_back_to_g2(self) -> None:
+    async def test_g2_follower_cursor_failure_falls_back_to_v1(self) -> None:
         client = StubHikerClient(
             [
-                [[{"username": "partial"}], "broken-cursor"],
-                HikerNotFoundError("cursor expired"),
                 {
-                    "response": {"users": [{"username": "complete-follower"}]},
-                    "next_page_id": None,
+                    "response": {"users": [{"username": "partial"}]},
+                    "next_page_id": "broken-cursor",
                 },
+                HikerNotFoundError("cursor expired"),
+                [[{"username": "complete-follower"}], None],
             ]
         )
 
@@ -164,36 +185,53 @@ class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             [path for path, _ in client.calls],
             [
-                "/g1/user/followers",
-                "/g1/user/followers",
                 "/g2/user/followers",
+                "/g2/user/followers",
+                "/v1/user/followers/chunk",
             ],
         )
 
-    async def test_hidden_follow_list_is_classified_as_private(self) -> None:
+    async def test_v2_private_does_not_block_earlier_v1_success(self) -> None:
         client = StubHikerClient(
             [
-                [[{"username": "partial"}], "broken-cursor"],
-                HikerNotFoundError("cursor expired"),
                 {"response": {"users": []}, "next_page_id": None},
+                [[{"username": "from-v1"}], None],
+            ]
+        )
+
+        users = await client.fetch_following("valid.user", 10)
+
+        self.assertEqual([user["username"] for user in users], ["from-v1"])
+        self.assertEqual(
+            [path for path, _ in client.calls],
+            ["/g2/user/following", "/v1/user/following/chunk"],
+        )
+
+    async def test_hidden_follow_list_is_classified_after_all_current_methods(
+        self,
+    ) -> None:
+        client = StubHikerClient(
+            [
+                {"response": {"users": []}, "next_page_id": None},
+                [[], None],
                 [[], None],
                 HikerPrivateAccountError("follow graph hidden"),
             ]
         )
 
-        with self.assertRaises(HikerPrivateAccountError):
+        with self.assertRaises(HikerHiddenFollowListError):
             await client.fetch_following("valid.user", 10)
 
         self.assertEqual(
             [path for path, _ in client.calls],
             [
-                "/g1/user/following",
-                "/g1/user/following",
                 "/g2/user/following",
+                "/v1/user/following/chunk",
                 "/gql/user/following/chunk",
                 "/v2/user/following",
             ],
         )
+        self.assertEqual(client.calls[2][1].get("force"), "true")
 
     async def test_follower_search_forces_privacy_check_and_matches_exactly(self) -> None:
         client = StubHikerClient(
@@ -252,6 +290,25 @@ class HikerFollowingTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(HikerNotFoundError):
             await client._get(session, "/test", {"id": "1"})
+
+        self.assertEqual(session.calls, 1)
+
+    async def test_deprecated_endpoint_is_skipped_without_retry(self) -> None:
+        client = HikerApiClient()
+        session = FakeSession(
+            [
+                FakeResponse(
+                    410,
+                    {
+                        "exc_type": "EndpointDeprecated",
+                        "detail": "This endpoint is deprecated, Instagram no longer supports it.",
+                    },
+                )
+            ]
+        )
+
+        with self.assertRaises(HikerEndpointDeprecatedError):
+            await client._get(session, "/g1/user/following", {"user_id": "1"})
 
         self.assertEqual(session.calls, 1)
 
@@ -321,6 +378,57 @@ class FollowingCacheTests(unittest.IsolatedAsyncioTestCase):
             await following.fetch_following("empty.page", 100)
 
         self.assertEqual(provider.await_count, 2)
+
+    async def test_hidden_public_list_uses_viewer_session(self) -> None:
+        with (
+            patch.object(
+                type(following.hiker_client),
+                "ready",
+                new_callable=PropertyMock,
+                return_value=True,
+            ),
+            patch.object(
+                following.hiker_client,
+                "fetch_following",
+                new=AsyncMock(side_effect=HikerHiddenFollowListError("hidden")),
+            ),
+            patch(
+                "bot.services.advanced_instagram.advanced_instagram.has_session",
+                new=AsyncMock(return_value=True),
+            ),
+            patch(
+                "bot.services.advanced_instagram.advanced_instagram.fetch_following",
+                new=AsyncMock(return_value=[{"username": "from_session"}]),
+            ) as session_fetch,
+        ):
+            users = await following.fetch_following(
+                "public.page", telegram_id=101
+            )
+
+        self.assertEqual([user.username for user in users], ["from_session"])
+        session_fetch.assert_awaited_once()
+        self.assertFalse(any(key[0] == "public.page" for key in following._cache))
+
+    async def test_hidden_public_list_without_session_is_unavailable(self) -> None:
+        with (
+            patch.object(
+                type(following.hiker_client),
+                "ready",
+                new_callable=PropertyMock,
+                return_value=True,
+            ),
+            patch.object(
+                following.hiker_client,
+                "fetch_following",
+                new=AsyncMock(side_effect=HikerHiddenFollowListError("hidden")),
+            ),
+            patch(
+                "bot.services.advanced_instagram.advanced_instagram.has_session",
+                new=AsyncMock(return_value=False),
+            ),
+        ):
+            with self.assertRaises(FollowingListUnavailable):
+                await following.fetch_following("public.page", telegram_id=101)
 
 
 class UsernameParsingTests(unittest.TestCase):

@@ -661,6 +661,20 @@ Tap “Connect page”, enter the page username, pay, then receive the connectio
         "en": "No following found (or the list is private).",
         "ar": "لا توجد متابَعون (أو القائمة خاصة).",
     },
+    "following_list_unavailable": {
+        "fa": (
+            "اینستاگرام دیگر لیست فالووینگ این پیج را از API عمومی نمی‌دهد. "
+            "اگر پیج خودت است یا به آن دسترسی داری، اول /advancedconnect را بزن و دوباره امتحان کن."
+        ),
+        "en": (
+            "Instagram no longer exposes this following list through the public API. "
+            "If you own the page or have access, use /advancedconnect and try again."
+        ),
+        "ar": (
+            "إنستغرام لم يعد يعرض قائمة المتابَعين هذه عبر الواجهة العامة. "
+            "إذا كانت صفحتك أو لديك صلاحية، استخدم /advancedconnect ثم أعد المحاولة."
+        ),
+    },
     "following_count": {
         "fa": "➡️ {count} فالووینگ @{username}",
         "en": "➡️ {count} following of @{username}",
