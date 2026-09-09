@@ -30,6 +30,7 @@ _KNOWN_VALUE_KEYS = frozenset(
         "advanced_proxy_required",
         "advanced_feature_disabled",
         "advanced_connect_error",
+        "following_list_unavailable",
         "no_stories",
         "story_not_found",
         "empty_highlight",
