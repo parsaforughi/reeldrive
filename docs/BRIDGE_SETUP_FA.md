@@ -1,42 +1,34 @@
-# دایرکت اینستا → تلگرام (Bridge)
+# Instagram DMs to Telegram (bridge)
 
-ربات DM اکانت `@reeldrivebot` را از **API وب اینستاگرام** (`www.instagram.com`) می‌خواند.
-این روش با کوکی مرورگر کار می‌کند و خطای `467` / proxy ندارد.
+The bot reads DMs for `@reeldrivebot` through the Instagram web API (`www.instagram.com`). It uses a browser cookie and does not need a proxy for error `467`.
 
-فقط **یک متغیر** روی Railway:
+One variable:
 
 ```
-INSTAGRAM_BRIDGE_SESSION_ID=مقدار_کوکی_sessionid
+INSTAGRAM_BRIDGE_SESSION_ID=<sessionid cookie value>
 ```
 
-از مرورگر: لاگین `reeldrivebot` → DevTools → Application → Cookies → `instagram.com` → **`sessionid`**
-با `%3A` یا `:` هر دو کار می‌کند.
+In the browser: log in as `reeldrivebot` → DevTools → Application → Cookies → `instagram.com` → `sessionid`. `%3A` or `:` both work.
 
-Redeploy. در لاگ: `Bridge IG ready (web DM API)`.
+After restart, the log should show `Bridge IG ready (web DM API)`.
 
----
+## If DMs do not arrive
 
-## اگر DM نیامد
+The session expired or was revoked. Copy a fresh `sessionid`:
 
-session منقضی/باطل شده. کافی است **sessionid تازه** بگیری:
+1. Log in again as `reeldrivebot` in the browser
+2. Copy the new `sessionid` cookie
+3. Update `INSTAGRAM_BRIDGE_SESSION_ID` and restart
 
-1. در مرورگر دوباره با `reeldrivebot` لاگین کن
-2. کوکی `sessionid` تازه را کپی کن
-3. `INSTAGRAM_BRIDGE_SESSION_ID` را در Railway عوض کن → redeploy
+The log should again show `Bridge IG ready (web DM API)`.
 
-در لاگ باید `Bridge IG ready (web DM API)` بیاید.
+## If you see `TelegramConflictError`
 
----
+The bot is polling in two places (for example a host plus your Mac). Stop the extra process with Ctrl+C. Only one instance may poll.
 
-## اگر `TelegramConflictError` دیدی
+Not required: password, csrftoken, mid, proxy — only `sessionid`.
 
-ربات **دو جا** روشن است (مثلاً Railway + ترمینال مک). روی مک `Ctrl+C` بزن و فقط Railway بماند.
-
-**نیاز نیست:** پسورد، csrftoken، mid، proxy — فقط `sessionid`.
-
----
-
-## روی مک (تست محلی)
+## Local test on a Mac
 
 ```bash
 echo 'SESSIONID_HERE' > scripts/.bridge_sessionid
