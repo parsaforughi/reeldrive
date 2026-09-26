@@ -6,6 +6,7 @@ from aiogram.types import FSInputFile, Message
 from instagrapi.exceptions import LoginRequired
 
 from bot.config import settings
+from bot.services.pricing import monthly_stars
 from bot.handlers.download_helpers import (
     cleanup,
     send_media_result,
@@ -36,7 +37,7 @@ def _paywall_text(lang: str) -> str:
         "download_paywall",
         lang,
         free_total=settings.free_direct_downloads,
-        pro_stars=settings.pro_stars_price,
+        pro_stars=monthly_stars(),
     )
 
 

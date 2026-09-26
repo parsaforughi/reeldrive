@@ -204,8 +204,16 @@ class Settings(BaseSettings):
     download_requires_subscription: bool = True
     payment_support_username: str = "reeldrive"
     webapp_base_url: str = ""  # optional override; default = same host as dashboard
-    pro_stars_price: int = 20
-    pro_toman_monthly: int = 98000
+    # Pro pricing is cost-plus (see bot/services/pricing.py): each plan is
+    # priced at 2–2.5× the estimated per-user cost, converted at this rate.
+    usd_toman_rate: int = 230000
+    # Estimated monthly cost of one active Pro user, in USD:
+    #   AI: 40 gpt-4o analyses × ~$0.02 (≈1.6k in / ≈1.3k out tokens, 8 low-detail frames) = $0.80
+    #   HikerAPI: 200 downloads × ~2 requests × $0.001 = $0.40
+    #   Hosting/DB share: $0.10
+    pro_cost_usd_monthly: float = 1.30
+    # What Telegram pays the bot owner per Star when withdrawing.
+    stars_payout_usd: float = 0.013
     pro_subscription_days: int = 30
 
     # Following-list: must join these channels; every account looked up
