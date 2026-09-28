@@ -6,13 +6,19 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
+import bot.config as config
 from bot.config import settings
 from bot.handlers.admin import (
     send_receipt_to_admins,
     send_unfollowers_receipt_to_admins,
 )
 from bot.handlers.connect import send_connection_code
-from bot.handlers.following_shared import guard_channels, start_following_lookup
+from bot.handlers.following_shared import (
+    guard_channels,
+    reject_following_callback,
+    reject_if_following_disabled,
+    start_following_lookup,
+)
 from bot.handlers.status_helpers import (
     build_feed_text,
     build_myinstagram_text,
@@ -370,6 +376,8 @@ async def receive_unfollowers_receipt_invalid(message: Message) -> None:
 
 @router.message(Command("following"))
 async def cmd_following(message: Message, state: FSMContext) -> None:
+    if await reject_if_following_disabled(message, state):
+        return
     uid = message.from_user.id
     if not await guard_channels(message, uid):
         return
@@ -390,6 +398,8 @@ async def cancel_following(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "following:recheck")
 async def recheck_following_join(callback: CallbackQuery, state: FSMContext) -> None:
+    if await reject_following_callback(callback, state):
+        return
     uid = callback.from_user.id
     try:
         missing = await missing_channels(callback.bot, uid)
@@ -417,6 +427,8 @@ async def recheck_following_join(callback: CallbackQuery, state: FSMContext) -> 
 
 @router.message(StateFilter(FollowingStates.waiting_username), ~F.text.startswith("/"))
 async def receive_following_username(message: Message, state: FSMContext) -> None:
+    if await reject_if_following_disabled(message, state):
+        return
     uid = message.from_user.id
     lang = await require_user_lang(uid)
     text = (message.text or "").strip()
@@ -451,7 +463,14 @@ async def receive_following_username(message: Message, state: FSMContext) -> Non
 
 
 @router.callback_query(F.data.startswith("following:copy:"))
-async def copy_payment_value(callback: CallbackQuery) -> None:
+async def copy_payment_value(callback: CallbackQuery, state: FSMContext) -> None:
+    # Unfollowers reuses this callback. Only swallow it for an in-progress
+    # following-token purchase, so آنفالویاب card/amount buttons stay as they are.
+    if config.FOLLOWING_SERVICE_DISABLED:
+        current = await state.get_state()
+        if current and str(current).startswith("FollowingStates:"):
+            await reject_following_callback(callback, state)
+            return
     try:
         _, _, kind, value = callback.data.split(":")
     except ValueError:
@@ -467,6 +486,8 @@ async def copy_payment_value(callback: CallbackQuery) -> None:
 
 @router.message(StateFilter(FollowingStates.waiting_token_count))
 async def receive_token_count(message: Message, state: FSMContext) -> None:
+    if await reject_if_following_disabled(message, state):
+        return
     uid = message.from_user.id
     lang = await require_user_lang(uid)
     text = (message.text or "").strip()
@@ -510,6 +531,8 @@ async def receive_token_count(message: Message, state: FSMContext) -> None:
 
 @router.message(StateFilter(FollowingStates.waiting_receipt_photo), F.photo)
 async def receive_token_receipt(message: Message, state: FSMContext) -> None:
+    if await reject_if_following_disabled(message, state):
+        return
     uid = message.from_user.id
     data = await state.get_data()
     count = data.get("following_token_count")
@@ -529,7 +552,9 @@ async def receive_token_receipt(message: Message, state: FSMContext) -> None:
 
 
 @router.message(StateFilter(FollowingStates.waiting_receipt_photo))
-async def receive_token_receipt_invalid(message: Message) -> None:
+async def receive_token_receipt_invalid(message: Message, state: FSMContext) -> None:
+    if await reject_if_following_disabled(message, state):
+        return
     await message.answer(await tu(message.from_user.id, "following_receipt_need_photo"))
 
 

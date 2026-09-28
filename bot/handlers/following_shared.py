@@ -7,8 +7,9 @@ same channel-membership + per-account-token gate — no shortcuts.
 """
 
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
+import bot.config as config
 from bot.handlers.download_helpers import send_following
 from bot.i18n import require_user_lang, tu
 from bot.keyboards import following_join_kb
@@ -22,6 +23,44 @@ from bot.services.following_access import (
     tokens_required_for_count,
 )
 from bot.states import FollowingStates
+
+
+async def _clear_following_state(state: FSMContext | None) -> None:
+    """Leave other flows (آنفالویاب, Pro, connect) in whatever state they are in."""
+    if state is None:
+        return
+    current = await state.get_state()
+    if current and str(current).startswith("FollowingStates:"):
+        await state.clear()
+
+
+async def reject_if_following_disabled(
+    message: Message, state: FSMContext | None = None
+) -> bool:
+    """Stop a /following lookup or following-token purchase while the switch is on.
+
+    Returns True when the caller must not continue. Existing token balances,
+    admin grants, and already-submitted receipts are left untouched.
+    """
+    if not config.FOLLOWING_SERVICE_DISABLED:
+        return False
+    await _clear_following_state(state)
+    await message.answer(config.FOLLOWING_SERVICE_DISABLED_MESSAGE)
+    return True
+
+
+async def reject_following_callback(
+    callback: CallbackQuery, state: FSMContext | None = None
+) -> bool:
+    """Same gate as reject_if_following_disabled, for inline buttons."""
+    if not config.FOLLOWING_SERVICE_DISABLED:
+        return False
+    await _clear_following_state(state)
+    message = callback.message
+    if message is not None and hasattr(message, "answer"):
+        await message.answer(config.FOLLOWING_SERVICE_DISABLED_MESSAGE)
+    await callback.answer()
+    return True
 
 
 async def send_join_prompt(message: Message, uid: int, missing: list[str]) -> None:
@@ -56,6 +95,9 @@ async def start_following_lookup(
     a private/empty account doesn't cost anything either. Returns False if
     there was nothing to show (caller should already have sent an
     error/empty message in that case)."""
+    if await reject_if_following_disabled(message, state):
+        return False
+
     uid = message.from_user.id
 
     tokens_needed = 1
