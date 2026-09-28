@@ -85,6 +85,17 @@ def _to_asyncpg_url(url: str) -> str:
     return url
 
 
+# Temporary kill switch for the /following lookup and following-token purchases.
+# Set this to False to turn both back on. This is a code constant, not an env var.
+FOLLOWING_SERVICE_DISABLED = True
+
+FOLLOWING_SERVICE_DISABLED_MESSAGE = """\
+کاربر گرامی
+سرویس فالویینگ فعلا به دلیل محدودیت‌های اعمال شده از سمت متا در دسترس نیست
+
+به محض برطرف شدن محدودیت‌ها سرویس مجددا فعال خواهد شد"""
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",

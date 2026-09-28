@@ -13,7 +13,11 @@ from bot.handlers.download_helpers import (
     send_stories,
     send_zip,
 )
-from bot.handlers.following_shared import guard_channels, start_following_lookup
+from bot.handlers.following_shared import (
+    guard_channels,
+    reject_if_following_disabled,
+    start_following_lookup,
+)
 from bot.i18n import friendly_error, require_user_lang, t, tu
 from bot.keyboards import paywall_kb
 from bot.services.subscription import has_direct_link_download_access
@@ -94,6 +98,9 @@ async def handle_text(message: Message, state: FSMContext) -> None:
 
     if in_search:
         await state.clear()
+
+    if parsed.kind == "following" and await reject_if_following_disabled(message, state):
+        return
 
     if parsed.kind == "following" and not following_ready():
         await message.answer(await tu(uid, "error_hikerapi"))
@@ -187,6 +194,9 @@ async def _dispatch(
         return
 
     if cmd.kind == "following":
+        if await reject_if_following_disabled(message, state):
+            await status.delete()
+            return
         if state is None:
             await status.edit_text(await tu(uid, "error_generic"))
             return
