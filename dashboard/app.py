@@ -48,6 +48,8 @@ from bot.services.following_access import (
 from bot.services.hikerapi import hiker_client
 from bot.services.pricing import (
     is_allowed_plan_days,
+    monthly_stars,
+    monthly_tomans,
     plan_by_days,
     plan_stars,
     shop_plans_payload,
@@ -753,8 +755,8 @@ async def api_shop_info(body: WebAppBody):
     return {
         "telegram_id": telegram_id,
         "bot_name": settings.bot_name,
-        "pro_stars_monthly": settings.pro_stars_price,
-        "pro_toman_monthly": settings.pro_toman_monthly,
+        "pro_stars_monthly": monthly_stars(),
+        "pro_toman_monthly": monthly_tomans(),
         "plans": shop_plans_payload(),
         "pro_active": pro_active,
         "status_html": f"<strong>وضعیت:</strong> {status}",

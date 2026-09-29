@@ -68,7 +68,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
 • پست / ریل / کاروسel / استوری / هایلایت
 🛒 /subscribe
 
-<b>⭐ Pro:</b> دانلود نامحدود + AI — ۲۰ ستاره/ماه
+<b>⭐ Pro:</b> دانلود نامحدود + AI — /subscribe
 
 <b>🔐 اتصال پیج:</b> /connect → کد → دایرکت {BRIDGE}
 <b>🔓 اتصال پیشرفته:</b> /advancedconnect — استوری و Following خصوصی مجاز
@@ -116,7 +116,7 @@ Use the blue <b>Menu</b> button next to the chat 👇""",
         "en": f"""⚡ <b>Direct download</b>
 
 Send a <b>post / Reel / story / highlight link</b> — <b>3 free</b> direct-link downloads.
-Then: Pro (20 ⭐/month) — /subscribe
+Then: Pro — /subscribe
 
 Profile/stories (optional):
 • Username — <code>instagram</code>
@@ -126,7 +126,7 @@ Profile/stories (optional):
         "ar": f"""⚡ <b>تحميل مباشر</b>
 
 أرسل <b>رابط منشور / ريل / قصة / هايلايت</b> — <b>٣ مجاناً</b> برابط مباشر.
-ثم: Pro (20 ⭐/شهر) — /subscribe
+ثم: Pro — /subscribe
 
 الملف/القصص (اختياري):
 • اسم المستخدم — <code>instagram</code>
@@ -1075,7 +1075,7 @@ Tap “Connect page”, enter the page username, pay, then receive the connectio
             "🛒 <b>فروشگاه Pro — {name}</b>\n\n"
             "📌 {status}\n\n"
             "🎁 <b>رایگان:</b> {free_total} دانلود با لینک مستقیم\n"
-            "⭐ <b>Pro:</b> {pro_stars} ⭐ یا ۹۸,۰۰۰ تومان / ماه\n"
+            "⭐ <b>Pro:</b> {pro_stars} ⭐ یا {pro_tomans} تومان / ماه\n"
             "⚡ دایرکت دانلود فقط با Pro\n\n"
             "روش پرداخت: Stars یا کارت به کارت 👇"
         ),

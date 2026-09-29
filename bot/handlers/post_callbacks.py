@@ -5,6 +5,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, FSInputFile
 
 from bot.config import settings
+from bot.services.pricing import monthly_stars
 from bot.handlers.ai_analysis import run_ai_analysis_callback
 from bot.handlers.download_helpers import send_media_result
 from bot.i18n import friendly_error, require_user_lang, t, tu
@@ -25,7 +26,7 @@ async def _require_download_access(callback: CallbackQuery, lang: str) -> bool:
         return True
     await callback.answer()
     await callback.message.answer(
-        t("pro_paywall", lang, pro_stars=settings.pro_stars_price),
+        t("pro_paywall", lang, pro_stars=monthly_stars()),
         reply_markup=paywall_kb(lang),
     )
     return False

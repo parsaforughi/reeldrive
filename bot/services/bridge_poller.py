@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from aiogram import Bot
 
 from bot.config import settings
+from bot.services.pricing import monthly_stars
 from bot.handlers.download_helpers import deliver_media_result
 from bot.i18n import require_user_lang, t
 from bot.keyboards import paywall_kb
@@ -275,7 +276,7 @@ class BridgePoller:
                     t(
                         "download_paywall",
                         lang,
-                        pro_stars=settings.pro_stars_price,
+                        pro_stars=monthly_stars(),
                     ),
                     reply_markup=paywall_kb(lang),
                 )

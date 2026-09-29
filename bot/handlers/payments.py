@@ -18,7 +18,14 @@ from bot.services.following_access import (
     payment_surcharge,
     to_rial,
 )
-from bot.services.pricing import is_allowed_plan_days, plan_by_days, plan_stars, plan_tomans
+from bot.services.pricing import (
+    is_allowed_plan_days,
+    monthly_stars,
+    monthly_tomans,
+    plan_by_days,
+    plan_stars,
+    plan_tomans,
+)
 from bot.services.subscription import (
     PRO_PLANS,
     get_bot_user,
@@ -81,7 +88,8 @@ async def send_subscription_shop(
             "shop_body",
             lang,
             name=settings.bot_name,
-            pro_stars=settings.pro_stars_price,
+            pro_stars=monthly_stars(),
+            pro_tomans=f"{monthly_tomans():,}",
             days=settings.pro_subscription_days,
             free_total=settings.free_direct_downloads,
             status=status,
@@ -122,7 +130,7 @@ async def send_pro_invoice(bot: Bot, chat_id: int, user_id: int) -> None:
         prices=[
             LabeledPrice(
                 label=t("pro_price_label", lang, days=settings.pro_subscription_days),
-                amount=settings.pro_stars_price,
+                amount=monthly_stars(),
             )
         ],
     )

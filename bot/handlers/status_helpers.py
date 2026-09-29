@@ -1,4 +1,5 @@
 from bot.config import settings
+from bot.services.pricing import monthly_stars
 from bot.handlers.connect_hints import connected_usage_hint
 from bot.db.engine import async_session
 from bot.db.models import WatchlistEntry
@@ -44,7 +45,7 @@ async def build_status_text(telegram_id: int, username: str | None = None) -> st
             lang,
             left=left,
             total=settings.free_direct_downloads,
-            pro_stars=settings.pro_stars_price,
+            pro_stars=monthly_stars(),
         )
 
     if conn and conn.status == "connected":
@@ -84,7 +85,7 @@ async def build_settings_message(
         text += "\n\n" + t(
             "shop_upsell_short",
             lang,
-            pro_stars=settings.pro_stars_price,
+            pro_stars=monthly_stars(),
             free_total=settings.free_direct_downloads,
         )
     return text, kb
